@@ -21,6 +21,8 @@ approximate an icon that doesn't exist in that set.**
 
 ## Design
 
+- The full design-system reference lives in `.agents/skills/vercel-design-system/`
+  (sources https://vercel.com/design.md — fetch fresh before design work).
 - Match Vercel's dashboard, measured not guessed: when styling something new,
   open the real page (vercel.com dashboard) and read computed styles from the
   DOM before writing CSS.
