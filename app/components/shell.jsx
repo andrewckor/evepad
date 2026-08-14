@@ -13,7 +13,7 @@ import { AnimatePresence, motion } from "motion/react";
 
 // One spring for every panel/push animation so they move as a single surface.
 // High damping = fast, organic settle, no bounce, nothing linear.
-export const SPRING = { type: "spring", stiffness: 480, damping: 44 };
+import { SPRING } from "./motion.js";
 import dynamic from "next/dynamic";
 import ProjectPicker from "./project-picker.jsx";
 import ChatPanel from "../chat-panel.jsx";

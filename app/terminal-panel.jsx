@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SidebarRight } from "vercel-geist-icons";
 import { motion } from "motion/react";
-import { SPRING } from "./components/shell.jsx";
+import { SPRING } from "./components/motion.js";
 
 export default function TerminalPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onClose }) {
   const mount = useRef(null);
@@ -96,7 +96,7 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
       })();
 
       return () => ro.disconnect();
-    })();
+    })().catch(() => {}); // teardown aborts the stream mid-await — expected
 
     return () => {
       disposed = true;

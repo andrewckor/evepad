@@ -6,7 +6,7 @@
 
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
-import { SPRING } from "./components/shell.jsx";
+import { SPRING } from "./components/motion.js";
 import { SidebarRight, PlusCircle } from "vercel-geist-icons";
 import { Streamdown } from "streamdown";
 import {
@@ -44,7 +44,8 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
   const continuation = useRef(null); // follow-ups must echo the latest continuationToken
 
   // One long-lived NDJSON reader per session; events mutate the last assistant bubble.
-  const startStream = async (sid) => {
+  const startStream = (sid) => streamLoop(sid).catch(() => {}); // abort on unmount is expected
+  const streamLoop = async (sid) => {
     if (streamStarted.current) return;
     streamStarted.current = true;
     const res = await fetch(`/api/chat/stream?port=${project.localPort}&sessionId=${encodeURIComponent(sid)}`);
