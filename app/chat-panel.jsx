@@ -17,7 +17,7 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Spinner } from "@/components/ui/spinner";
 
-export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onNewChat, onClose }) {
+export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onNewChat, seed, onClose }) {
   // Same drag-resize contract as the terminal — one shared panel geometry.
   const startDrag = (e) => {
     e.preventDefault();
@@ -37,7 +37,7 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
     window.addEventListener("pointerup", up);
   };
   const [messages, setMessages] = useState([]); // {role, text, tools?}
-  const [input, setInput] = useState("");
+  const [input, setInput] = useState(seed ?? "");
   const [sessionId, setSessionId] = useState(null);
   const [waiting, setWaiting] = useState(false); // a turn is in flight
   const streamStarted = useRef(false);

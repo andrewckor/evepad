@@ -327,6 +327,118 @@ details.call .body{padding:0 13px 11px;border-top:1px solid var(--line)}
 details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim2);margin:10px 0 2px}
 .tname{color:var(--fg);font-family:var(--mono);font-size:12.5px}
 
+/* homepage agent cards */
+.home-head{display:flex;align-items:baseline;gap:14px;margin:6px 0 20px}
+.home-head h1{font-size:20px;font-weight:600;margin:0}
+.agentgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.agentcard{
+  display:flex;flex-direction:column;gap:9px;text-align:left;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:16px;cursor:pointer;transition:border-color .12s,background .12s;
+}
+.agentcard:hover{border-color:var(--line2);background:var(--panel)}
+.agentcard.new{align-items:flex-start;border-style:dashed}
+.agentcard.new:hover{border-color:var(--blue)}
+.newplus{font-size:20px;color:var(--dim2);line-height:1}
+.agentrow{display:flex;align-items:center;gap:9px;width:100%}
+.agentmeta{display:flex;align-items:center;gap:10px;font-size:12.5px;min-height:16px}
+.newinput{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--fg);padding:8px 11px;font:inherit;font-size:13.5px;outline:none;width:100%;
+}
+.newinput:focus{border-color:var(--line2)}
+
+/* build page (near-fullscreen) */
+.buildpage{display:grid;grid-template-columns:440px 1fr;height:calc(100dvh - 56px)}
+.buildcol{border-right:1px solid var(--line);padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.buildcol.chatmode{padding:0;overflow:hidden}
+.buildchat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+.bmsg.user{align-self:flex-end;max-width:88%}
+.bmsg-user{background:#0060d1;color:#fff;border-radius:14px 14px 4px 14px;padding:8px 13px;font-size:13.5px;white-space:pre-wrap}
+.bmsg.assistant{max-width:100%}
+.write-chip{
+  display:flex;align-items:center;gap:8px;justify-content:space-between;
+  border:1px solid rgba(69,222,157,.35);border-radius:8px;padding:4px 6px 4px 12px;margin-top:8px;
+  font-size:12px;color:var(--ok);
+}
+.write-chip.deleted{border-color:rgba(255,97,102,.4);color:var(--bad)}
+.buildflow{position:relative;background:var(--bg)}
+.buildflow .react-flow{background:var(--bg)}
+/* React Flow nodes carry our classes directly; style at node specificity so
+   the library's default node chrome (white box, 150px width) never wins. */
+.react-flow__node.gpill{
+  display:flex;align-items:center;justify-content:center;width:auto;height:auto;box-shadow:none;
+  border:1px solid var(--line2);border-radius:999px;background:var(--bg);
+  padding:9px 20px;font-size:14.5px;color:var(--fg);white-space:nowrap;cursor:pointer;
+}
+.react-flow__node.gpill:hover{border-color:#4a4a4a}
+.react-flow__node.gpill.empty{color:var(--dim)}
+.gpill em{font-style:normal;color:var(--dim2);font-size:11px}
+.react-flow__node.gagent{
+  width:auto;height:auto;box-shadow:none;border:none;
+  background:#fff;border-radius:999px;padding:10px 22px;cursor:default;
+}
+.agent-label{display:flex;align-items:center;justify-content:center;gap:9px}
+.agent-label b{color:#000;font-size:15px;font-weight:600}
+.agent-logo{display:inline-flex}
+.react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
+.react-flow__node.gbox{
+  width:auto;height:auto;box-shadow:none;padding:0;overflow:hidden;
+  border:1px solid var(--line2);border-radius:12px;background:var(--panel);
+  min-width:190px;cursor:default;
+}
+.toolbox{display:flex;flex-direction:column;text-align:left}
+.box-title{padding:9px 15px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--fg)}
+.box-item{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  width:100%;padding:3px 6px 3px 15px;min-width:210px;
+}
+.box-item:hover{background:var(--hover)}
+.box-name{font-size:13px;color:var(--fg);text-align:left;flex:1;padding:5px 0;cursor:pointer}
+.box-name:hover{color:var(--blue)}
+.box-actions{display:inline-flex;gap:2px;opacity:0;transition:opacity .12s}
+.box-item:hover .box-actions{opacity:1}
+.box-actions svg{width:13px;height:13px}
+.box-actions .del:hover{color:var(--bad)}
+.box-item.empty{color:var(--dim2);cursor:default;padding:7px 15px}
+.box-item.empty:hover{background:none}
+.circle-label{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%}
+.circle{
+  width:46px;height:46px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+  background:var(--panel2);border:1px solid var(--line2);
+}
+.circle-label i{font-style:normal;font-size:10.5px;color:var(--dim2);max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool-circle{color:var(--blue);font-family:var(--mono);font-size:12px;text-transform:uppercase}
+.api-badge{
+  border:1.5px solid var(--dim);border-radius:5px;padding:1px 4px;
+  font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.03em;
+}
+.react-flow__edge-path{stroke:var(--line2)!important}
+.gedge.dashed .react-flow__edge-path{stroke-dasharray:5}
+.react-flow__handle{opacity:0}
+.react-flow__controls{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.react-flow__controls-button{background:var(--panel);border-bottom:1px solid var(--line);fill:var(--dim)}
+.react-flow__controls-button:hover{background:var(--hover)}
+
+/* build panel */
+.build-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px}
+.build-idle{display:flex;flex-direction:column;gap:12px;font-size:13.5px}
+.build-prompt{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  color:var(--fg);padding:10px 12px;font:inherit;font-size:13.5px;outline:none;resize:vertical;
+}
+.build-prompt:focus{border-color:var(--line2)}
+.build-review{display:flex;flex-direction:column;gap:10px}
+.build-summary{display:flex;align-items:center;gap:9px;font-size:13px}
+.filechip{padding:1px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--dim);font-size:11.5px}
+.filechip.new{color:var(--ok);border-color:rgba(69,222,157,.4)}
+.build-code{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:12px;margin:0;max-height:46vh;overflow:auto;
+  font-family:var(--mono);font-size:12px;line-height:1.55;white-space:pre;
+}
+.build-result{border-top:1px solid var(--line);padding-top:12px;font-size:13.5px}
+
 /* chat panel (docked in the shared termside chrome) */
 .chat-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .chat-md{font-size:13.5px;line-height:1.55}

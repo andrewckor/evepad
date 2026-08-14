@@ -17,6 +17,7 @@ export const SPRING = { type: "spring", stiffness: 480, damping: 44 };
 import dynamic from "next/dynamic";
 import ProjectPicker from "./project-picker.jsx";
 import ChatPanel from "../chat-panel.jsx";
+
 import { I } from "./icons.jsx";
 
 const TerminalPanel = dynamic(() => import("../terminal-panel.jsx"), { ssr: false });
@@ -34,11 +35,13 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
   const project = q.get("project") ?? "";
 
   const isDetail = pathname.startsWith("/run/");
+  const isHome = pathname === "/";
+  const isBuild = pathname === "/build";
   const runId = isDetail ? decodeURIComponent(pathname.split("/")[2] ?? "") : null;
 
   const listHref = (patch = {}) => {
     const next = new URLSearchParams({ environment, period, project, ...patch });
-    return "/?" + next.toString();
+    return "/runs?" + next.toString();
   };
 
   // Switching projects always lands on that project's run list; a run id only
@@ -51,7 +54,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
     <>
       <div className="topbar">
         <AnimatePresence initial={false}>
-          {isDetail && (
+          {!isHome && (
             <motion.div
               key="back"
               initial={{ width: 0, opacity: 0, marginRight: -10 }}
@@ -60,7 +63,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
               transition={SPRING}
               style={{ overflow: "hidden", flexShrink: 0 }}
             >
-              <Link className="backbtn" href={listHref()} title="Back to Agent Runs">{I.back}</Link>
+              <Link className="backbtn" href={isDetail ? listHref() : "/"} title={isDetail ? "Back to Agent Runs" : "Back to Agents"}>{I.back}</Link>
             </motion.div>
           )}
         </AnimatePresence>
@@ -68,7 +71,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
         <div className="spacer" />
         <div className="crumbstack">
           <motion.div layout transition={SPRING} className="crumb-title">
-            {isDetail ? <Link href={listHref()}>Agent Runs</Link> : <span>Agent Runs</span>}
+            {isDetail ? <Link href={listHref()}>Agent Runs</Link> : <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>}
           </motion.div>
           <AnimatePresence>
             {isDetail && (
@@ -97,6 +100,16 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
             {I.terminal} Terminal
           </button>
         )}
+        {termProject && (
+          <Link
+            className="chatbtn"
+            data-on={pathname === "/build" ? "1" : "0"}
+            href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
+            title={`Build ${termProject.name} — generate tools with AI Gateway`}
+          >
+            {I.bolt} Build
+          </Link>
+        )}
         {isDetail && <span className="badge-env">{environment}</span>}
       </div>
 
@@ -111,6 +124,7 @@ function ShellInner({ children }) {
   // One companion-panel slot: chat OR terminal, never both.
   const [panel, setPanel] = useState(null);
   const [chatKey, setChatKey] = useState(0);
+  const [chatSeed, setChatSeed] = useState(null);
   // Terminal sidebar width lives here so the whole frame can shrink for it —
   // the terminal PUSHES content instead of overlapping it.
   const [termWidth, setTermWidth] = useState(380);
@@ -182,7 +196,8 @@ function ShellInner({ children }) {
           onSize={termDock === "right" ? setTermWidth : setTermHeight}
           clamp={termDock === "right" ? clampW : clampH}
           onResizing={setResizing}
-          onNewChat={() => setChatKey((k) => k + 1)}
+          onNewChat={() => { setChatSeed(null); setChatKey((k) => k + 1); }}
+          seed={chatSeed}
           onClose={() => setPanel(null)}
         />
       )}
