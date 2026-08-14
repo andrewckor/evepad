@@ -25,7 +25,7 @@ const TerminalPanel = dynamic(() => import("../terminal-panel.jsx"), { ssr: fals
 const fetcher = (url) => fetch(url).then((r) => r.json());
 const DEFAULT_PERIOD = "12h";
 
-function TopNav({ panel, setPanel, liveProject, termProject, setTermVariant }) {
+function TopNav({ panel, setPanel, liveProject, termProject }) {
   const pathname = usePathname();
   const router = useRouter();
   const q = useSearchParams();
@@ -96,7 +96,7 @@ function TopNav({ panel, setPanel, liveProject, termProject, setTermVariant }) {
           </button>
         )}
         {termProject && (
-          <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onClick={() => { setTermVariant("eve"); setPanel((p) => (p === "terminal" ? null : "terminal")); }} title={`Open a terminal running eve dev for ${termProject.name}`}>
+          <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))} title={`Open a terminal running eve dev for ${termProject.name}`}>
             {I.terminal} Terminal
           </button>
         )}
@@ -128,7 +128,6 @@ function ShellInner({ children }) {
   // Terminal sidebar width lives here so the whole frame can shrink for it —
   // the terminal PUSHES content instead of overlapping it.
   const [termWidth, setTermWidth] = useState(380);
-  const [termVariant, setTermVariant] = useState("eve");
   const [termHeight, setTermHeight] = useState(340);
   const [termDock, setTermDock] = useState("right");
   const [resizing, setResizing] = useState(false);
@@ -151,13 +150,6 @@ function ShellInner({ children }) {
   }, []);
   const setDock = (d) => { setTermDock(d); sessionStorage.setItem("termDock", d); };
 
-  // Pages deep in the tree (Build) can summon a terminal variant without prop
-  // threading: window event -> panel state.
-  useEffect(() => {
-    const open = (e) => { setTermVariant(e.detail?.variant ?? "eve"); setPanel("terminal"); };
-    window.addEventListener("cockpit:open-terminal", open);
-    return () => window.removeEventListener("cockpit:open-terminal", open);
-  }, []);
 
   const { data: projData } = useSWR("/api/projects", fetcher, { refreshInterval: 5000, keepPreviousData: true });
   const projects = projData?.projects ?? [];
@@ -173,8 +165,7 @@ function ShellInner({ children }) {
   // the terminal by hand on a stopped project still works (that click starts it).
   useEffect(() => {
     setPanel((p) => {
-      if (p === "terminal" && termVariant === "eve" && !termProject?.live) return null;
-      if (p === "terminal" && termVariant === "opencode" && !termProject?.localPath) return null;
+      if (p === "terminal" && !termProject?.live) return null;
       if (p === "chat" && !liveProject) return null;
       return p;
     });
@@ -192,7 +183,7 @@ function ShellInner({ children }) {
         }}
         transition={resizing ? { duration: 0 } : SPRING}
       >
-        <TopNav panel={panel} setPanel={setPanel} liveProject={liveProject} termProject={termProject} setTermVariant={setTermVariant} />
+        <TopNav panel={panel} setPanel={setPanel} liveProject={liveProject} termProject={termProject} />
         {children}
       </motion.div>
       <AnimatePresence>
@@ -213,9 +204,8 @@ function ShellInner({ children }) {
       )}
       {panel === "terminal" && termProject && (
         <TerminalPanel
-          key={termProject.name + ":" + termVariant}
+          key={termProject.name}
           project={termProject}
-          variant={termVariant}
           dock={termDock}
           onDock={setDock}
           size={termDock === "right" ? termWidth : termHeight}
