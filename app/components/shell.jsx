@@ -45,11 +45,17 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
     return "/runs?" + next.toString();
   };
 
-  // Switching projects always lands on that project's run list; a run id only
-  // belongs to one project, so staying on the detail page would be a lie.
+  // Switching projects keeps you on the page you're on (Build stays Build,
+  // Runs stays Runs). A run DETAIL is the exception: the id belongs to one
+  // project only, so it falls back to the new project's run list.
   // The environment selection is a GLOBAL setting — never rewritten here; the
   // data layer degrades gracefully when an env has nothing for the project.
-  const pickProject = (p) => router.push(listHref({ project: p.name }));
+  const pickProject = (p) =>
+    router.push(
+      isBuild
+        ? `/build?project=${encodeURIComponent(p.name)}&environment=${environment}&period=${period}`
+        : listHref({ project: p.name }),
+    );
 
   return (
     <>
