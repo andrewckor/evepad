@@ -43,12 +43,27 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
 
   // Switching projects always lands on that project's run list; a run id only
   // belongs to one project, so staying on the detail page would be a lie.
-  const pickProject = (p) =>
-    router.push(listHref({ project: p.name, environment: p.live ? environment : "production" }));
+  // The environment selection is a GLOBAL setting — never rewritten here; the
+  // data layer degrades gracefully when an env has nothing for the project.
+  const pickProject = (p) => router.push(listHref({ project: p.name }));
 
   return (
     <>
       <div className="topbar">
+        <AnimatePresence initial={false}>
+          {isDetail && (
+            <motion.div
+              key="back"
+              initial={{ width: 0, opacity: 0, marginRight: -10 }}
+              animate={{ width: 32, opacity: 1, marginRight: 0 }}
+              exit={{ width: 0, opacity: 0, marginRight: -10 }}
+              transition={SPRING}
+              style={{ overflow: "hidden", flexShrink: 0 }}
+            >
+              <Link className="backbtn" href={listHref()} title="Back to Agent Runs">{I.back}</Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <ProjectPicker value={project} onChange={pickProject} />
         <div className="spacer" />
         <div className="crumbstack">

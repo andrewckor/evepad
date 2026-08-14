@@ -40,6 +40,8 @@ const ago = (iso) => {
 };
 const statusClass = (s) => (s === "completed" ? "ok" : s === "failed" ? "bad" : "warn");
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+// Chip labels: abbreviate only where unambiguous — "prev" reads as "previous".
+const envShort = (e) => (e === "production" ? "prod" : e);
 
 function PeriodPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -63,19 +65,38 @@ function PeriodPicker({ value, onChange }) {
   );
 }
 
-// Vercel uses a single "Production ⌄" dropdown, not a segmented control.
+// Multi-select environments, Vercel-style: checkboxes + Select All. Value is a
+// comma list in the URL ("local,production").
 function EnvPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
+  const selected = value.split(",").map((e) => e.trim()).filter(Boolean);
+  const all = selected.length === ENVS.length;
+  // "All Environments" when everything is on; otherwise the explicit list
+  // ("Local + Preview") so you always see exactly what's selected.
+  const label = all ? "All Environments" : selected.map(cap).join(" + ") || "Local";
+
+  const toggle = (env) => {
+    const next = selected.includes(env) ? selected.filter((e) => e !== env) : [...selected, env];
+    if (next.length === 0) return; // at least one stays selected
+    onChange(ENVS.filter((e) => next.includes(e)).join(","));
+  };
+
   return (
     <div className="picker">
       <button onClick={() => setOpen((o) => !o)}>
-        <span>{cap(value)}</span>
+        <span>{label}</span>
         <span className="chev">{I.chevDown}</span>
       </button>
       {open && (
         <div className="menu" onMouseLeave={() => setOpen(false)}>
+          <button onClick={() => onChange(all ? "local" : ENVS.join(","))}>
+            {all ? "Deselect All" : "Select All"}
+          </button>
           {ENVS.map((o) => (
-            <button key={o} data-on={o === value ? "1" : "0"} onClick={() => { onChange(o); setOpen(false); }}>
+            <button key={o} onClick={() => toggle(o)}>
+              <span className={"cbx" + (selected.includes(o) ? " on" : "")}>
+                {selected.includes(o) && <svg viewBox="0 0 16 16" width="10" height="10"><path fill="none" stroke="currentColor" strokeWidth="2.2" d="M3 8.5l3.2 3L13 4.5"/></svg>}
+              </span>
               {cap(o)}
             </button>
           ))}
@@ -173,7 +194,19 @@ function Dashboard() {
   };
   const setParam = (k, v) => setParams({ [k]: v });
 
-  const isLocal = environment === "local";
+  // Environment is a global app setting: persist every change, and when the URL
+  // carries no environment (fresh visit, bare link), restore the last choice.
+  useEffect(() => {
+    const inUrl = q.get("environment");
+    if (inUrl) sessionStorage.setItem("env", inUrl);
+    else {
+      const saved = sessionStorage.getItem("env");
+      if (saved && saved !== "local") setParam("environment", saved);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.get("environment")]);
+
+  const isLocal = environment.split(",").includes("local");
   const { data, isLoading } = useSWR(
     `/api/runs?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`,
     fetcher,
@@ -195,17 +228,20 @@ function Dashboard() {
   const b = useMemo(() => buckets(sessions), [sessions]);
 
   const projectName = data?.project?.name ?? project;
-  const runHref = (runId) =>
-    `/run/${runId}?environment=${environment}&period=${period}&project=${encodeURIComponent(projectName)}`;
-  const detailKey = (runId) =>
-    `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(projectName)}`;
-  const warm = (runId) => {
-    preload(detailKey(runId), fetcher);
-    router.prefetch(runHref(runId));
+  const multiEnv = environment.includes(",");
+  // Each session knows which environment it came from — links must use THAT,
+  // not the (possibly multi) filter value.
+  const runHref = (s) =>
+    `/run/${s.runId}?environment=${s.environment ?? environment}&period=${period}&project=${encodeURIComponent(projectName)}`;
+  const detailKey = (s) =>
+    `/api/run/${encodeURIComponent(s.runId)}?environment=${s.environment ?? environment}&project=${encodeURIComponent(projectName)}`;
+  const warm = (s) => {
+    preload(detailKey(s), fetcher);
+    router.prefetch(runHref(s));
   };
   useEffect(() => {
     if (!isLocal) return;
-    for (const s of sessions.slice(0, 5)) warm(s.runId);
+    for (const s of sessions.slice(0, 5)) if ((s.environment ?? "local") === "local") warm(s);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLocal, sessions.length, environment, projectName]);
 
@@ -299,8 +335,11 @@ function Dashboard() {
             </thead>
             <tbody>
               {sessions.map((s) => (
-                <tr key={s.runId} onMouseEnter={() => warm(s.runId)} onClick={() => router.push(runHref(s.runId))}>
-                  <td className="title-cell">{s.title}</td>
+                <tr key={s.runId} onMouseEnter={() => warm(s)} onClick={() => router.push(runHref(s))}>
+                  <td className="title-cell">
+                    {multiEnv && <span className={"envchip" + (s.environment === "local" ? " loc" : s.environment === "production" ? " prod" : "")}>{envShort(s.environment)}</span>}
+                    {s.title}
+                  </td>
                   <td><span className="trigger-badge">{triggerIcon(s.trigger)} {cap(s.trigger)}</span></td>
                   <td className="num">{money(s.costUsd)}</td>
                   <td className="num">{kt(s.inputTokens)}</td>
