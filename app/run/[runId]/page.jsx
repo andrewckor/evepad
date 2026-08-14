@@ -23,10 +23,118 @@ const DEFAULT_PERIOD = "12h";
 const money = (n) => "$" + (Number(n) || 0).toFixed(4);
 const kt = (n) => {
   const v = Number(n) || 0;
-  return v >= 1000 ? (v / 1000).toFixed(1) + "K" : String(v);
+  if (v >= 1e6) return (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+  return v >= 1000 ? (v / 1000).toFixed(1).replace(/\.0$/, "") + "K" : String(v);
 };
-const dur = (ms) => (ms == null ? "—" : ms < 1000 ? ms + "ms" : (ms / 1000).toFixed(1) + "s");
+const dur = (ms) => {
+  if (ms == null) return "—";
+  if (ms < 1000) return ms + "ms";
+  const s = ms / 1000;
+  return (s < 10 ? s.toFixed(2).replace(/\.?0+$/, "") : Math.round(s)) + "s";
+};
+const ago = (iso) => {
+  const s = (Date.now() - new Date(iso)) / 1000;
+  if (s < 60) return Math.floor(s) + "s ago";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + " day" + (s < 172800 ? "" : "s") + " ago";
+};
 const statusClass = (s) => (s === "completed" ? "ok" : s === "failed" ? "bad" : "warn");
+
+import { I } from "../../components/icons.jsx";
+
+const W = { link: I.wrench, clock: I.clock, dollar: I.coins, chevRight: I.chevRight, chevDown: I.chevDown, copy: I.copy, external: I.external };
+
+// Minimal JSON syntax coloring in the Vercel style: strings green, literals red.
+function Json({ value }) {
+  const text = JSON.stringify(value, null, 2) ?? "";
+  const parts = text.split(/("(?:[^"\\]|\\.)*")|(\btrue\b|\bfalse\b|\bnull\b|-?\d+\.?\d*)/g);
+  return (
+    <pre className="json">
+      {parts.map((p, i) => {
+        if (p == null) return null;
+        if (/^"/.test(p)) {
+          // keys end with ": — leave them default; values go green
+          return <span key={i} className={parts[i + 2]?.startsWith?.(":") || text.indexOf(p + ":") !== -1 ? "j-key" : "j-str"}>{p}</span>;
+        }
+        if (/^(true|false|null|-?\d)/.test(p)) return <span key={i} className="j-lit">{p}</span>;
+        return <span key={i}>{p}</span>;
+      })}
+    </pre>
+  );
+}
+
+function Section({ title, right, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="sec">
+      <div className="sec-head" onClick={() => setOpen((o) => !o)}>
+        <h3>{title}</h3>
+        {right && <div onClick={(e) => e.stopPropagation()}>{right}</div>}
+        <div className="spacer" />
+        <span className={"sec-chev" + (open ? " open" : "")}>{I.chevDown}</span>
+      </div>
+      {open && children}
+    </div>
+  );
+}
+
+function Pills({ options, value, onChange }) {
+  return (
+    <span className="pills">
+      {options.map((o) => (
+        <button key={o} data-on={o === value ? "1" : "0"} onClick={() => onChange(o)}>{o}</button>
+      ))}
+    </span>
+  );
+}
+
+// Shape-matched skeleton: same layout as the loaded page, so nothing jumps.
+function DetailSkeleton() {
+  return (
+    <>
+      <div className="detail">
+        <div className="transcript">
+          <div className="sk bubble" />
+          <div className="sk turn" />
+          <div className="sk turn" style={{ opacity: 0.6 }} />
+        </div>
+        <div className="side">
+          {[90, 70, 80, 60, 75, 65].map((w, i) => (
+            <div key={i} className="sk line" style={{ width: `${w}%`, marginBottom: 12 }} />
+          ))}
+          <div className="sk turn" style={{ marginTop: 22 }} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+// One tool call rendered Vercel-style inside the Timeline: summary row with a
+// green duration bar, then Input/Output JSON blocks.
+// Collapsed by default like Vercel's, with a gray inline preview of the input
+// args after the tool name; click to expand the full Input/Output JSON.
+function TimelineCall({ call, maxMs }) {
+  const [open, setOpen] = useState(false);
+  const preview = call.input ? JSON.stringify(call.input).replace(/[{}"]/g, "").slice(0, 14) + "…" : "";
+  return (
+    <div className="tlitem">
+      <div className="tl" onClick={() => setOpen((o) => !o)} style={{ cursor: "pointer" }}>
+        <span className={call.status === "completed" ? "ok" : "warn"}>✓</span>
+        <span className="nm">{call.toolName} <span className="dim2">{preview}</span></span>
+        <span className="bar"><i style={{ width: `${Math.max(((call.durationMs ?? 0) / maxMs) * 100, 4)}%` }} /></span>
+        <span className="ms">{dur(call.durationMs)}</span>
+      </div>
+      {open && (
+        <div className="tlio">
+          <div className="io-label">Input</div>
+          <Json value={call.input} />
+          {call.output != null && (<><div className="io-label">Output</div><Json value={call.output} /></>)}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Detail({ runId }) {
   const router = useRouter();
@@ -39,17 +147,20 @@ function Detail({ runId }) {
   // Carry every filter back, or returning from a run silently resets them.
   const backHref = `/?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`;
 
-  const [tab, setTab] = useState("turns");
+  const tab = q.get("tab") ?? "turns";
+  const setTab = (t) => {
+    const next = new URLSearchParams(q.toString());
+    next.set("tab", t);
+    router.replace(`/run/${runId}?${next.toString()}`, { scroll: false });
+  };
+  const [inputView, setInputView] = useState("Markdown");
+  const [tlView, setTlView] = useState("Markdown");
   const isLocal = environment === "local";
 
   const { data: run, isLoading, error } = useSWR(
     `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(project)}`,
     fetcher,
-    {
-      refreshInterval: isLocal ? 2000 : 0,
-      revalidateOnFocus: isLocal,
-      keepPreviousData: true,
-    },
+    { refreshInterval: isLocal ? 2000 : 0, revalidateOnFocus: isLocal, keepPreviousData: true },
   );
 
   if (error) {
@@ -60,7 +171,7 @@ function Detail({ runId }) {
       </div>
     );
   }
-  if (isLoading && !run) return <div className="empty">Loading {environment} run…</div>;
+  if (isLoading && !run) return <DetailSkeleton />;
   if (!run) return <div className="empty">Run not found.</div>;
 
   const a = run.session.attributes ?? {};
@@ -89,128 +200,126 @@ function Detail({ runId }) {
 
   const calls = (selected?.steps ?? []).flatMap((s) => s.calls);
   const maxCall = Math.max(...calls.map((c) => c.durationMs ?? 0), 1);
-  const prompt = turns[0]?.messages.find((m) => m.type === "message.received")?.text ?? a["$eve.title"];
+  const selInput = selected?.messages.find((m) => m.type === "message.received")?.text ?? null;
+  const selFinal = selected ? [...selected.messages].reverse().find((m) => m.type === "message.completed")?.text : null;
+
+  const kvRows = [
+    ["Status", <span key="s" className={statusClass(run.session.status)}>{run.session.status}</span>],
+    // Vercel shows these as relative times.
+    ["Start Time", ago(selected?.startedAt ?? run.session.createdAt)],
+    ["End Time", selected?.endedAt ? ago(selected.endedAt) : "—"],
+    ["Duration", dur(selected?.durationMs)],
+    ["Workflow Run", <span key="w" className="mono">{run.session.runId.replace(/^wrun_/, "").slice(0, 14)}…</span>],
+    ["Model", ta["$eve.model"] ?? "—"],
+    ["Cost", money(ta["$eve.cost_usd"] ?? stepUsage.cost)],
+    ["Input Tokens", kt(ta["$eve.input_tokens"] ?? stepUsage.input)],
+    ["Cache Read Tokens", kt(ta["$eve.cache_read_tokens"] ?? stepUsage.cacheRead)],
+    ["Cache Write Tokens", kt(ta["$eve.cache_write_tokens"] ?? stepUsage.cacheWrite)],
+    ["Output Tokens", kt(ta["$eve.output_tokens"] ?? stepUsage.output)],
+  ];
 
   return (
     <>
-      <div className="topbar">
-        <div className="crumb">
-          {/* Must be <Link>, not <a>: a plain anchor does a full page load, which
-              destroys the SWR cache and makes every return a cold fetch. */}
-          <Link href={backHref}>Observability</Link><span>/</span>
-          <Link href={backHref}>Agent Runs</Link><span>/</span>
-          <b className="mono">{run.session.runId.replace(/^wrun_/, "")}</b>
-        </div>
-        <span className="badge">{environment}</span>
-        <div className="spacer" />
-        <div className="seg">
-          <button data-on={tab === "turns" ? "1" : "0"} onClick={() => setTab("turns")}>Turns</button>
-          <button data-on={tab === "metadata" ? "1" : "0"} onClick={() => setTab("metadata")}>Metadata</button>
-        </div>
-      </div>
-
       <div className="detail">
         <div className="transcript">
+          <div className="float-tabs">
+            <button className="tab" data-on={tab === "turns" ? "1" : "0"} onClick={() => setTab("turns")}>Turns</button>
+            <button className="tab" data-on={tab === "metadata" ? "1" : "0"} onClick={() => setTab("metadata")}>Metadata</button>
+          </div>
+          <div className="transcript-inner">
           {run.note && <div className="note">{run.note}</div>}
 
           {tab === "metadata" ? (
             <>
-              <div className="sec">
-                <h3>Session attributes</h3>
-                <pre>{JSON.stringify(a, null, 2)}</pre>
-              </div>
+              <div className="sec"><h3>Session attributes</h3><Json value={a} /></div>
               {run.childRuns.map((c) => (
-                <div className="sec" key={c.runId}>
-                  <h3>{c.workflowName}</h3>
-                  <pre>{JSON.stringify(c.attributes, null, 2)}</pre>
-                </div>
+                <div className="sec" key={c.runId}><h3>{c.workflowName}</h3><Json value={c.attributes} /></div>
               ))}
             </>
           ) : (
             <>
-              {prompt && <div className="bubble">{prompt}</div>}
               {turns.map((t) => {
                 const tc = t.steps.flatMap((s) => s.calls).length;
                 const cost = t.steps.reduce((n, s) => n + (s.usage?.costUsd ?? 0), 0);
+                const userMsg = t.messages.find((m) => m.type === "message.received")?.text;
                 const final = [...t.messages].reverse().find((m) => m.type === "message.completed")?.text;
                 return (
-                  <div
-                    key={t.turnId}
-                    className={"turncard" + (t.turnId === selected?.turnId ? "" : " plain")}
-                    onClick={() => selectTurn(t.turnId)}
-                  >
-                    <div className="turnhead">
-                      <span>🔧 {tc}</span>
-                      <span>⏱ {dur(t.durationMs)}</span>
-                      <span>💲 {money(cost)}</span>
-                      <div className="spacer" />
-                      <span className="mono dim2">{t.turnId}</span>
+                  <div key={t.turnId}>
+                    {userMsg && (
+                      <div className="bubble">
+                        {userMsg}
+                        {/^https?:\/\/\S+$/.test(userMsg.trim()) && (
+                          <a href={userMsg.trim()} target="_blank" rel="noreferrer" className="bubble-ext" onClick={(e) => e.stopPropagation()}>{I.external ?? "↗"}</a>
+                        )}
+                      </div>
+                    )}
+                    <div
+                      className={"turncard" + (t.turnId === selected?.turnId ? " sel" : "")}
+                      onClick={() => selectTurn(t.turnId)}
+                    >
+                      <div className="turnhead">
+                        <span className="stat">{W.link} {tc}</span>
+                        <span className="stat">{I.clock} {dur(t.durationMs)}</span>
+                        <span className="stat">{W.dollar} {money(cost)}</span>
+                        <div className="spacer" />
+                        <span className="dim2">{I.chevRight}</span>
+                      </div>
+                      {final && <div className="turnbody">{final}</div>}
                     </div>
-                    {final && <div className="turnbody">{final}</div>}
                   </div>
                 );
               })}
               {!turns.length && !run.note && <div className="empty">No turns recorded.</div>}
             </>
           )}
+          </div>
         </div>
 
         <div className="side">
-          <div className="sec">
-            <h3>{selected?.turnId ?? "session"}</h3>
-            <div className="kv"><span className="k">Status</span><span className={"v " + statusClass(run.session.status)}>{run.session.status}</span></div>
-            <div className="kv"><span className="k">Start Time</span><span className="v">{new Date(run.session.createdAt).toLocaleTimeString()}</span></div>
-            <div className="kv"><span className="k">Duration</span><span className="v">{dur(selected?.durationMs)}</span></div>
-            <div className="kv"><span className="k">Workflow Run</span><span className="v">{run.session.runId.replace(/^wrun_/, "").slice(0, 12)}…</span></div>
-            <div className="kv"><span className="k">Model</span><span className="v">{ta["$eve.model"] ?? "—"}</span></div>
-            <div className="kv"><span className="k">Cost</span><span className="v">{money(ta["$eve.cost_usd"] ?? stepUsage.cost)}</span></div>
-            <div className="kv"><span className="k">Input Tokens</span><span className="v">{kt(ta["$eve.input_tokens"] ?? stepUsage.input)}</span></div>
-            <div className="kv"><span className="k">Cache Read</span><span className="v">{kt(ta["$eve.cache_read_tokens"] ?? stepUsage.cacheRead)}</span></div>
-            <div className="kv"><span className="k">Cache Write</span><span className="v">{kt(ta["$eve.cache_write_tokens"] ?? stepUsage.cacheWrite)}</span></div>
-            <div className="kv"><span className="k">Output Tokens</span><span className="v">{kt(ta["$eve.output_tokens"] ?? stepUsage.output)}</span></div>
+          <div className="side-title">
+            <span className="mono">{selected?.turnId ?? "session"}</span>
+            <div className="spacer" />
+            <button className="copybtn" title="Copy run id" onClick={() => navigator.clipboard?.writeText(runId)}>{I.copy}</button>
           </div>
 
-          {selected && (
-            <div className="sec">
-              <h3>Timeline</h3>
-              {calls.map((c) => (
-                <div className="tl" key={c.callId}>
-                  <span className={c.status === "completed" ? "ok" : "warn"}>✓</span>
-                  <span className="nm">{c.toolName}</span>
-                  <span className="bar">
-                    <i style={{ left: 0, width: `${Math.max(((c.durationMs ?? 0) / maxCall) * 100, 4)}%` }} />
-                  </span>
-                  <span className="ms">{dur(c.durationMs)}</span>
-                </div>
-              ))}
-              {!calls.length && <div className="dim2 mono">no tool calls</div>}
-            </div>
+          <Section title="Metadata">
+            {kvRows.map(([k, v]) => (
+              <div className="kv" key={k}><span className="k">{k}</span><span className="v">{v}</span></div>
+            ))}
+          </Section>
+
+          {selInput != null && (
+            <Section title="Input" right={<Pills options={["Markdown", "Raw"]} value={inputView} onChange={setInputView} />}>
+              {inputView === "Raw" ? <Json value={selInput} /> : <div className="prose">{selInput}</div>}
+            </Section>
           )}
 
           {selected && (
-            <div className="sec">
-              <h3>Steps</h3>
+            <Section title="Timeline" right={<Pills options={["Markdown", "Raw"]} value={tlView} onChange={setTlView} />}>
+              {tlView === "Raw" ? (
+                <Json value={selected.steps} />
+              ) : (
+                <>
+                  {calls.map((c) => <TimelineCall key={c.callId} call={c} maxMs={maxCall} />)}
+                  {!calls.length && <div className="dim2 mono">no tool calls</div>}
+                  {selFinal && <div className="prose" style={{ marginTop: 10 }}>{selFinal}</div>}
+                </>
+              )}
+            </Section>
+          )}
+
+          {selected && (
+            <Section title="Steps" defaultOpen={false}>
               {selected.steps.map((s) => (
                 <div className="tool" key={s.stepIndex}>
-                  <div className="kv">
-                    <span className="k">step {s.stepIndex}</span>
-                    <span className="v">{s.finishReason ?? "—"}</span>
-                  </div>
+                  <div className="kv"><span className="k">step {s.stepIndex}</span><span className="v">{s.finishReason ?? "—"}</span></div>
                   {s.usage && (
-                    <div className="dim2 mono">
-                      {money(s.usage.costUsd)} · {s.usage.inputTokens} in / {s.usage.outputTokens} out
-                    </div>
+                    <div className="dim2 mono">{money(s.usage.costUsd)} · {s.usage.inputTokens} in / {s.usage.outputTokens} out</div>
                   )}
                   {s.generationId && <div className="dim2 mono">{s.generationId}</div>}
-                  {s.calls.map((c) => (
-                    <div key={c.callId}>
-                      <pre>← {JSON.stringify(c.input)}</pre>
-                      {c.output != null && <pre>→ {JSON.stringify(c.output)}</pre>}
-                    </div>
-                  ))}
                 </div>
               ))}
-            </div>
+            </Section>
           )}
         </div>
       </div>
