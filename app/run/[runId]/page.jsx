@@ -1,7 +1,23 @@
 "use client";
 
-import { useEffect, useState, use, Suspense } from "react";
+import { useState, use, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import useSWR from "swr";
+
+// Never blindly .json() a response: a non-JSON error body throws inside the render
+// and takes the whole page down with a 500 instead of showing the message.
+const fetcher = async (url) => {
+  const r = await fetch(url);
+  const text = await r.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = { error: text || r.statusText }; }
+  if (!r.ok) throw new Error(body.error ?? `Request failed (${r.status})`);
+  return body;
+};
+
+// Only used to round-trip the filter back to the dashboard; keep in sync with page.jsx.
+const DEFAULT_PERIOD = "12h";
 
 // Run attributes are always strings ($eve.cost_usd is "0.0011166"), so coerce.
 const money = (n) => "$" + (Number(n) || 0).toFixed(4);
@@ -16,28 +32,36 @@ function Detail({ runId }) {
   const router = useRouter();
   const q = useSearchParams();
   const environment = q.get("environment") ?? "local";
-  const selectedTurnId = q.get("selectedTurnId");
+  const period = q.get("period") ?? DEFAULT_PERIOD;
   const project = q.get("project") ?? "";
-  const backHref = `/?environment=${environment}&project=${encodeURIComponent(project)}`;
+  const selectedTurnId = q.get("selectedTurnId");
 
-  const [run, setRun] = useState(null);
+  // Carry every filter back, or returning from a run silently resets them.
+  const backHref = `/?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`;
+
   const [tab, setTab] = useState("turns");
+  const isLocal = environment === "local";
 
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      const r = await fetch(
-        `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(project)}`,
-      );
-      if (alive && r.ok) setRun(await r.json());
-    };
-    load();
-    if (environment !== "local") return () => { alive = false; };
-    const t = setInterval(load, 2000);
-    return () => { alive = false; clearInterval(t); };
-  }, [runId, environment, project]);
+  const { data: run, isLoading, error } = useSWR(
+    `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(project)}`,
+    fetcher,
+    {
+      refreshInterval: isLocal ? 2000 : 0,
+      revalidateOnFocus: isLocal,
+      keepPreviousData: true,
+    },
+  );
 
-  if (!run) return <div className="empty">Loading…</div>;
+  if (error) {
+    return (
+      <div className="empty">
+        {error.message}
+        <div style={{ marginTop: 14 }}><Link className="mono" href={backHref}>← back to Agent Runs</Link></div>
+      </div>
+    );
+  }
+  if (isLoading && !run) return <div className="empty">Loading {environment} run…</div>;
+  if (!run) return <div className="empty">Run not found.</div>;
 
   const a = run.session.attributes ?? {};
   const turns = run.turns ?? [];
@@ -71,8 +95,10 @@ function Detail({ runId }) {
     <>
       <div className="topbar">
         <div className="crumb">
-          <a href={backHref}>Observability</a><span>/</span>
-          <a href={backHref}>Agent Runs</a><span>/</span>
+          {/* Must be <Link>, not <a>: a plain anchor does a full page load, which
+              destroys the SWR cache and makes every return a cold fetch. */}
+          <Link href={backHref}>Observability</Link><span>/</span>
+          <Link href={backHref}>Agent Runs</Link><span>/</span>
           <b className="mono">{run.session.runId.replace(/^wrun_/, "")}</b>
         </div>
         <span className="badge">{environment}</span>
@@ -138,10 +164,10 @@ function Detail({ runId }) {
             <div className="kv"><span className="k">Workflow Run</span><span className="v">{run.session.runId.replace(/^wrun_/, "").slice(0, 12)}…</span></div>
             <div className="kv"><span className="k">Model</span><span className="v">{ta["$eve.model"] ?? "—"}</span></div>
             <div className="kv"><span className="k">Cost</span><span className="v">{money(ta["$eve.cost_usd"] ?? stepUsage.cost)}</span></div>
-            <div className="kv"><span className="k">Input Tokens</span><span className="v">{kt(Number(ta["$eve.input_tokens"] ?? stepUsage.input))}</span></div>
-            <div className="kv"><span className="k">Cache Read</span><span className="v">{kt(Number(ta["$eve.cache_read_tokens"] ?? stepUsage.cacheRead))}</span></div>
-            <div className="kv"><span className="k">Cache Write</span><span className="v">{kt(Number(ta["$eve.cache_write_tokens"] ?? stepUsage.cacheWrite))}</span></div>
-            <div className="kv"><span className="k">Output Tokens</span><span className="v">{kt(Number(ta["$eve.output_tokens"] ?? stepUsage.output))}</span></div>
+            <div className="kv"><span className="k">Input Tokens</span><span className="v">{kt(ta["$eve.input_tokens"] ?? stepUsage.input)}</span></div>
+            <div className="kv"><span className="k">Cache Read</span><span className="v">{kt(ta["$eve.cache_read_tokens"] ?? stepUsage.cacheRead)}</span></div>
+            <div className="kv"><span className="k">Cache Write</span><span className="v">{kt(ta["$eve.cache_write_tokens"] ?? stepUsage.cacheWrite)}</span></div>
+            <div className="kv"><span className="k">Output Tokens</span><span className="v">{kt(ta["$eve.output_tokens"] ?? stepUsage.output)}</span></div>
           </div>
 
           {selected && (

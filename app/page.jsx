@@ -1,14 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import useSWR, { preload } from "swr";
 
 const ENVS = ["local", "preview", "production"];
-const PERIODS = ["1h", "6h", "1d", "7d", "30d", "all"];
 
-const money = (n) => "$" + (n || 0).toFixed(4);
-const kt = (n) => (n >= 1000 ? (n / 1000).toFixed(1) + "K" : String(n || 0));
+// Same period set and labels Vercel's Agent Runs uses.
+const PERIODS = [
+  ["5m", "Last 5 min"], ["15m", "Last 15 min"], ["1h", "Last hour"],
+  ["6h", "Last 6 hours"], ["12h", "Last 12 hours"], ["1d", "Last 24 hours"],
+  ["3d", "Last 3 days"], ["7d", "Last 7 days"], ["14d", "Last 14 days"],
+  ["30d", "Last 30 days"],
+];
+const DEFAULT_PERIOD = "12h";
+const periodLabel = (v) => PERIODS.find(([k]) => k === v)?.[1] ?? v;
+
+const fetcher = (url) => fetch(url).then((r) => r.json());
+
+const money = (n) => "$" + (Number(n) || 0).toFixed(4);
+const kt = (n) => {
+  const v = Number(n) || 0;
+  return v >= 1000 ? (v / 1000).toFixed(1) + "K" : String(v);
+};
 const dur = (ms) => (ms == null ? "—" : ms < 1000 ? ms + "ms" : (ms / 1000).toFixed(1) + "s");
 const ago = (iso) => {
   const s = (Date.now() - new Date(iso)) / 1000;
@@ -23,25 +37,18 @@ const statusClass = (s) => (s === "completed" ? "ok" : s === "failed" ? "bad" : 
 // through its .vercel/project.json rather than by name.
 export function ProjectPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
-  const [projects, setProjects] = useState([]);
+  const { data } = useSWR("/api/projects", fetcher, {
+    refreshInterval: 5000,
+    keepPreviousData: true,
+  });
 
-  useEffect(() => {
-    const load = async () => {
-      const r = await fetch("/api/projects");
-      const d = await r.json();
-      setProjects(d.projects ?? []);
-    };
-    load();
-    const t = setInterval(load, 5000);
-    return () => clearInterval(t);
-  }, []);
-
+  const projects = data?.projects ?? [];
   const current = projects.find((p) => p.name === value) ?? projects.find((p) => p.live) ?? projects[0];
   const live = projects.filter((p) => p.live);
   const rest = projects.filter((p) => !p.live);
 
   const Row = (p) => (
-    <button key={p.name + p.localPort} onClick={() => { onChange(p.name); setOpen(false); }}>
+    <button key={p.name + p.localPort} onClick={() => { onChange(p); setOpen(false); }}>
       <span className={"dot" + (p.live ? " on" : "")} />
       <span>{p.name}</span>
       <span className="sub">{p.live ? `:${p.localPort}` : p.source === "vercel" ? "remote" : ""}</span>
@@ -62,6 +69,28 @@ export function ProjectPicker({ value, onChange }) {
           {rest.length > 0 && <div className="hd">vercel projects</div>}
           {rest.map(Row)}
           {!projects.length && <div className="hd">no projects found</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PeriodPicker({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="picker">
+      <button onClick={() => setOpen((o) => !o)}>
+        <span className="dim2">🗓</span>
+        <span>{periodLabel(value)}</span>
+        <span className="dim2">▾</span>
+      </button>
+      {open && (
+        <div className="menu right" onMouseLeave={() => setOpen(false)}>
+          {PERIODS.map(([k, label]) => (
+            <button key={k} data-on={k === value ? "1" : "0"} onClick={() => { onChange(k); setOpen(false); }}>
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -111,34 +140,33 @@ function Dashboard() {
   const router = useRouter();
   const q = useSearchParams();
   const environment = q.get("environment") ?? "local";
-  const period = q.get("period") ?? "7d";
+  const period = q.get("period") ?? DEFAULT_PERIOD;
   const project = q.get("project") ?? "";
 
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  const setParam = (k, v) => {
+  const setParams = (patch) => {
     const next = new URLSearchParams(q.toString());
-    next.set(k, v);
+    for (const [k, v] of Object.entries(patch)) next.set(k, v);
     router.replace("/?" + next.toString());
   };
+  const setParam = (k, v) => setParams({ [k]: v });
 
-  const load = useCallback(async () => {
-    const r = await fetch(
-      `/api/runs?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`,
-    );
-    setData(await r.json());
-    setLoading(false);
-  }, [environment, period, project]);
+  // A project with no local dev server has no local store to read, so switching
+  // to it while on "local" would only ever show an error.
+  const pickProject = (p) =>
+    setParams({ project: p.name, environment: p.live ? environment : "production" });
 
-  useEffect(() => {
-    setLoading(true);
-    load();
-    // Local runs land on disk as they happen, so poll; remote is a paid API call.
-    if (environment !== "local") return;
-    const t = setInterval(load, 2000);
-    return () => clearInterval(t);
-  }, [load, environment]);
+  const isLocal = environment === "local";
+  const { data, isLoading } = useSWR(
+    `/api/runs?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`,
+    fetcher,
+    {
+      // Local runs land on disk as they happen, so poll. Remote calls spawn a CLI
+      // and each cold run view triggers an audit-logged decrypt, so never poll it.
+      refreshInterval: isLocal ? 2000 : 0,
+      revalidateOnFocus: isLocal,
+      keepPreviousData: true,
+    },
+  );
 
   const sessions = data?.sessions ?? [];
   const totals = sessions.reduce(
@@ -153,16 +181,36 @@ function Dashboard() {
   );
   const h = histogram(sessions);
 
+  const projectName = data?.project?.name ?? project;
+  const runHref = (runId) =>
+    `/run/${runId}?environment=${environment}&period=${period}&project=${encodeURIComponent(projectName)}`;
+  const detailKey = (runId) =>
+    `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(projectName)}`;
+
+  // Warm the detail before the click lands. Local reads are free, so prefetch the
+  // most recent few eagerly. Remote costs a CLI spawn and an audit-logged decrypt
+  // per run, so only prefetch on hover — that's the user showing intent.
+  const warm = (runId) => {
+    preload(detailKey(runId), fetcher);
+    router.prefetch(runHref(runId));
+  };
+
+  useEffect(() => {
+    if (!isLocal) return;
+    for (const s of sessions.slice(0, 5)) warm(s.runId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLocal, sessions.length, environment, projectName]);
+
   return (
     <>
       <div className="topbar">
         <div className="crumb">
           <span>Observability</span><span>/</span><b>Agent Runs</b>
         </div>
-        <ProjectPicker value={project || data?.project?.name} onChange={(v) => setParam("project", v)} />
+        <ProjectPicker value={project || data?.project?.name} onChange={pickProject} />
         <div className="spacer" />
         <Seg options={ENVS} value={environment} onChange={(v) => setParam("environment", v)} />
-        <Seg options={PERIODS} value={period} onChange={(v) => setParam("period", v)} />
+        <PeriodPicker value={period} onChange={(v) => setParam("period", v)} />
       </div>
 
       <div className="wrap">
@@ -171,10 +219,10 @@ function Dashboard() {
             <b>{environment}</b> unavailable — {data.error}
           </div>
         )}
-        {environment !== "local" && !data?.error && (
+        {!isLocal && !data?.error && (
           <div className="note">
-            Reading <b>{environment}</b> for <span className="mono">{data?.project?.name}</span> through{" "}
-            <span className="mono">workflow inspect -b vercel</span>
+            Reading <b>{environment}</b> for <span className="mono">{data?.project?.name}</span> from the Vercel
+            analytics API
             {data?.project?.localPath ? <> · local checkout at <span className="mono">{data.project.localPath}</span></> : <> · no local checkout</>}.
           </div>
         )}
@@ -194,14 +242,6 @@ function Dashboard() {
             <div className="label">Cost</div>
             <div className="value">{money(totals.cost)}</div>
           </div>
-          <div className="card">
-            <div className="label">Turns</div>
-            <div className="value">{totals.turns}</div>
-          </div>
-          <div className="card">
-            <div className="label">Cache read</div>
-            <div className="value">{kt(totals.cached)}</div>
-          </div>
         </div>
 
         <table>
@@ -215,11 +255,8 @@ function Dashboard() {
             {sessions.map((s) => (
               <tr
                 key={s.runId}
-                onClick={() =>
-                  router.push(
-                    `/run/${s.runId}?environment=${environment}&period=${period}&project=${encodeURIComponent(data?.project?.name ?? "")}`,
-                  )
-                }
+                onMouseEnter={() => warm(s.runId)}
+                onClick={() => router.push(runHref(s.runId))}
               >
                 <td className="title-cell">{s.title}</td>
                 <td><span className="badge">{s.trigger}</span></td>
@@ -234,10 +271,11 @@ function Dashboard() {
           </tbody>
         </table>
 
-        {!loading && !sessions.length && !data?.error && (
+        {isLoading && !sessions.length && <div className="empty">Loading {environment} runs…</div>}
+        {!isLoading && !sessions.length && !data?.error && (
           <div className="empty">
-            No runs for <b>{environment}</b> in the last {period}.
-            {environment === "local" && " Talk to your agent and they'll appear here."}
+            No <b>{environment}</b> runs in the window “{periodLabel(period)}”.
+            {isLocal && " Talk to your agent and they'll appear here."}
           </div>
         )}
       </div>

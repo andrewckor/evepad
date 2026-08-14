@@ -10,7 +10,7 @@ export async function GET(request, { params }) {
       project: q.get("project") ?? undefined,
       environment: q.get("environment") ?? "local",
     });
-    if (!run) return new Response("not found", { status: 404 });
+    if (!run) return Response.json({ error: "Run not found in this project/environment." }, { status: 404 });
     return Response.json(run);
   } catch (e) {
     return Response.json({ error: String(e.message ?? e) }, { status: 500 });

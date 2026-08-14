@@ -38,8 +38,10 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
   background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px;
   box-shadow:0 12px 32px rgba(0,0,0,.55);
 }
+.menu.right{left:auto;right:0;min-width:190px}
 .menu button{display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;border-radius:6px;font-size:13px;text-align:left}
 .menu button:hover{background:var(--panel2)}
+.menu button[data-on="1"]{background:var(--panel2);color:var(--fg)}
 .menu .sub{margin-left:auto;font-size:11px;color:var(--dim2);font-family:var(--mono)}
 .menu .hd{padding:7px 9px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim2)}
 
