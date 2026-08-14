@@ -100,10 +100,14 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
             {I.terminal} Terminal
           </button>
         )}
-        {termProject && (
+        {isBuild && project && (
+          <Link className="chatbtn" href={listHref()} title={`Agent runs for ${project}`}>
+            {I.clockDashed} Runs
+          </Link>
+        )}
+        {termProject && !isBuild && (
           <Link
             className="chatbtn"
-            data-on={pathname === "/build" ? "1" : "0"}
             href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
             title={`Build ${termProject.name} — generate tools with AI Gateway`}
           >
