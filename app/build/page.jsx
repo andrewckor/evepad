@@ -15,7 +15,7 @@ import "@xyflow/react/dist/style.css";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash } from "vercel-geist-icons";
-import OpencodeTerm, { sendToOpencode } from "../components/opencode-term.jsx";
+import OcChat from "../components/oc-chat.jsx";
 
 const fetcher = async (url) => {
   const r = await fetch(url);
@@ -142,21 +142,21 @@ function Build() {
   const q = useSearchParams();
   const project = q.get("project") ?? "";
 
-  const { data: info, error: infoErr, isLoading: infoLoading } = useSWR(
+  const { data: info, error: infoErr, isLoading: infoLoading, mutate: refetchInfo } = useSWR(
     project ? `/api/agent-info?project=${encodeURIComponent(project)}` : null,
     fetcher,
     { refreshInterval: 3000, revalidateOnFocus: true, keepPreviousData: true },
   );
 
-  // Graph buttons type into the TUI's pty: explain/delete submit, edit
-  // pre-fills the prompt so you finish the sentence yourself.
+  // Graph buttons hand text to the chat: explain/delete submit, edit
+  // pre-fills the composer so you finish the sentence yourself.
+  const oc = (text, submit = true) => window.dispatchEvent(new CustomEvent("oc:send", { detail: { text, submit } }));
   const actionsRef = useRef({});
   actionsRef.current.explain = (t) =>
-    sendToOpencode(project, `What does agent/tools/${t}.ts do? Show the important part of the code briefly.`);
-  actionsRef.current.edit = (t) =>
-    sendToOpencode(project, `Edit agent/tools/${t}.ts: `, { submit: false });
+    oc(`What does agent/tools/${t}.ts do? Show the important part of the code briefly.`);
+  actionsRef.current.edit = (t) => oc(`Edit agent/tools/${t}.ts: `, false);
   actionsRef.current.remove = (t) =>
-    sendToOpencode(project, `Delete the tool agent/tools/${t}.ts and remove any references to it (check agent/instructions.md and update it if it mentions ${t}).`);
+    oc(`Delete the tool agent/tools/${t}.ts and remove any references to it (check agent/instructions.md and update it if it mentions ${t}).`);
   const actions = useMemo(() => ({
     explain: (t) => actionsRef.current.explain(t),
     edit: (t) => actionsRef.current.edit(t),
@@ -170,7 +170,10 @@ function Build() {
   return (
     <div className="buildpage">
       <div className="buildcol chatmode">
-        <OpencodeTerm project={project} />
+        <OcChat
+          project={project}
+          onIdle={() => fetch(`/api/agent-info?project=${encodeURIComponent(project)}&fresh=1`).then(() => refetchInfo())}
+        />
       </div>
 
       <div className="buildflow">

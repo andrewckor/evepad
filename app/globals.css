@@ -462,8 +462,48 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   padding:8px 13px;margin-right:40px;white-space:pre-wrap;font-size:13.5px;
 }
 .msg-tool{font-size:12px;color:var(--dim);padding:2px 4px;font-family:var(--mono)}
-.octerm{flex:1;min-height:0;padding:10px 0 6px}
-.octerm .xterm{height:100%}
+/* ---- custom opencode client ---- */
+.oc-head{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.oc-session{
+  appearance:none;-webkit-appearance:none;background:transparent;color:var(--fg);
+  border:1px solid var(--line);border-radius:var(--r-sm);font:400 12.5px var(--sans);
+  padding:4px 24px 4px 9px;max-width:300px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4.5 6.5L8 10L11.5 6.5' stroke='%23a1a1a1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 6px center;background-size:12px;
+}
+.oc-session:hover{border-color:var(--line2)}
+.oc-session option{background:#0a0a0a}
+.oc-new{
+  width:26px;height:26px;border:1px solid var(--line);border-radius:var(--r-sm);
+  color:var(--dim);font-size:15px;line-height:1;
+}
+.oc-new:hover{color:var(--fg);border-color:var(--line2)}
+.oc-abort{
+  border:1px solid var(--line);border-radius:var(--r-sm);color:var(--bad);
+  font:400 12px var(--mono);padding:4px 10px;
+}
+.oc-abort:hover{border-color:var(--bad)}
+.oc-completed{color:var(--dim)}
+.oc-error{color:var(--bad)}
+.oc-running,.oc-pending{color:var(--warn)}
+.oc-spin{width:11px;height:11px;display:inline-block;vertical-align:-1px}
+.oc-perm{
+  border:1px solid rgba(245,166,35,.45);border-radius:var(--r);
+  padding:10px 12px;display:flex;flex-direction:column;gap:8px;
+}
+.oc-perm-title{font-size:12.5px;color:var(--warn);word-break:break-all}
+.oc-perm-actions{display:flex;gap:8px}
+.oc-deny{color:var(--bad)}
+.oc-palette{
+  margin:0 12px;border:1px solid var(--line2);border-radius:var(--r);
+  background:#0a0a0a;overflow:hidden;box-shadow:0 -8px 30px rgba(0,0,0,.5);
+}
+.oc-palette button{
+  display:flex;align-items:baseline;gap:10px;width:100%;
+  padding:7px 11px;font-size:13px;text-align:left;
+}
+.oc-palette button[data-on="1"]{background:var(--hover)}
+.oc-cmd-desc{color:var(--dim2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-composer{border-top:1px solid var(--line)}
 .chat-composer .chat-input{border-top:none;padding-bottom:6px}
 .chat-model{padding:0 12px 10px;display:flex;gap:6px;align-items:center;flex-direction:row-reverse;justify-content:flex-end}
