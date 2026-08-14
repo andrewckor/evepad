@@ -101,7 +101,7 @@ function toGraph(info, actions) {
   // exact: 22px padding each side + 15px logo + 9px gap + ~8.6px/char
   // (15px/600 Geist), capped at 40 chars (CSS ellipsizes the rest).
   const nameLen = Math.min((info.name ?? "").length, 40);
-  const AGENT_W = Math.round(44 + 15 + 9 + nameLen * 8.6);
+  const AGENT_W = Math.round(44 + 15 + 9 + 10 + nameLen * 8.8); // +10 slack: an under-estimate ellipsizes
   nodes.push({
     id: "agent", position: { x: -AGENT_W / 2, y: yAgent }, style: { width: AGENT_W },
     data: { label: (<div className="agent-label"><span className="agent-logo"><EveDots /></span><b>{info.name}</b></div>) },
