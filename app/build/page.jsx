@@ -61,7 +61,7 @@ function toGraph(info, actions) {
     data: {
       label: (
         <div className="toolbox">
-          <div className="box-title">Tools</div>
+          <div className="box-title">{tools.length} Tool{tools.length === 1 ? "" : "s"}</div>
           {tools.length ? tools.map((t) => (
             <div key={t} className="box-item nodrag">
               <button className="box-name" onClick={() => actions.explain(t)} title={`Ask Build what ${t} does`}>{t}</button>
