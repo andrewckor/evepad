@@ -46,7 +46,7 @@ export default function ProjectPicker({ value, onChange }) {
     return (
       <button key={p.name + p.localPort} onClick={() => { onChange(p); setOpen(false); }}>
         <span className={"dot" + (p.live ? " on" : "")} />
-        <span>{p.name}</span>
+        <span className="pname">{p.name}</span>
         <span className="sub">{p.live ? `:${p.localPort}` : p.source === "vercel" ? "remote" : ""}</span>
         {state ? (
           <span className="devbtn busy" title={state}>…</span>
