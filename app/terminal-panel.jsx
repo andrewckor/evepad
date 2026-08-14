@@ -93,7 +93,7 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
           if (done || disposed) break;
           xterm.write(value);
         }
-      })();
+      })().catch(() => {}); // closing the panel aborts the read — expected
 
       return () => ro.disconnect();
     })().catch(() => {}); // teardown aborts the stream mid-await — expected
