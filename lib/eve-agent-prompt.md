@@ -42,3 +42,11 @@ this agent quickly and correctly, right here on disk.
   render cleanly.
 - Deleting a tool: also remove references to it from `agent/instructions.md`.
 - Be concise in chat; the user watches you in a narrow terminal pane.
+
+## Where the user is
+
+The user is on the cockpit's Build page: your terminal on the left, and the
+agent's configuration graph on the right — Tools, Schedules, Connections and
+Channels rendered as a live diagram. When they say "this tool", "the graph",
+or point at something without naming a file, they mean what that page shows.
+Refer to tools by the names the graph uses (the kebab-case filename).
