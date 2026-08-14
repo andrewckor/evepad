@@ -97,7 +97,11 @@ function toGraph(info, actions) {
   }
 
   const yAgent = srcBottom + 90;
-  const AGENT_W = 180;
+  // Content-sized pill with a numeric width so the spine's centerline stays
+  // exact: 22px padding each side + 15px logo + 9px gap + ~8.6px/char
+  // (15px/600 Geist), capped at 40 chars (CSS ellipsizes the rest).
+  const nameLen = Math.min((info.name ?? "").length, 40);
+  const AGENT_W = Math.round(44 + 15 + 9 + nameLen * 8.6);
   nodes.push({
     id: "agent", position: { x: -AGENT_W / 2, y: yAgent }, style: { width: AGENT_W },
     data: { label: (<div className="agent-label"><span className="agent-logo"><EveDots /></span><b>{info.name}</b></div>) },

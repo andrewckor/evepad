@@ -380,7 +380,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   background:#fff;border-radius:999px;padding:10px 22px;cursor:default;
 }
 .agent-label{display:flex;align-items:center;justify-content:center;gap:9px}
-.agent-label b{color:#000;font-size:15px;font-weight:600}
+.agent-label b{color:#000;font-size:15px;font-weight:600;max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agent-logo{display:inline-flex}
 .react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
 .react-flow__node.gbox{
