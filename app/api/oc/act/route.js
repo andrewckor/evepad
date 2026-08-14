@@ -6,7 +6,7 @@ import { resolveProject } from "../../../../lib/projects.js";
 import { ocClient, DEFAULTS } from "../../../../lib/opencode.js";
 
 export async function POST(request) {
-  const { project: name, action, sessionId, text, command, args, provider, model, permissionId, response } =
+  const { project: name, action, sessionId, text, command, args, provider, model, agent, permissionId, response } =
     await request.json();
   const project = await resolveProject(name);
   if (!project?.localPath) return Response.json({ error: "No local checkout." }, { status: 409 });
@@ -34,6 +34,7 @@ export async function POST(request) {
           path, query,
           body: {
             model: { providerID: provider || DEFAULTS.provider, modelID: model || DEFAULTS.model },
+            agent: agent || undefined,
             parts: [{ type: "text", text }],
           },
           throwOnError: true,
@@ -63,6 +64,13 @@ export async function POST(request) {
           body: { providerID: provider || DEFAULTS.provider, modelID: model || DEFAULTS.model },
           throwOnError: true,
         }));
+        return Response.json({ ok: true });
+      case "share": {
+        const r = await client.session.share({ path, query, throwOnError: true });
+        return Response.json({ ok: true, url: r.data.share?.url ?? null });
+      }
+      case "unshare":
+        await client.session.unshare({ path, query, throwOnError: true });
         return Response.json({ ok: true });
       case "abort":
         await client.session.abort({ path, query, throwOnError: true });

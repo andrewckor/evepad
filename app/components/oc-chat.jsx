@@ -45,6 +45,7 @@ export default function OcChat({ project, onIdle }) {
   const [error, setError] = useState(null);
   const [input, setInput] = useState("");
   const [modelKey, setModelKey] = useState(null);
+  const [agentName, setAgentName] = useState(null); // null = server default
   const [palIndex, setPalIndex] = useState(0);
   const scroller = useRef(null);
   const inputRef = useRef(null);
@@ -225,6 +226,83 @@ export default function OcChat({ project, onIdle }) {
     return created.id;
   };
 
+  const note = (text) => {
+    const id = `note-${Date.now()}`;
+    store.current.set(id, {
+      info: { id, role: "assistant", sessionID: sessionRef.current },
+      parts: new Map([["p", { id: "p", type: "text", text }]]),
+    });
+    bump();
+  };
+  const rehydrate = async (sid) => {
+    const { messages } = await fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sid}`);
+    const next = new Map();
+    for (const m of messages) next.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
+    store.current = next; bump();
+  };
+
+  // TUI-parity built-ins. Pickers flip the palette into list mode; the rest
+  // hit /api/oc/act endpoints directly. Registry commands come from boot.
+  const BUILTINS = [
+    { name: "models", description: "Switch model", picker: true },
+    { name: "agents", description: "Switch agent", picker: true },
+    { name: "sessions", description: "Switch session", picker: true },
+    { name: "new", description: "Start a new session" },
+    { name: "undo", description: "Revert the last assistant changes" },
+    { name: "redo", description: "Restore reverted changes" },
+    { name: "compact", description: "Summarize the session to shrink context" },
+    { name: "share", description: "Share this session (returns a link)" },
+    { name: "unshare", description: "Stop sharing this session" },
+    { name: "export", description: "Download the transcript as JSON" },
+    { name: "help", description: "List commands" },
+  ];
+  const allCommands = [...BUILTINS, ...(boot?.commands ?? [])];
+
+  const runBuiltin = async (cmd) => {
+    setInput("");
+    const sid = await ensureSession();
+    switch (cmd) {
+      case "new": {
+        const created = await act({ action: "new" });
+        setBoot((b) => b && { ...b, sessions: [{ id: created.id, title: created.title, updated: Date.now() }, ...b.sessions] });
+        setSessionId(created.id);
+        return;
+      }
+      case "undo":
+      case "redo":
+        await act({ action: cmd, sessionId: sid });
+        await rehydrate(sid);
+        note(cmd === "undo" ? "Reverted the last changes." : "Restored the reverted changes.");
+        return;
+      case "compact":
+        setBusy(true);
+        await act({ action: "compact", sessionId: sid, provider: selModel?.providerID, model: selModel?.modelID });
+        return;
+      case "share": {
+        const r = await act({ action: "share", sessionId: sid });
+        note(r.url ? `Session shared: ${r.url}` : "Session shared.");
+        return;
+      }
+      case "unshare":
+        await act({ action: "unshare", sessionId: sid });
+        note("Sharing disabled.");
+        return;
+      case "export": {
+        const { messages } = await fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sid}`);
+        const blob = new Blob([JSON.stringify(messages, null, 2)], { type: "application/json" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `${project}-${sid}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return;
+      }
+      case "help":
+        note("**Commands**\n\n" + allCommands.map((c) => `- \`/${c.name}\` — ${c.description}`).join("\n"));
+        return;
+    }
+  };
+
   const send = async (raw) => {
     const text = (raw ?? input).trim();
     if (!text) return;
@@ -233,19 +311,10 @@ export default function OcChat({ project, onIdle }) {
       const sid = await ensureSession();
       if (text.startsWith("/")) {
         const [cmd, ...rest] = text.slice(1).split(" ");
+        const builtin = BUILTINS.find((c) => c.name === cmd);
+        if (builtin?.picker) { setInput(`/${cmd} `); inputRef.current?.focus(); return; }
+        if (builtin) { await runBuiltin(cmd); return; }
         const known = boot?.commands.find((c) => c.name === cmd);
-        if (known?.builtin) {
-          if (cmd === "compact") setBusy(true);
-          await act({ action: cmd, sessionId: sid, provider: selModel?.providerID, model: selModel?.modelID });
-          if (cmd !== "compact") {
-            // undo/redo change the transcript server-side — rehydrate.
-            const { messages } = await fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sid}`);
-            const next = new Map();
-            for (const m of messages) next.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
-            store.current = next; bump();
-          }
-          return;
-        }
         if (known) {
           store.current.set(`local-${Date.now()}`, {
             info: { id: `local-${Date.now()}`, role: "user", sessionID: sid },
@@ -261,7 +330,7 @@ export default function OcChat({ project, onIdle }) {
         parts: new Map([["p", { id: "p", type: "text", text }]]),
       });
       bump(); setBusy(true);
-      await act({ action: "prompt", sessionId: sid, text, provider: selModel?.providerID, model: selModel?.modelID });
+      await act({ action: "prompt", sessionId: sid, text, provider: selModel?.providerID, model: selModel?.modelID, agent: agentName });
     } catch (e) { setError(e.message); setBusy(false); }
   };
 
@@ -283,19 +352,68 @@ export default function OcChat({ project, onIdle }) {
       .then(() => setPerms((ps) => ps.filter((x) => x.id !== perm.id)))
       .catch((e) => setError(e.message));
 
-  // ---- palette
-  const paletteOpen = input.startsWith("/") && !input.includes(" ");
-  const filtered = paletteOpen
-    ? (boot?.commands ?? []).filter((c) => c.name.startsWith(input.slice(1))).slice(0, 8)
-    : [];
+  // ---- palette: /cmd filters commands; "/models q", "/agents q",
+  // "/sessions q" flip into searchable pickers.
+  const palette = (() => {
+    if (!input.startsWith("/") || !boot) return null;
+    const spaceAt = input.indexOf(" ");
+    if (spaceAt === -1) {
+      const q = input.slice(1);
+      const items = allCommands
+        .filter((c) => c.name.startsWith(q))
+        .slice(0, 9)
+        .map((c) => ({ key: c.name, label: `/${c.name}`, desc: c.description, run: () => send(`/${c.name}`) }));
+      return items.length ? { items } : null;
+    }
+    const tok = input.slice(1, spaceAt);
+    const q = input.slice(spaceAt + 1).toLowerCase();
+    if (tok === "models") {
+      return { items: boot.models
+        .filter((m) => (m.name + " " + m.modelID).toLowerCase().includes(q))
+        .slice(0, 9)
+        .map((m) => ({
+          key: `${m.providerID}:${m.modelID}`,
+          label: m.name,
+          desc: `${m.provider}${m.free ? " · free" : ""}`,
+          run: () => {
+            const k = `${m.providerID}:${m.modelID}`;
+            setModelKey(k); sessionStorage.setItem("build-model", k); setInput("");
+          },
+        })) };
+    }
+    if (tok === "agents") {
+      return { items: (boot.agents ?? [])
+        .filter((a) => a.name.toLowerCase().includes(q))
+        .slice(0, 9)
+        .map((a) => ({
+          key: a.name,
+          label: a.name + (agentName === a.name ? " ✓" : ""),
+          desc: a.description,
+          run: () => { setAgentName(a.name); setInput(""); },
+        })) };
+    }
+    if (tok === "sessions") {
+      return { items: boot.sessions
+        .filter((se) => (se.title ?? se.id).toLowerCase().includes(q))
+        .slice(0, 9)
+        .map((se) => ({
+          key: se.id,
+          label: (se.title ?? se.id).slice(0, 46),
+          desc: se.id === sessionId ? "current" : "",
+          run: () => { setSessionId(se.id); setInput(""); },
+        })) };
+    }
+    return null;
+  })();
   useEffect(() => { setPalIndex(0); }, [input]);
 
   const onKey = (e) => {
-    if (paletteOpen && filtered.length) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setPalIndex((i) => (i + 1) % filtered.length); return; }
-      if (e.key === "ArrowUp") { e.preventDefault(); setPalIndex((i) => (i - 1 + filtered.length) % filtered.length); return; }
-      if (e.key === "Tab") { e.preventDefault(); setInput(`/${filtered[palIndex].name} `); return; }
-      if (e.key === "Enter") { e.preventDefault(); send(`/${filtered[palIndex].name}`); return; }
+    const items = palette?.items ?? [];
+    if (items.length) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setPalIndex((i) => (i + 1) % items.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setPalIndex((i) => (i - 1 + items.length) % items.length); return; }
+      if (e.key === "Tab") { e.preventDefault(); setInput(`${items[palIndex].label.startsWith("/") ? items[palIndex].label : input} `); return; }
+      if (e.key === "Enter") { e.preventDefault(); items[Math.min(palIndex, items.length - 1)].run(); return; }
       if (e.key === "Escape") { setInput(""); return; }
     }
     if (e.key === "Enter") send();
@@ -386,17 +504,17 @@ export default function OcChat({ project, onIdle }) {
       </div>
 
       <div className="chat-composer">
-        {paletteOpen && filtered.length > 0 && (
+        {palette && (
           <div className="oc-palette">
-            {filtered.map((c, i) => (
+            {palette.items.map((it, i) => (
               <button
-                key={c.name}
+                key={it.key}
                 data-on={i === palIndex ? "1" : "0"}
                 onMouseEnter={() => setPalIndex(i)}
-                onClick={() => send(`/${c.name}`)}
+                onClick={() => it.run()}
               >
-                <span className="mono">/{c.name}</span>
-                <span className="oc-cmd-desc">{c.description}</span>
+                <span className="mono">{it.label}</span>
+                <span className="oc-cmd-desc">{it.desc}</span>
               </button>
             ))}
           </div>
@@ -429,6 +547,7 @@ export default function OcChat({ project, onIdle }) {
                 </optgroup>
               ))}
             </select>
+            {agentName && <span className="oc-agent mono" title="Active agent (set via /agents)">{agentName}</span>}
           </div>
         )}
       </div>

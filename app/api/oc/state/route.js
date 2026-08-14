@@ -12,26 +12,24 @@ export async function GET(request) {
   if (!project?.localPath) return Response.json({ error: "No local checkout." }, { status: 409 });
   try {
     const { client, dir } = await ocClient(project.localPath);
-    const [sessions, commands, models] = await Promise.all([
+    const [sessions, commands, models, agents] = await Promise.all([
       client.session.list({ query: { directory: dir }, throwOnError: true }),
       client.command.list({ query: { directory: dir }, throwOnError: true }),
       listModels(project),
+      client.app.agents({ query: { directory: dir }, throwOnError: true }),
     ]);
     return Response.json({
       sessions: sessions.data
         .map((s) => ({ id: s.id, title: s.title, updated: s.time?.updated ?? 0 }))
         .sort((a, b) => b.updated - a.updated)
         .slice(0, 20),
-      commands: [
-        // Built-ins are dedicated endpoints, not registry entries — surface
-        // them in the same palette. Handled by /api/oc/act.
-        { name: "undo", description: "Revert the last assistant changes", builtin: true },
-        { name: "redo", description: "Restore reverted changes", builtin: true },
-        { name: "compact", description: "Summarize the session to shrink context", builtin: true },
-        ...commands.data
-          .map((c) => ({ name: c.name, description: c.description ?? "" }))
-          .sort((a, b) => a.name.localeCompare(b.name)),
-      ],
+      // Registry commands only — the client prepends TUI-parity built-ins.
+      commands: commands.data
+        .map((c) => ({ name: c.name, description: c.description ?? "" }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      agents: agents.data
+        .filter((a) => a.mode !== "subagent")
+        .map((a) => ({ name: a.name, description: a.description ?? "", builtIn: a.builtIn })),
       models,
       defaults: DEFAULTS,
     });
