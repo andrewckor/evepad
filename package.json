@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port 5173",
+    "dev": "next dev --hostname 127.0.0.1 --port 5173",
     "build": "next build",
-    "start": "next start --port 5173",
+    "start": "next start --hostname 127.0.0.1 --port 5173",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true"
   },
   "dependencies": {
