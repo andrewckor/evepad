@@ -11,6 +11,7 @@ import { generateText, tool, stepCountIs } from "ai";
 import { createGateway } from "@ai-sdk/gateway";
 import { z } from "zod";
 import { resolveProject } from "../../../lib/projects.js";
+import { opencodePrompt, snapshotAgent, diffAgent } from "../../../lib/opencode.js";
 
 const exec = promisify(execFile);
 const DEFAULT_MODEL = "zai/glm-5.2";
@@ -59,10 +60,40 @@ Current agent: agent.ts:\n${read("agent/agent.ts") ?? "(missing)"}\ninstructions
 };
 
 export async function POST(request) {
-  const { project: name, messages, model } = await request.json();
+  const { project: name, messages, model, provider, engine } = await request.json();
   const project = await resolveProject(name);
   if (!project?.localPath) return Response.json({ error: "No local checkout for this project." }, { status: 409 });
   const dir = project.localPath;
+
+  // --- Primary engine: OpenCode (real coding agent, local server, own session
+  // history — send only the newest user message). Falls back to the legacy
+  // GLM tool-loop below if OpenCode errors, so Build never goes dark.
+  let fallbackReason = null;
+  if (engine !== "legacy") {
+    const lastUser = [...(messages ?? [])].reverse().find((m) => m.role === "user");
+    if (lastUser) {
+      const before = snapshotAgent(dir);
+      try {
+        const { text, events } = await opencodePrompt(project, lastUser.content, { provider, model });
+        const writes = diffAgent(dir, before);
+        let diagnostics = null;
+        if (writes.length) {
+          try {
+            const { stdout } = await exec("npm", ["exec", "--", "eve", "info", "--json"], {
+              cwd: dir, timeout: 120_000, maxBuffer: 16 << 20,
+            });
+            diagnostics = JSON.parse(stdout.slice(stdout.indexOf("{"))).diagnostics ?? null;
+          } catch (e) {
+            diagnostics = { errors: -1, note: String(e.message ?? e).slice(0, 160) };
+          }
+        }
+        return Response.json({ text, events, writes, diagnostics, engine: "opencode" });
+      } catch (e) {
+        fallbackReason = String(e.message ?? e).split("\n")[0].slice(0, 200);
+        console.warn("[build-chat] opencode engine failed, falling back:", fallbackReason);
+      }
+    }
+  }
 
   const token = await oidcToken(dir);
   if (!token) return Response.json({ error: "No AI Gateway credentials — press play once or run `vercel env pull`." }, { status: 409 });
@@ -145,7 +176,7 @@ export async function POST(request) {
         diagnostics = { errors: -1, note: String(e.message ?? e).slice(0, 160) };
       }
     }
-    return Response.json({ text, events, writes, diagnostics, model: model || DEFAULT_MODEL });
+    return Response.json({ text, events, writes, diagnostics, model: model || DEFAULT_MODEL, engine: "legacy", fallbackReason });
   } catch (e) {
     return Response.json({ error: `Build chat failed: ${String(e.message ?? e).replace(/\x1b\[[0-9;]*m/g, "").slice(0, 300)}` }, { status: 502 });
   }

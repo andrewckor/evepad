@@ -461,6 +461,20 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   padding:8px 13px;margin-right:40px;white-space:pre-wrap;font-size:13.5px;
 }
 .msg-tool{font-size:12px;color:var(--dim);padding:2px 4px;font-family:var(--mono)}
+.chat-composer{border-top:1px solid var(--line)}
+.chat-composer .chat-input{border-top:none;padding-bottom:6px}
+.chat-model{padding:0 12px 10px}
+.chat-model select{
+  appearance:none;-webkit-appearance:none;
+  background:transparent;border:1px solid var(--line);border-radius:var(--r);
+  color:var(--dim);font:400 12px var(--font-geist-sans);
+  padding:3px 22px 3px 8px;cursor:pointer;max-width:240px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4.5 6.5L8 10L11.5 6.5' stroke='%23a1a1a1' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 5px center;background-size:12px;
+}
+.chat-model select:hover{color:var(--fg);border-color:var(--line2)}
+.chat-model select:focus{outline:none;border-color:var(--line2)}
+.chat-model select option,.chat-model select optgroup{background:#0a0a0a;color:var(--fg)}
 .chat-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
 .chat-input input{
   flex:1;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);

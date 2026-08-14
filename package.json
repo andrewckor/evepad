@@ -11,7 +11,10 @@
   },
   "dependencies": {
     "@ai-sdk/gateway": "^4.0.52",
+    "@ai-sdk/harness": "^1.0.71",
+    "@ai-sdk/harness-acp": "^1.0.8",
     "@base-ui/react": "^1.7.0",
+    "@opencode-ai/sdk": "^1.18.18",
     "@shadcn/react": "^0.3.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@xterm/addon-fit": "^0.11.0",
@@ -25,6 +28,7 @@
     "motion": "^13.1.0",
     "next": "^15.5.0",
     "node-pty": "^1.1.0",
+    "opencode-ai": "^1.18.18",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shadcn": "^4.18.0",

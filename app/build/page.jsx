@@ -143,6 +143,23 @@ function Build() {
     { refreshInterval: 3000, revalidateOnFocus: true, keepPreviousData: true },
   );
 
+  // Model picker: everything the OpenCode server can route to (gateway first).
+  const { data: modelData } = useSWR(
+    project ? `/api/build-models?project=${encodeURIComponent(project)}` : null,
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60_000 },
+  );
+  const models = modelData?.models ?? [];
+  const [modelKey, setModelKey] = useState(null); // "providerID:modelID"
+  useEffect(() => {
+    if (modelKey || !models.length) return;
+    const saved = sessionStorage.getItem("build-model");
+    const pick = models.find((m) => `${m.providerID}:${m.modelID}` === saved)
+      ?? models.find((m) => m.default) ?? models[0];
+    setModelKey(`${pick.providerID}:${pick.modelID}`);
+  }, [models, modelKey]);
+  const selModel = models.find((m) => `${m.providerID}:${m.modelID}` === modelKey);
+
   // Chat state: [{role, content, events?, writes?, diagnostics?}]
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -171,7 +188,12 @@ function Build() {
       const r = await fetch("/api/build-chat", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ project, messages: history.map(({ role, content }) => ({ role, content })) }),
+        body: JSON.stringify({
+          project,
+          messages: history.map(({ role, content }) => ({ role, content })),
+          provider: selModel?.providerID,
+          model: selModel?.modelID,
+        }),
       });
       const body = await r.json();
       if (!r.ok) { setError(body.error); return; }
@@ -220,7 +242,7 @@ function Build() {
               <div className="dim">Build chat for <b>{project}</b> — ask about the agent or tell it what to change.
                 It edits code through tools (<span className="mono">read_file</span>, <span className="mono">write_file</span>),
                 scoped to the agent surface, with revert on every write.</div>
-              <div className="dim2">Model: <span className="mono">zai/glm-5.2</span> via AI Gateway (free).</div>
+              <div className="dim2">Model: <span className="mono">{selModel ? selModel.modelID : "zai/glm-5.2"}</span>{selModel?.providerID === "vercel" ? " via AI Gateway (free)." : "."}</div>
             </div>
           )}
           {messages.map((m, i) => (
@@ -247,16 +269,38 @@ function Build() {
           {busy && <div className="dim mono" style={{ display: "flex", gap: 8, alignItems: "center" }}><Spinner /> working…</div>}
           {error && <div className="bad" style={{ fontSize: 13 }}>{error}</div>}
         </div>
-        <div className="chat-input">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder={busy ? "working…" : `Ask or change ${project}…`}
-            disabled={busy}
-            autoFocus
-          />
-          <button onClick={() => send()} disabled={busy || !input.trim()}>↩</button>
+        <div className="chat-composer">
+          <div className="chat-input">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder={busy ? "working…" : `Ask or change ${project}…`}
+              disabled={busy}
+              autoFocus
+            />
+            <button onClick={() => send()} disabled={busy || !input.trim()}>↩</button>
+          </div>
+          {models.length > 0 && (
+            <div className="chat-model">
+              <select
+                value={modelKey ?? ""}
+                onChange={(e) => { setModelKey(e.target.value); sessionStorage.setItem("build-model", e.target.value); }}
+                disabled={busy}
+                aria-label="Model"
+              >
+                {[...new Set(models.map((m) => m.provider))].map((prov) => (
+                  <optgroup key={prov} label={prov}>
+                    {models.filter((m) => m.provider === prov).map((m) => (
+                      <option key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
+                        {m.name}{m.providerID === "vercel" ? " · free" : ""}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
