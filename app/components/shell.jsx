@@ -37,6 +37,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
   const isDetail = pathname.startsWith("/run/");
   const isHome = pathname === "/";
   const isBuild = pathname === "/build";
+  const fromBuild = q.get("from") === "build";
   const runId = isDetail ? decodeURIComponent(pathname.split("/")[2] ?? "") : null;
 
   const listHref = (patch = {}) => {
@@ -63,11 +64,29 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
               transition={SPRING}
               style={{ overflow: "hidden", flexShrink: 0 }}
             >
-              <Link className="backbtn" href={isDetail ? listHref() : "/"} title={isDetail ? "Back to Agent Runs" : "Back to Agents"}>{I.back}</Link>
+              <Link
+                className="backbtn"
+                href={isDetail ? listHref() : fromBuild ? `/build?project=${encodeURIComponent(project)}&environment=${environment}&period=${period}` : "/"}
+                title={isDetail ? "Back to Agent Runs" : fromBuild ? "Back to Build" : "Back to Agents"}
+              >{I.back}</Link>
             </motion.div>
           )}
         </AnimatePresence>
         <ProjectPicker value={project} onChange={pickProject} />
+        {isBuild && project && (
+          <Link className="chatbtn" href={listHref({ from: "build" })} title={`Agent runs for ${project}`}>
+            {I.clockDashed} Runs
+          </Link>
+        )}
+        {termProject && !isBuild && (
+          <Link
+            className="chatbtn"
+            href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
+            title={`Build ${termProject.name} — generate tools with AI Gateway`}
+          >
+            {I.bolt} Build
+          </Link>
+        )}
         <div className="spacer" />
         <div className="crumbstack">
           <motion.div layout transition={SPRING} className="crumb-title">
@@ -99,20 +118,6 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
           <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))} title={`Open a terminal running eve dev for ${termProject.name}`}>
             {I.terminal} Terminal
           </button>
-        )}
-        {isBuild && project && (
-          <Link className="chatbtn" href={listHref()} title={`Agent runs for ${project}`}>
-            {I.clockDashed} Runs
-          </Link>
-        )}
-        {termProject && !isBuild && (
-          <Link
-            className="chatbtn"
-            href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
-            title={`Build ${termProject.name} — generate tools with AI Gateway`}
-          >
-            {I.bolt} Build
-          </Link>
         )}
         {isDetail && <span className="badge-env">{environment}</span>}
       </div>
