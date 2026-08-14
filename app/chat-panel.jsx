@@ -4,10 +4,18 @@
 // cockpit's proxy routes; the resulting session shows up in the runs table via
 // the normal local poll, so chatting and observing share one pane.
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { SPRING } from "./components/shell.jsx";
 import { SidebarRight, PlusCircle } from "vercel-geist-icons";
+import { Streamdown } from "streamdown";
+import {
+  MessageScrollerProvider, MessageScroller, MessageScrollerViewport,
+  MessageScrollerContent, MessageScrollerItem, MessageScrollerButton,
+} from "@/components/ui/message-scroller";
+import { Message, MessageContent } from "@/components/ui/message";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onNewChat, onClose }) {
   // Same drag-resize contract as the terminal — one shared panel geometry.
@@ -32,13 +40,8 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState(null);
   const [waiting, setWaiting] = useState(false); // a turn is in flight
-  const scroller = useRef(null);
   const streamStarted = useRef(false);
   const continuation = useRef(null); // follow-ups must echo the latest continuationToken
-
-  useEffect(() => {
-    scroller.current?.scrollTo(0, scroller.current.scrollHeight);
-  }, [messages]);
 
   // One long-lived NDJSON reader per session; events mutate the last assistant bubble.
   const startStream = async (sid) => {
@@ -162,24 +165,51 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
           <button onClick={onClose} title="Close">—</button>
         </div>
       </div>
-      <div className="chat-body" ref={scroller}>
-        {!messages.length && (
-          <div className="chat-empty">
-            <div className="dim">This starts a <b>new chat session</b> with <b>{project.name}</b> on :{project.localPort}.</div>
-            <div className="dim2">Every conversation becomes a run in the table — click its id up top to inspect it.</div>
-          </div>
-        )}
-        {messages.map((m, i) => (
-          <div key={i} className={"msg " + m.role}>
-            {(m.tools ?? []).map((t) => (
-              <div key={t.callId} className="msg-tool mono">
-                {t.status === "running" ? "…" : "✓"} {t.name}
-              </div>
-            ))}
-            {m.text && <div className="msg-text">{m.text}</div>}
-          </div>
-        ))}
-        {waiting && <div className="dim mono" style={{ padding: "2px 12px" }}>thinking…</div>}
+      <div className="chat-body">
+        <MessageScrollerProvider autoScroll>
+          <MessageScroller className="h-full">
+            <MessageScrollerViewport>
+              <MessageScrollerContent className="px-3 py-2">
+                {!messages.length && (
+                  <div className="chat-empty">
+                    <div className="dim">This starts a <b>new chat session</b> with <b>{project.name}</b> on :{project.localPort}.</div>
+                    <div className="dim2">Every conversation becomes a run in the table — click its id up top to inspect it.</div>
+                  </div>
+                )}
+                {messages.map((m, i) => (
+                  <MessageScrollerItem key={i} messageId={String(i)} scrollAnchor={m.role === "user"}>
+                    <Message align={m.role === "user" ? "end" : "start"}>
+                      <MessageContent>
+                        {(m.tools ?? []).map((t) => (
+                          <div key={t.callId} className="msg-tool mono">
+                            {t.status === "running" ? "…" : "✓"} {t.name}
+                          </div>
+                        ))}
+                        {m.text && (
+                          <Bubble variant={m.role === "user" ? "default" : "secondary"} align={m.role === "user" ? "end" : "start"}>
+                            <BubbleContent>
+                              {/* Streamdown renders markdown safely mid-stream
+                                  (unclosed ** and ``` while tokens arrive). */}
+                              <Streamdown className="chat-md">{m.text}</Streamdown>
+                            </BubbleContent>
+                          </Bubble>
+                        )}
+                      </MessageContent>
+                    </Message>
+                  </MessageScrollerItem>
+                ))}
+                {waiting && (
+                  <MessageScrollerItem messageId="thinking">
+                    <div className="dim mono" style={{ display: "flex", gap: 8, alignItems: "center", padding: "2px 4px" }}>
+                      <Spinner /> thinking…
+                    </div>
+                  </MessageScrollerItem>
+                )}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
       </div>
       <div className="chat-input">
         <input
