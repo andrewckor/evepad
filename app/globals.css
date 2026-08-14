@@ -463,7 +463,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .msg-tool{font-size:12px;color:var(--dim);padding:2px 4px;font-family:var(--mono)}
 .chat-composer{border-top:1px solid var(--line)}
 .chat-composer .chat-input{border-top:none;padding-bottom:6px}
-.chat-model{padding:0 12px 10px}
+.chat-model{padding:0 12px 10px;display:flex;gap:6px;align-items:center;flex-direction:row-reverse;justify-content:flex-end}
+.oc-btn{border:1px solid var(--line);border-radius:var(--r);color:var(--dim);font-size:12px;padding:3px 8px;cursor:pointer;background:transparent}
+.oc-btn:hover{color:var(--fg);border-color:var(--line2)}
 .chat-model select{
   appearance:none;-webkit-appearance:none;
   background:transparent;border:1px solid var(--line);border-radius:var(--r);

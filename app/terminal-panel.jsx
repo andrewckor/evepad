@@ -9,7 +9,7 @@ import { SidebarRight } from "vercel-geist-icons";
 import { motion } from "motion/react";
 import { SPRING } from "./components/shell.jsx";
 
-export default function TerminalPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onClose }) {
+export default function TerminalPanel({ project, variant = "eve", dock, onDock, size, onSize, clamp, onResizing, onClose }) {
   const mount = useRef(null);
   const [status, setStatus] = useState("starting…");
   // Geometry is owned by the shell (it pads the frame so the panel pushes content).
@@ -47,11 +47,11 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
       const start = await fetch("/api/term", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ project: project.name, action: "start" }),
+        body: JSON.stringify({ project: project.name, action: "start", variant }),
       });
       const info = await start.json();
       if (!start.ok) { setStatus(info.error ?? "failed to start"); return; }
-      setStatus(info.mode === "attach" ? `attached to :${info.port}` : `serving on :${info.port}`);
+      setStatus(info.mode === "opencode" ? "opencode · vercel/zai/glm-5.2" : info.mode === "attach" ? `attached to :${info.port}` : `serving on :${info.port}`);
 
       xterm = new Terminal({
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
@@ -70,7 +70,7 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
         fetch("/api/term", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ project: project.name, action: "resize", cols: xterm.cols, rows: xterm.rows }),
+          body: JSON.stringify({ project: project.name, action: "resize", cols: xterm.cols, rows: xterm.rows, variant }),
         });
       sendResize();
       const ro = new ResizeObserver(() => { fit.fit(); sendResize(); });
@@ -80,12 +80,12 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
         fetch("/api/term", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ project: project.name, action: "input", data }),
+          body: JSON.stringify({ project: project.name, action: "input", data, variant }),
         }),
       );
 
       abort = new AbortController();
-      const res = await fetch(`/api/term/stream?project=${encodeURIComponent(project.name)}`, { signal: abort.signal });
+      const res = await fetch(`/api/term/stream?project=${encodeURIComponent(project.name)}&variant=${variant}`, { signal: abort.signal });
       const reader = res.body.getReader();
       (async () => {
         for (;;) {
@@ -103,13 +103,13 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
       abort?.abort();
       xterm?.dispose();
     };
-  }, [project.name]);
+  }, [project.name, variant]);
 
   const kill = async () => {
     await fetch("/api/term", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ project: project.name, action: "stop" }),
+      body: JSON.stringify({ project: project.name, action: "stop", variant }),
     });
     onClose();
   };

@@ -195,11 +195,56 @@ function Build() {
           model: selModel?.modelID,
         }),
       });
-      const body = await r.json();
-      if (!r.ok) { setError(body.error); return; }
-      setMessages((m) => [...m, { role: "assistant", content: body.text, events: body.events, writes: body.writes, diagnostics: body.diagnostics }]);
-      if (body.writes?.length) {
-        fetch(`/api/agent-info?project=${encodeURIComponent(project)}&fresh=1`).then(() => refetchInfo());
+      if (!r.ok) { setError((await r.json()).error); return; }
+
+      // NDJSON stream: grow the assistant message in place as frames arrive.
+      setMessages((m) => [...m, { role: "assistant", content: "", events: [], streaming: true }]);
+      const patch = (fn) => setMessages((m) => {
+        const last = m[m.length - 1];
+        return [...m.slice(0, -1), fn(last)];
+      });
+      const reader = r.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop();
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          let f;
+          try { f = JSON.parse(line); } catch { continue; }
+          if (f.type === "delta") {
+            patch((last) => ({ ...last, content: last.content + f.text }));
+          } else if (f.type === "tool") {
+            patch((last) => ({ ...last, events: [...last.events, { tool: f.tool, path: f.path }] }));
+          } else if (f.type === "status") {
+            patch((last) => ({ ...last, status: f.label }));
+          } else if (f.type === "done") {
+            patch((last) => ({
+              ...last,
+              // Deltas can double-render across steps; the done frame's text is
+              // authoritative. Keep streamed text only until it arrives.
+              content: f.text ?? last.content,
+              events: f.events?.length ? f.events : last.events,
+              writes: f.writes,
+              diagnostics: f.diagnostics,
+              engine: f.engine,
+              model: f.model,
+              fallbackReason: f.fallbackReason ?? null,
+              status: null,
+              streaming: false,
+            }));
+            if (f.writes?.length) {
+              fetch(`/api/agent-info?project=${encodeURIComponent(project)}&fresh=1`).then(() => refetchInfo());
+            }
+          } else if (f.type === "error") {
+            setError(f.error);
+            patch((last) => ({ ...last, streaming: false, status: null }));
+          }
+        }
       }
     } finally {
       setBusy(false);
@@ -242,7 +287,7 @@ function Build() {
               <div className="dim">Build chat for <b>{project}</b> — ask about the agent or tell it what to change.
                 It edits code through tools (<span className="mono">read_file</span>, <span className="mono">write_file</span>),
                 scoped to the agent surface, with revert on every write.</div>
-              <div className="dim2">Model: <span className="mono">{selModel ? selModel.modelID : "zai/glm-5.2"}</span>{selModel?.providerID === "vercel" ? " via AI Gateway (free)." : "."}</div>
+              <div className="dim2">Model: <span className="mono">{selModel ? selModel.modelID : "zai/glm-5.2"}</span>{selModel?.providerID === "vercel" ? " via AI Gateway." : "."}</div>
             </div>
           )}
           {messages.map((m, i) => (
@@ -259,14 +304,22 @@ function Build() {
                   <Button variant="ghost" size="sm" onClick={() => revert(w)}>Revert</Button>
                 </div>
               ))}
+              {m.status && (
+                <div className="dim mono" style={{ fontSize: 12 }}>{m.status}…</div>
+              )}
               {m.diagnostics && (
                 <div className={"mono " + (m.diagnostics.errors === 0 ? "ok" : "warn")} style={{ fontSize: 12 }}>
                   diagnostics: {m.diagnostics.errors === 0 ? "clean" : `${m.diagnostics.errors} error(s)`}
                 </div>
               )}
+              {m.role === "assistant" && m.engine && !m.streaming && (
+                <div className="msg-engine mono">{m.engine}{m.fallbackReason ? " (fallback)" : ""} · {m.model}</div>
+              )}
             </div>
           ))}
-          {busy && <div className="dim mono" style={{ display: "flex", gap: 8, alignItems: "center" }}><Spinner /> working…</div>}
+          {busy && !messages[messages.length - 1]?.streaming && (
+            <div className="dim mono" style={{ display: "flex", gap: 8, alignItems: "center" }}><Spinner /> working…</div>
+          )}
           {error && <div className="bad" style={{ fontSize: 13 }}>{error}</div>}
         </div>
         <div className="chat-composer">
@@ -283,6 +336,11 @@ function Build() {
           </div>
           {models.length > 0 && (
             <div className="chat-model">
+              <button
+                className="oc-btn mono"
+                title="Open the OpenCode TUI in a terminal on this checkout (gateway model preset)"
+                onClick={() => window.dispatchEvent(new CustomEvent("cockpit:open-terminal", { detail: { variant: "opencode" } }))}
+              >opencode ↗</button>
               <select
                 value={modelKey ?? ""}
                 onChange={(e) => { setModelKey(e.target.value); sessionStorage.setItem("build-model", e.target.value); }}
@@ -293,7 +351,7 @@ function Build() {
                   <optgroup key={prov} label={prov}>
                     {models.filter((m) => m.provider === prov).map((m) => (
                       <option key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
-                        {m.name}{m.providerID === "vercel" ? " · free" : ""}
+                        {m.name}{m.free ? " · free" : ""}
                       </option>
                     ))}
                   </optgroup>

@@ -4,20 +4,20 @@ import { resolveProject } from "../../../lib/projects.js";
 import { startTerm, stopTerm, getTerm } from "../../../lib/terminals.js";
 
 export async function POST(request) {
-  const { project: name, action, data, cols, rows } = await request.json();
+  const { project: name, action, data, cols, rows, variant } = await request.json();
 
   if (action === "start") {
     const project = await resolveProject(name);
     if (!project) return Response.json({ error: "unknown project" }, { status: 404 });
     try {
-      const term = await startTerm(project);
+      const term = await startTerm(project, variant);
       return Response.json({ ok: true, mode: term.mode, port: term.port });
     } catch (e) {
       return Response.json({ error: String(e.message ?? e) }, { status: 409 });
     }
   }
 
-  const term = getTerm(name);
+  const term = getTerm(name, variant);
   if (!term) return Response.json({ error: "no terminal for this project" }, { status: 404 });
 
   if (action === "input") {
@@ -31,7 +31,7 @@ export async function POST(request) {
     return Response.json({ ok: true });
   }
   if (action === "stop") {
-    stopTerm(name);
+    stopTerm(name, variant);
     return Response.json({ ok: true });
   }
 

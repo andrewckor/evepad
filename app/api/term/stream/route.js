@@ -6,8 +6,9 @@ import { getTerm } from "../../../../lib/terminals.js";
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
-  const name = new URL(request.url).searchParams.get("project") ?? "";
-  const term = getTerm(name);
+  const url = new URL(request.url);
+  const name = url.searchParams.get("project") ?? "";
+  const term = getTerm(name, url.searchParams.get("variant") ?? undefined);
   if (!term) return new Response("no terminal", { status: 404 });
 
   let ctrl;
