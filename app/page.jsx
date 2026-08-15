@@ -170,7 +170,12 @@ function Home() {
                 </>
               ) : (
                 <>
-                  <Badge variant="gray-subtle" size="sm">{p.localPath ? "Stopped" : "Remote"}</Badge>
+                  {/* Sync state, not run state: Linked = checkout + Vercel
+                      project; Local only = checkout without a Vercel record;
+                      Remote only = Vercel project with no known checkout. */}
+                  <Badge variant="gray-subtle" size="sm">
+                    {p.localPath ? (p.id ? "Linked" : "Local only") : "Remote only"}
+                  </Badge>
                   {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
                 </>
               )}
