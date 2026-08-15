@@ -76,7 +76,7 @@ export default function ProjectPicker({ value, onChange }) {
         {state ? (
           <Tip label={state}><span className="devbtn busy">{I.loader}</span></Tip>
         ) : p.live ? (
-          <Tip label={`Stop the local server on :${p.localPort}`}>
+          <Tip label="Stop local server">
             <span className="devbtn stop" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span>
           </Tip>
         ) : p.localPath ? (
