@@ -187,7 +187,7 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
 .tablecard{border:1px solid var(--line);border-radius:var(--r-lg);overflow-x:auto;overflow-y:hidden}
 /* Fixed layout keeps the Run column at full remaining width even when every
    title is short — columns never drift with content. */
-table{width:100%;min-width:900px;border-collapse:collapse;table-layout:fixed}
+table{width:100%;min-width:1150px;border-collapse:collapse;table-layout:fixed}
 th{
   text-align:left;font-size:14px;color:var(--dim);font-weight:400;
   height:42px;padding:0 0 0 16px;border-bottom:1px solid var(--line);background:var(--bg);
@@ -517,6 +517,24 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   font-size:9px;letter-spacing:1px;color:var(--dim);
 }
 .ascii-load.mini{font-size:7px;letter-spacing:0;line-height:1.05;width:14px;overflow:hidden}
+.ascii-load.big{font-size:13px;letter-spacing:2px;line-height:1.15;color:var(--dim2)}
+.graph-load{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;color:var(--dim);
+}
+/* the agent node, mid-materialization: same white pill as .gagent */
+.manifest-pill{
+  display:inline-flex;align-items:center;gap:14px;
+  background:#171717;color:var(--fg);
+  border:1px solid var(--line2);border-radius:999px;padding:14px 30px 14px 22px;
+  box-shadow:0 8px 30px rgba(0,0,0,.5);
+  animation:pillin 420ms cubic-bezier(.23,1,.32,1) both;
+}
+.manifest-text{display:flex;flex-direction:column;gap:1px;line-height:1.25}
+.manifest-pill b{font-size:14px;font-weight:600}
+.manifest-sub{font-style:normal;font-size:11.5px;color:var(--dim2);animation:shimmer 1.6s ease-in-out infinite}
+.ringspin{display:inline-flex;animation:devspin 1.1s linear infinite}
+@keyframes pillin{from{opacity:0;transform:translateY(6px) scale(.96)}to{opacity:1;transform:none}}
 .oc-shimmer{animation:shimmer 1.4s ease-in-out infinite}
 /* fixed status strip (Claude-style): the height is ALWAYS reserved between
    transcript and composer, so the indicator appearing/disappearing can never

@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash } from "vercel-geist-icons";
 import OcChat from "../components/oc-chat.jsx";
+import { AsciiLoader } from "../components/ascii-loader.jsx";
 
 const fetcher = async (url) => {
   const r = await fetch(url);
@@ -189,6 +190,41 @@ function toGraph(info, actions) {
   return { nodes, edges };
 }
 
+// Loading the manifest shows the graph's centerpiece already forming: the same
+// white pill as the agent node, with a ring spinner in place of the eve mark.
+// The wrapper span spins, not the SVG (rendering-animate-svg-wrapper).
+function SpinnerRing() {
+  const size = 22, stroke = 2.5;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  return (
+    <span className="ringspin">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line2)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke="var(--dim)" strokeWidth={stroke} strokeLinecap="round"
+          strokeDasharray={`${(c * 0.28).toFixed(2)} ${(c * 0.72).toFixed(2)}`}
+        />
+      </svg>
+    </span>
+  );
+}
+
+function ManifestLoader() {
+  return (
+    <div className="graph-load">
+      <div className="manifest-pill">
+        <SpinnerRing />
+        <span className="manifest-text">
+          <b>Compiling manifest…</b>
+          <i className="manifest-sub">Reading tools, schedules and channels</i>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function Build() {
   const q = useSearchParams();
   const project = q.get("project") ?? "";
@@ -236,7 +272,7 @@ function Build() {
       </div>
 
       <div className="buildflow">
-        {infoLoading && <div className="empty"><Spinner /> Compiling agent manifest…</div>}
+        {infoLoading && <ManifestLoader />}
         {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
         {info?.eveVersion && (
           <span className="eve-ver mono" title="Installed eve framework version">eve v{info.eveVersion}</span>

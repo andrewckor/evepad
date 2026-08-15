@@ -19,6 +19,7 @@ import {
 import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
+import { AsciiLoader } from "./ascii-loader.jsx";
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectValue,
 } from "@/components/ui/select";
@@ -33,35 +34,6 @@ const TOOL_ICONS = {
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
-// Generative ASCII loader (see .agents/skills/ascii-animation): a traveling
-// sine field rendered through a shaded-block brightness ramp into a <pre>.
-// Writes textContent directly via rAF — zero React re-renders, ~20fps.
-const RAMP = " \u00B7\u2591\u2592\u2593\u2588"; // ' ·░▒▓█' dark -> light
-function AsciiLoader({ cols = 10, rows = 1, className = "" }) {
-  const ref = React.useRef(null);
-  useEffect(() => {
-    let raf, last = 0;
-    const tick = (t) => {
-      raf = requestAnimationFrame(tick);
-      if (t - last < 50) return; // 20fps is plenty (skill: 12-24fps)
-      last = t;
-      let out = "";
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const v = Math.sin(x * 0.9 - t * 0.005 + y * 1.3) + Math.sin((x + y) * 0.5 - t * 0.0031);
-          const lum = Math.min(1, Math.max(0, (v + 2) / 4));
-          out += RAMP[Math.round(lum * (RAMP.length - 1))];
-        }
-        if (y < rows - 1) out += "\n";
-      }
-      if (ref.current) ref.current.textContent = out;
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [cols, rows]);
-  return <pre ref={ref} className={"ascii-load " + className} aria-label="working" />;
-}
-
 const MsgRow = React.memo(function MsgRow({ m }) {
   // Expanded thought/tool-output rows; local to the row, survives memo skips.
   const [openParts, setOpenParts] = React.useState(() => new Set());
