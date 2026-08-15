@@ -501,7 +501,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .pk-trigger:hover{background:var(--hover);border-color:var(--line2)}
 .pk-trigger-name{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pk-pop{width:340px;padding:0;overflow:hidden}
+.pk-pop{width:296px;padding:0;overflow:hidden}
 /* One internal scroll region: faded top and bottom edges, no visible bar —
    the list feels like it scrolls inside the panel. */
 .pk-list{max-height:330px;scrollbar-width:none;-ms-overflow-style:none;
@@ -509,11 +509,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   mask-image:linear-gradient(to bottom,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
 }
 .pk-list::-webkit-scrollbar{display:none;width:0;height:0}
-.pk-row{display:flex;align-items:center;gap:10px;min-height:36px}
+.pk-row{display:flex;align-items:center;gap:9px;min-height:36px;padding-right:6px}
 .pk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
 .pk-check{width:14px;height:14px;flex:none;color:var(--fg)}
 .pk-sub{color:var(--dim2);font-size:11px;flex:none}
-.pk-row .devbtn{width:24px;height:24px;font-size:12px}
+.pk-row .dot{width:7px;height:7px}
+.pk-row .devbtn{width:24px;height:24px;font-size:12px;margin-left:2px}
 
 /* Geist Badge — measured spec from vercel.com/geist/badge */
 .gbadge{

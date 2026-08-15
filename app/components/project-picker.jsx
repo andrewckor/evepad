@@ -68,9 +68,12 @@ export default function ProjectPicker({ value, onChange }) {
         className="pk-row"
       >
         <ProjectLogo p={p} size={20} />
+        <span className={"dot" + (p.live ? " on" : "")} />
         <span className="pk-name">{p.name}</span>
         {p.name === current?.name && <Check className="pk-check" />}
-        <span className="pk-sub mono">{p.live ? `:${p.localPort}` : p.source === "vercel" ? "remote" : ""}</span>
+        {/* Only the port earns space: "remote" duplicated what the folder
+            button (and its tooltip) already say. */}
+        {p.live && <span className="pk-sub mono">:{p.localPort}</span>}
         {state ? (
           <Tip label={state}><span className="devbtn busy">{I.loader}</span></Tip>
         ) : p.live ? (
@@ -96,6 +99,7 @@ export default function ProjectPicker({ value, onChange }) {
         {value && current ? (
           <>
             <ProjectLogo p={current} size={20} />
+            <span className={"dot" + (current.live ? " on" : "")} />
             <span className="pk-trigger-name">{current.name}</span>
           </>
         ) : (
