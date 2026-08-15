@@ -647,7 +647,12 @@ export default function OcChat({ project, onIdle }) {
   };
 
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error.text ?? String(error)}</div>;
-  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><AsciiLoader cols={14} rows={2} /> <span className="oc-shimmer">connecting to opencode…</span></div>;
+  if (!boot) return (
+    <div className="oc-boot">
+      <AsciiLoader cols={6} rows={1} className="boot" />
+      <span className="oc-shimmer mono">Starting editor…</span>
+    </div>
+  );
 
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
 

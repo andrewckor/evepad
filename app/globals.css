@@ -518,6 +518,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .ascii-load.mini{font-size:7px;letter-spacing:0;line-height:1.05;width:14px;overflow:hidden}
 .ascii-load.big{font-size:13px;letter-spacing:2px;line-height:1.15;color:var(--dim2)}
+.ascii-load.boot{font-size:14px;letter-spacing:3px;color:var(--dim2)}
+/* editor boot: dead-centre in the panel, loader over label */
+.oc-boot{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;color:var(--dim);
+}
 .graph-load{
   position:absolute;inset:0;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:12px;color:var(--dim);
