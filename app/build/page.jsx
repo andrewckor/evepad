@@ -76,37 +76,45 @@ function toGraph(info, actions) {
   const connections = info.connections ?? [];
   const channels = info.channels ?? [];
 
-  const boxH = 42 + Math.max(tools.length, 1) * 34;
-  const schedH = 42 + Math.max(schedules.length, 1) * 44; // two-line rows
-  const srcBottom = 40 + Math.max(boxH, schedules.length ? schedH : 0); // shared baseline
-  nodes.push({
-    id: "box:tools", position: { x: -115, y: srcBottom - boxH }, style: { width: 230 },
-    data: {
-      label: (
-        <div className="toolbox">
-          <div className="box-title">{tools.length} Tool{tools.length === 1 ? "" : "s"}</div>
-          {tools.length ? tools.map((t) => (
-            <div key={t} className="box-item nodrag">
-              <button className="box-name" onClick={() => actions.explain(t)} title={`Ask Build what ${t} does`}>{t}</button>
-              <span className="box-actions">
-                <Button variant="ghost" size="icon-sm" title="Copy name" onClick={() => navigator.clipboard?.writeText(t)}><Copy /></Button>
-                <Button variant="ghost" size="icon-sm" title={`Edit agent/tools/${t}.ts`} onClick={() => actions.edit(t)}><Pencil /></Button>
-                <Button variant="ghost" size="icon-sm" className="del" title={`Delete ${t}`} onClick={() => actions.remove(t)}><Trash /></Button>
-              </span>
-            </div>
-          )) : <div className="box-item empty">none yet</div>}
-        </div>
-      ),
-    },
-    className: "gbox", sourcePosition: "bottom", targetPosition: "top",
-  });
-  E("e:box:tools", "box:tools", "agent", { dashed: !tools.length });
+  // TRIGGERS on top (schedules + channels start executions), the agent in the
+  // middle, CAPABILITIES below (tools + connections it can reach for).
 
-  // Schedules render like Tools — a box listing each schedule with its
-  // human-readable cadence. Falls back to the empty pill when none exist.
-  if (schedules.length) {
+  // -- top-right: channel icon circles feed the Channels pill
+  const CHAN_W = 140;
+  const chanCX = 260;
+  const circleY = 0;
+  const pillY = channels.length ? 92 : 40;
+  channels.forEach((c, i) => {
+    const x = chanCX + (i - (channels.length - 1) / 2) * 96;
+    const isSlack = /slack/i.test(c.name) || /slack/i.test(c.kind);
     nodes.push({
-      id: "box:schedules", position: { x: -290 - 110, y: srcBottom - schedH }, style: { width: 220 },
+      id: `ch:${i}`, position: { x: x - 23, y: circleY }, style: { width: 46 },
+      data: {
+        label: (
+          <div className="circle-label" title={`${c.name} (${c.kind})`}>
+            <span className="circle">{isSlack ? <SlackIcon /> : <span className="api-badge">API</span>}</span>
+            <i>{c.name}</i>
+          </div>
+        ),
+      },
+      className: "gcircle", sourcePosition: "bottom",
+    });
+    E(`e:ch:${i}`, `ch:${i}`, "cat:channels");
+  });
+  nodes.push({
+    id: "cat:channels", position: { x: chanCX - CHAN_W / 2, y: pillY }, style: { width: CHAN_W },
+    data: { label: (<div className="pill-label">{channels.length} Channel{channels.length === 1 ? "" : "s"}</div>) },
+    className: "gpill" + (channels.length ? "" : " empty"),
+    sourcePosition: "bottom", targetPosition: "top",
+  });
+  const srcBottom = pillY + 38;
+  E("e:channels-agent", "cat:channels", "agent", { dashed: !channels.length });
+
+  // -- top-left: schedules as a Tools-style box (empty pill fallback)
+  if (schedules.length) {
+    const schedH = 42 + schedules.length * 44;
+    nodes.push({
+      id: "box:schedules", position: { x: -260 - 110, y: srcBottom - schedH }, style: { width: 220 },
       data: {
         label: (
           <div className="toolbox">
@@ -129,28 +137,17 @@ function toGraph(info, actions) {
       className: "gbox", sourcePosition: "bottom", targetPosition: "top",
     });
     E("e:box:schedules", "box:schedules", "agent");
-  }
-
-  // Side pills sit so their BOTTOM aligns with the box bottoms — every edge
-  // leaves from the same height and the merge is symmetric.
-  const cats = [
-    ...(schedules.length ? [] : [{ id: "cat:schedules", label: "0 Schedules", x: -290, w: 132, empty: true }]),
-    { id: "cat:connections", label: `${connections.length} Connections`, x: 290, w: 150, empty: !connections.length },
-  ];
-  for (const c of cats) {
+  } else {
     nodes.push({
-      id: c.id, position: { x: c.x - c.w / 2, y: srcBottom - 38 }, style: { width: c.w },
-      data: { label: (<div className="pill-label">{c.label}</div>) },
-      className: "gpill" + (c.empty ? " empty" : ""),
-      sourcePosition: "bottom", targetPosition: "top",
+      id: "cat:schedules", position: { x: -260 - 66, y: srcBottom - 38 }, style: { width: 132 },
+      data: { label: (<div className="pill-label">0 Schedules</div>) },
+      className: "gpill empty", sourcePosition: "bottom", targetPosition: "top",
     });
-    E(`e:${c.id}`, c.id, "agent", { dashed: c.empty });
+    E("e:cat:schedules", "cat:schedules", "agent", { dashed: true });
   }
 
+  // -- middle: the agent
   const yAgent = srcBottom + 90;
-  // Content-sized pill with a numeric width so the spine's centerline stays
-  // exact: 22px padding each side + 15px logo + 9px gap + ~8.6px/char
-  // (15px/600 Geist), capped at 40 chars (CSS ellipsizes the rest).
   const nameLen = Math.min((info.name ?? "").length, 40);
   const AGENT_W = Math.round(44 + 15 + 9 + 10 + nameLen * 8.8); // +10 slack: an under-estimate ellipsizes
   nodes.push({
@@ -159,32 +156,37 @@ function toGraph(info, actions) {
     className: "gagent", sourcePosition: "bottom", targetPosition: "top",
   });
 
-  const CHAN_W = 140;
+  // -- bottom: capabilities the agent reaches for
+  const yCaps = yAgent + 110;
   nodes.push({
-    id: "cat:channels", position: { x: -CHAN_W / 2, y: yAgent + 110 }, style: { width: CHAN_W },
-    data: { label: (<div className="pill-label">{channels.length} Channel{channels.length === 1 ? "" : "s"}</div>) },
-    className: "gpill" + (channels.length ? "" : " empty"),
-    sourcePosition: "bottom", targetPosition: "top",
+    id: "box:tools", position: { x: -160 - 115, y: yCaps }, style: { width: 230 },
+    data: {
+      label: (
+        <div className="toolbox">
+          <div className="box-title">{tools.length} Tool{tools.length === 1 ? "" : "s"}</div>
+          {tools.length ? tools.map((t) => (
+            <div key={t} className="box-item nodrag">
+              <button className="box-name" onClick={() => actions.explain(t)} title={`Ask Build what ${t} does`}>{t}</button>
+              <span className="box-actions">
+                <Button variant="ghost" size="icon-sm" title="Copy name" onClick={() => navigator.clipboard?.writeText(t)}><Copy /></Button>
+                <Button variant="ghost" size="icon-sm" title={`Edit agent/tools/${t}.ts`} onClick={() => actions.edit(t)}><Pencil /></Button>
+                <Button variant="ghost" size="icon-sm" className="del" title={`Delete ${t}`} onClick={() => actions.remove(t)}><Trash /></Button>
+              </span>
+            </div>
+          )) : <div className="box-item empty">none yet</div>}
+        </div>
+      ),
+    },
+    className: "gbox", targetPosition: "top",
   });
-  E("e:agent-channels", "agent", "cat:channels", { dashed: !channels.length });
+  E("e:agent-tools", "agent", "box:tools", { dashed: !tools.length });
 
-  channels.forEach((c, i) => {
-    const x = (i - (channels.length - 1) / 2) * 96;
-    const isSlack = /slack/i.test(c.name) || /slack/i.test(c.kind);
-    nodes.push({
-      id: `ch:${i}`, position: { x: x - 23, y: yAgent + 200 }, style: { width: 46 },
-      data: {
-        label: (
-          <div className="circle-label" title={`${c.name} (${c.kind})`}>
-            <span className="circle">{isSlack ? <SlackIcon /> : <span className="api-badge">API</span>}</span>
-            <i>{c.name}</i>
-          </div>
-        ),
-      },
-      className: "gcircle", targetPosition: "top",
-    });
-    E(`e:ch:${i}`, "cat:channels", `ch:${i}`);
+  nodes.push({
+    id: "cat:connections", position: { x: 260 - 75, y: yCaps }, style: { width: 150 },
+    data: { label: (<div className="pill-label">{connections.length} Connections</div>) },
+    className: "gpill" + (connections.length ? "" : " empty"), targetPosition: "top",
   });
+  E("e:agent-connections", "agent", "cat:connections", { dashed: !connections.length });
 
   return { nodes, edges };
 }
