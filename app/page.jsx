@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { I } from "./components/icons.jsx";
 import { Badge } from "./components/badge.jsx";
+import ProjectLogo from "./components/project-logo.jsx";
 import { Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
@@ -25,50 +26,6 @@ function Tip({ label, children }) {
 }
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
-
-// Vercel-dashboard-style project tile. eve apps ship no favicon (their HTTP
-// surface 404s it), so the eve dot-grid mark is the identity — same glyph as
-// the agent pill in the Build graph. Favicon kept as a progressive upgrade
-// for any project that does serve one.
-function EveMark() {
-  return (
-    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden>
-      {[[3,3],[8,2.5],[13,3],[2.5,8],[8,8],[13.5,8],[3,13],[8,13.5],[13,13]].map(([x,y],i)=>(
-        <circle key={i} cx={x} cy={y} r={i%2?1.1:1.5} fill="currentColor"/>
-      ))}
-    </svg>
-  );
-}
-function Logo({ p }) {
-  // Priority: Vercel's own dashboard icon service (favicon-or-framework-logo,
-  // official art), then stored avatar, then live favicon, then our mark.
-  const sources = [p.iconUrl, p.avatarUrl, p.productionUrl ? `${p.productionUrl}/favicon.ico` : null].filter(Boolean);
-  const [idx, setIdx] = useState(0);
-  const [loaded, setLoaded] = useState(false);
-  const src = sources[idx] ?? null;
-  const mark = p.framework === "eve"
-    ? <EveMark />
-    : <span className="mono" style={{ fontSize: 13 }}>{p.name.slice(0, 1).toUpperCase()}</span>;
-  return (
-    <span className="agentlogo">
-      {src && (
-        <img
-          src={src} alt="" style={loaded ? {} : { display: "none" }}
-          onLoad={() => setLoaded(true)}
-          onError={() => { setLoaded(false); setIdx((i) => i + 1); }}
-        />
-      )}
-      {!loaded && mark}
-    </span>
-  );
-}
-const ago = (ts) => {
-  if (!ts) return "";
-  const s = (Date.now() - ts) / 1000;
-  if (s < 3600) return Math.max(1, Math.floor(s / 60)) + "m ago";
-  if (s < 86400) return Math.floor(s / 3600) + "h ago";
-  return Math.floor(s / 86400) + "d ago";
-};
 
 function NewAgentCard({ onCreated }) {
   const [open, setOpen] = useState(false);
@@ -166,7 +123,7 @@ function Home() {
         {projects.map((p) => (
           <div key={p.name} className="agentcard" onClick={() => open(p)} role="button" tabIndex={0}>
             <div className="agentrow">
-              <Logo p={p} />
+              <ProjectLogo p={p} />
               <b>{p.name}</b>
               <div className="spacer" />
               {busy[p.name] ? (

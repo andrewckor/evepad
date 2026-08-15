@@ -1,13 +1,21 @@
 "use client";
 
-// Project switcher with per-project dev-server controls (start ■ / stop ▶ / 📁
-// connect a checkout). Lives in the persistent shell, so its SWR poll and open
-// state survive route changes.
+// Project switcher, built like Vercel's: a Popover holding a Command palette —
+// search pinned on top, one scrolling list underneath with faded edges and no
+// visible scrollbar, project tiles identical to the Agents grid, and the
+// per-project dev controls (start / stop / connect a checkout) on each row.
+// Lives in the persistent shell, so its SWR poll survives route changes.
 
 import { useState } from "react";
 import useSWR from "swr";
 import { I } from "./icons.jsx";
-import { ChevronUpSmall, ChevronDownSmall } from "vercel-geist-icons";
+import ProjectLogo from "./project-logo.jsx";
+import { ChevronUpSmall, ChevronDownSmall, Check } from "vercel-geist-icons";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import {
+  Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
+} from "@/components/ui/command";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -26,6 +34,7 @@ export default function ProjectPicker({ value, onChange }) {
 
   const devAction = async (e, p, action) => {
     e.stopPropagation();
+    e.preventDefault();
     const label = { start: "starting", stop: "stopping", locate: "picking folder" }[action];
     setBusy((b) => ({ ...b, [p.name]: label }));
     try {
@@ -42,49 +51,71 @@ export default function ProjectPicker({ value, onChange }) {
     }
   };
 
+  const Tip = ({ label, children }) => (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+
   const Row = (p) => {
     const state = busy[p.name];
     return (
-      <button key={p.name + p.localPort} onClick={() => { onChange(p); setOpen(false); }}>
-        <span className={"dot" + (p.live ? " on" : "")} />
-        <span className="pname">{p.name}</span>
-        <span className="sub">{p.live ? `:${p.localPort}` : p.source === "vercel" ? "remote" : ""}</span>
+      <CommandItem
+        key={p.name + (p.localPort ?? "")}
+        value={p.name}
+        onSelect={() => { onChange(p); setOpen(false); }}
+        className="pk-row"
+      >
+        <ProjectLogo p={p} size={20} />
+        <span className="pk-name">{p.name}</span>
+        {p.name === current?.name && <Check className="pk-check" />}
+        <span className="pk-sub mono">{p.live ? `:${p.localPort}` : p.source === "vercel" ? "remote" : ""}</span>
         {state ? (
-          <span className="devbtn busy" title={state}>…</span>
+          <Tip label={state}><span className="devbtn busy">{I.loader}</span></Tip>
         ) : p.live ? (
-          <span className="devbtn stop" title="Stop local server" onClick={(e) => devAction(e, p, "stop")}>■</span>
+          <Tip label={`Stop the local server on :${p.localPort}`}>
+            <span className="devbtn stop" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span>
+          </Tip>
         ) : p.localPath ? (
-          <span className="devbtn play" title={`Start eve dev in ${p.localPath}`} onClick={(e) => devAction(e, p, "start")}>▶</span>
+          <Tip label="Start local server">
+            <span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>{I.play}</span>
+          </Tip>
         ) : (
-          <span className="devbtn locate" title="Connect a local checkout — opens a folder picker" onClick={(e) => devAction(e, p, "locate")}>📁</span>
+          <Tip label="Link local project">
+            <span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span>
+          </Tip>
         )}
-      </button>
+      </CommandItem>
     );
   };
 
   return (
-    <div className="picker">
-      <button onClick={() => setOpen((o) => !o)}>
-        {value ? (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className="pk-trigger">
+        {value && current ? (
           <>
-            <span className={"dot" + (current?.live ? " on" : "")} />
-            <span>{current?.name ?? value}</span>
+            <ProjectLogo p={current} size={20} />
+            <span className="pk-trigger-name">{current.name}</span>
           </>
         ) : (
-          <span>All Projects</span>
+          <span className="pk-trigger-name">All Projects</span>
         )}
         {/* Vercel's switcher glyph: the two small chevrons stacked. */}
         <span className="chev chev-ud"><ChevronUpSmall /><ChevronDownSmall /></span>
-      </button>
-      {open && (
-        <div className="menu" onMouseLeave={() => setOpen(false)}>
-          {live.length > 0 && <div className="hd">running locally</div>}
-          {live.map(Row)}
-          {rest.length > 0 && <div className="hd">vercel projects</div>}
-          {rest.map(Row)}
-          {!projects.length && <div className="hd">no projects found</div>}
-        </div>
-      )}
-    </div>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="pk-pop">
+        <TooltipProvider delay={200}>
+          <Command>
+            <CommandInput placeholder="Find project…" />
+            <CommandList className="pk-list">
+              <CommandEmpty>No project found.</CommandEmpty>
+              {live.length > 0 && <CommandGroup heading="Running locally">{live.map(Row)}</CommandGroup>}
+              {rest.length > 0 && <CommandGroup heading="Vercel projects">{rest.map(Row)}</CommandGroup>}
+            </CommandList>
+          </Command>
+        </TooltipProvider>
+      </PopoverContent>
+    </Popover>
   );
 }
