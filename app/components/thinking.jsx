@@ -13,7 +13,6 @@
 
 import { useState } from "react";
 import { Sparkles, ChevronDownSmall, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, CrossCircle } from "vercel-geist-icons";
-import { PixelGrid } from "./loading-state.jsx";
 
 // Geist icon per opencode tool — nearest concept, never invented (AGENTS.md).
 const TOOL_ICONS = {
@@ -116,7 +115,7 @@ export default function Thinking({ parts, busy }) {
                     rel="noreferrer"
                   >
                     <span className={"th-ic s-" + (st ?? "pending")}>
-                      {["pending", "running"].includes(st) ? <PixelGrid /> : <Globe />}
+                      {["pending", "running"].includes(st) ? <span className="th-spin" /> : <Globe />}
                     </span>
                     <span className="th-name">{host}</span>
                     {rest && <span className="th-sub">{rest}</span>}
@@ -132,7 +131,7 @@ export default function Thinking({ parts, busy }) {
                   >
                     <span className={"th-ic s-" + (st ?? "pending")}>
                       {st === "error" ? <CrossCircle />
-                        : ["pending", "running"].includes(st) ? <PixelGrid />
+                        : ["pending", "running"].includes(st) ? <span className="th-spin" />
                         : (TOOL_ICONS[p.tool] ?? <Wrench />)}
                     </span>
                     <span className="th-name">{p.tool}</span>

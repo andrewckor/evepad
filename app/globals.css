@@ -895,6 +895,14 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .th-row:not(.static):hover{background:var(--hover)}
 .th-row.sel{background:var(--panel2)}
 .th-ic{display:inline-flex;flex:none;font-size:14px;color:var(--dim)}
+/* A running tool gets its own small ring — the pixel grid is the panel's
+   headline loader, and repeating it per row made a busy trace read as
+   several things all announcing themselves at once. */
+.th-spin{
+  width:12px;height:12px;border-radius:50%;
+  border:1.5px solid var(--line2);border-top-color:var(--dim);
+  animation:devspin .7s linear infinite;
+}
 .th-ic.s-error{color:var(--bad)}
 .th-name{font-size:12.5px;font-weight:500;color:var(--fg);flex:none}
 .th-sub{
