@@ -67,6 +67,13 @@ function humanCron(cron) {
   return cron;
 }
 
+// Own connections live in agent/connections; an extension's are namespaced
+// <ext>__<name> and live under that extension.
+function connectionPathOf(n) {
+  const [ext, name] = n.includes("__") ? n.split("__") : [null, n];
+  return ext ? `agent/extensions/${ext}/connections/${name}.ts` : `agent/connections/${name}.ts`;
+}
+
 // Vercel's agent-graph layout. Tools live inside one box node; static edges
 // (no animation — they carry no traffic), dashed when a category is empty.
 function toGraph(info, actions) {
@@ -155,6 +162,9 @@ function toGraph(info, actions) {
             {connections.map((c) => (
               <div key={c} className="box-item nodrag">
                 <button className="box-name" onClick={() => actions.explainConnection(c)} title={`Ask Build about ${c}`}>{c}</button>
+                <span className="box-actions">
+                  <Button variant="ghost" size="icon-sm" title={`Edit ${connectionPathOf(c)}`} onClick={() => actions.editConnection(c)}><Pencil /></Button>
+                </span>
               </div>
             ))}
           </div>
@@ -334,16 +344,17 @@ function Build() {
   actionsRef.current.explain = (t) =>
     oc(`What does agent/tools/${t}.ts do? Show the important part of the code briefly.`);
   actionsRef.current.edit = (t) => oc(`Edit agent/tools/${t}.ts: `, false);
+  // Prefilled, not sent — deleting code is worth reading before you commit to
+  // it, and the sentence is usually worth a tweak first.
   actionsRef.current.remove = (t) =>
-    oc(`Delete the tool agent/tools/${t}.ts and remove any references to it (check agent/instructions.md and update it if it mentions ${t}).`);
+    oc(`Delete the tool agent/tools/${t}.ts and remove any references to it (check agent/instructions.md and update it if it mentions ${t}).`, false);
   actionsRef.current.explainSchedule = (n) =>
     oc(`What does the schedule agent/schedules/${n}.ts do and when does it run? Answer briefly in local time and UTC.`);
   actionsRef.current.editSchedule = (n) => oc(`Edit agent/schedules/${n}.ts: `, false);
-  actionsRef.current.explainConnection = (n) => {
-    const [ext, name] = n.includes("__") ? n.split("__") : [null, n];
-    const where = ext ? `agent/extensions/${ext}/connections/${name}.ts` : `agent/connections/${name}.ts`;
-    oc(`What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${where}. Answer briefly.`);
-  };
+  const connectionPath = connectionPathOf;
+  actionsRef.current.explainConnection = (n) =>
+    oc(`What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${connectionPath(n)}. Answer briefly.`);
+  actionsRef.current.editConnection = (n) => oc(`Edit ${connectionPath(n)}: `, false);
   actionsRef.current.removeSchedule = (n) =>
     oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`);
   const actions = useMemo(() => ({
@@ -354,6 +365,7 @@ function Build() {
     editSchedule: (n) => actionsRef.current.editSchedule(n),
     removeSchedule: (n) => actionsRef.current.removeSchedule(n),
     explainConnection: (n) => actionsRef.current.explainConnection(n),
+    editConnection: (n) => actionsRef.current.editConnection(n),
   }), []);
 
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);
