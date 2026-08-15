@@ -84,7 +84,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
             {I.clockDashed} Runs
           </Link>
         )}
-        {termProject && !isBuild && (
+        {!isHome && termProject && !isBuild && (
           <Link
             className="chatbtn"
             href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
@@ -115,12 +115,12 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
           </AnimatePresence>
         </div>
         <div className="spacer" />
-        {liveProject && (
+        {!isHome && liveProject && (
           <button className="chatbtn" data-on={panel === "chat" ? "1" : "0"} onClick={() => setPanel((p) => (p === "chat" ? null : "chat"))} title={`Chat with ${liveProject.name} on :${liveProject.localPort}`}>
             {I.message} Chat
           </button>
         )}
-        {termProject && (
+        {!isHome && termProject && (
           <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))} title={`Open a terminal running eve dev for ${termProject.name}`}>
             {I.terminal} Terminal
           </button>
