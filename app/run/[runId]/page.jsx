@@ -160,7 +160,19 @@ function Detail({ runId }) {
   const { data: run, isLoading, error } = useSWR(
     `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(project)}`,
     fetcher,
-    { refreshInterval: isLocal ? 2000 : 0, revalidateOnFocus: isLocal, keepPreviousData: true },
+    {
+      // Poll while the session is open — production included (reads are the
+      // in-process client behind a 4s server cache, ~free per poll). A local
+      // no-polling prod page was a leftover from the slow CLI days. Terminal
+      // runs are immutable: stop polling entirely.
+      refreshInterval: (latest) => {
+        const st = latest?.session?.status;
+        if (st === "completed" || st === "failed") return 0;
+        return isLocal ? 2000 : 5000;
+      },
+      revalidateOnFocus: true,
+      keepPreviousData: true,
+    },
   );
 
   if (error) {
