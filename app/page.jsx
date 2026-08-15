@@ -119,7 +119,9 @@ function Home() {
   return (
     <div className="wrap">
       <div className="home-head">
-        <h1>{projects.length} Agents</h1>
+        {/* No count until the list arrives — "0 Agents" during the first
+            fetch reads as "you have none". */}
+        <h1>{projects.length ? `${projects.length} Agents` : "Agents"}</h1>
         {projects.some((p) => p.live) && (
           <span className="dim">{projects.filter((p) => p.live).length} running locally</span>
         )}
