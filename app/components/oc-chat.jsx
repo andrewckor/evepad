@@ -428,6 +428,28 @@ export default function OcChat({ project, onIdle }) {
 
   // ---- actions
   const selModel = boot?.models.find((m) => `${m.providerID}:${m.modelID}` === modelKey);
+  const chooseModel = (key) => {
+    setModelKey(key);
+    sessionStorage.setItem("build-model", key);
+    try {
+      const h = JSON.parse(localStorage.getItem("oc-model-history") ?? "[]").filter((k) => k !== key);
+      localStorage.setItem("oc-model-history", JSON.stringify([key, ...h].slice(0, 8)));
+    } catch {}
+  };
+  // The dropdown mounts every item on open — 194 Radix rows cost ~360ms. Keep
+  // it to current + recents + defaults; the /models palette is the browser.
+  const shortModels = (() => {
+    if (!boot) return [];
+    let history = [];
+    try { history = JSON.parse(localStorage.getItem("oc-model-history") ?? "[]"); } catch {}
+    const keys = [...new Set([
+      modelKey,
+      ...history,
+      `${boot.defaults.provider}:${boot.defaults.model}`,
+      "vercel:zai/glm-5.2-fast",
+    ].filter(Boolean))];
+    return keys.map((k) => boot.models.find((m) => `${m.providerID}:${m.modelID}` === k)).filter(Boolean).slice(0, 10);
+  })();
   const ensureSession = async () => {
     if (sessionRef.current) return sessionRef.current;
     const created = await act({ action: "new" });
@@ -600,10 +622,7 @@ export default function OcChat({ project, onIdle }) {
           key: `${m.providerID}:${m.modelID}`,
           label: m.name,
           desc: `${m.provider}${m.free ? " · free" : ""}`,
-          run: () => {
-            const k = `${m.providerID}:${m.modelID}`;
-            setModelKey(k); sessionStorage.setItem("build-model", k); setInput("");
-          },
+          run: () => { chooseModel(`${m.providerID}:${m.modelID}`); setInput(""); },
         })) };
     }
     if (tok === "agents") {
@@ -798,7 +817,10 @@ export default function OcChat({ project, onIdle }) {
           {boot.models.length > 0 && (
             <Select
               value={modelKey ?? ""}
-              onValueChange={(v) => { setModelKey(v); sessionStorage.setItem("build-model", v); }}
+              onValueChange={(v) => {
+                if (v === "__all") { setInput("/models "); inputRef.current?.focus({ preventScroll: true }); return; }
+                chooseModel(v);
+              }}
             >
               <SelectTrigger size="sm" className="oc-model-trigger" aria-label="Model">
                 <SelectValue placeholder="model">
@@ -806,16 +828,12 @@ export default function OcChat({ project, onIdle }) {
                 </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {[...new Set(boot.models.map((m) => m.provider))].map((prov) => (
-                  <SelectGroup key={prov}>
-                    <SelectLabel>{prov}</SelectLabel>
-                    {boot.models.filter((m) => m.provider === prov).map((m) => (
-                      <SelectItem key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
-                        {m.name}{m.free ? " · free" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
+                {shortModels.map((m) => (
+                  <SelectItem key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
+                    {m.name}{m.free ? " · free" : ""} <span className="oc-ago">{m.provider}</span>
+                  </SelectItem>
                 ))}
+                <SelectItem value="__all">All models… <span className="oc-ago">/models</span></SelectItem>
               </SelectContent>
             </Select>
           )}
