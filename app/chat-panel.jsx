@@ -144,7 +144,7 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
       <div className={"term-resize " + dock} onPointerDown={startDrag} title="Drag to resize" />
       <div className="term-head">
         <span className="dot on" />
-        <b>Chat with:</b>
+        <b>Chat with</b>
         <span className="dim">{project.name}</span>
         {sessionId && (
           <a className="dim2 mono" href={`/run/${sessionId}?environment=local&project=${encodeURIComponent(project.name)}`} title="Open this session's run detail">
