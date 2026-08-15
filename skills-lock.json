@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "ascii-animation": {
+      "source": "iart-ai/web-animation-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ascii-animation/SKILL.md",
+      "computedHash": "cc219b1851f713f76934a2738ccdcec37d4a266f1d20ecc346487290cc40d2fb"
+    },
     "shadcn": {
       "source": "shadcn-ui/ui",
       "sourceType": "github",

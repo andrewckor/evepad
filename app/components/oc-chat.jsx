@@ -33,16 +33,33 @@ const TOOL_ICONS = {
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
-// Terminal-style block spinner — the rotating corner cubes TUIs use.
-// Self-contained interval so only this span re-renders per frame.
-const TERM_FRAMES = ["\u2596", "\u2598", "\u259D", "\u2597"]; // quadrant blocks
-function TermLoader() {
-  const [i, setI] = React.useState(0);
+// Generative ASCII loader (see .agents/skills/ascii-animation): a traveling
+// sine field rendered through a shaded-block brightness ramp into a <pre>.
+// Writes textContent directly via rAF — zero React re-renders, ~20fps.
+const RAMP = " \u00B7\u2591\u2592\u2593\u2588"; // ' ·░▒▓█' dark -> light
+function AsciiLoader({ cols = 10, rows = 1, className = "" }) {
+  const ref = React.useRef(null);
   useEffect(() => {
-    const iv = setInterval(() => setI((n) => (n + 1) % TERM_FRAMES.length), 140);
-    return () => clearInterval(iv);
-  }, []);
-  return <span className="termload mono" aria-label="working">{TERM_FRAMES[i]}</span>;
+    let raf, last = 0;
+    const tick = (t) => {
+      raf = requestAnimationFrame(tick);
+      if (t - last < 50) return; // 20fps is plenty (skill: 12-24fps)
+      last = t;
+      let out = "";
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const v = Math.sin(x * 0.9 - t * 0.005 + y * 1.3) + Math.sin((x + y) * 0.5 - t * 0.0031);
+          const lum = Math.min(1, Math.max(0, (v + 2) / 4));
+          out += RAMP[Math.round(lum * (RAMP.length - 1))];
+        }
+        if (y < rows - 1) out += "\n";
+      }
+      if (ref.current) ref.current.textContent = out;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [cols, rows]);
+  return <pre ref={ref} className={"ascii-load " + className} aria-label="working" />;
 }
 
 const MsgRow = React.memo(function MsgRow({ m }) {
@@ -68,7 +85,7 @@ const MsgRow = React.memo(function MsgRow({ m }) {
               <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
                 <MarkerIcon>
                   {st === "error" ? <CrossCircle />
-                    : ["pending", "running"].includes(st) ? <TermLoader />
+                    : ["pending", "running"].includes(st) ? <AsciiLoader cols={2} rows={2} className="mini" />
                     : (TOOL_ICONS[p.tool] ?? <Wrench />)}
                 </MarkerIcon>
                 <MarkerContent className="mono">
@@ -568,7 +585,7 @@ export default function OcChat({ project, onIdle }) {
   };
 
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error}</div>;
-  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><TermLoader /> <span className="oc-shimmer">connecting to opencode…</span></div>;
+  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><AsciiLoader cols={14} rows={2} /> <span className="oc-shimmer">connecting to opencode…</span></div>;
 
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
 
@@ -646,7 +663,7 @@ export default function OcChat({ project, onIdle }) {
           </MessageScroller>
         </MessageScrollerProvider>
         <div className={"oc-working" + (busy && !visiblePerms.length ? " on" : "")} aria-hidden={!busy}>
-          <TermLoader /> <span className="oc-shimmer mono">working…</span>
+          <AsciiLoader cols={12} rows={1} /> <span className="oc-shimmer mono">working…</span>
         </div>
       </div>
 

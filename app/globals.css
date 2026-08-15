@@ -482,8 +482,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .pgbtn:disabled{color:var(--dim2);cursor:default}
 
 /* ---- custom opencode client ---- */
-/* terminal block spinner (rotating quadrant cubes) */
-.termload{display:inline-block;width:1em;font-size:13px;line-height:1;color:var(--dim);text-align:center;flex:none}
+/* generative ASCII loader — shaded-block wave in a <pre> */
+.ascii-load{
+  font-family:var(--mono);white-space:pre;line-height:1;margin:0;flex:none;
+  font-size:9px;letter-spacing:1px;color:var(--dim);
+}
+.ascii-load.mini{font-size:7px;letter-spacing:0;line-height:1.05;width:14px;overflow:hidden}
 .oc-shimmer{animation:shimmer 1.4s ease-in-out infinite}
 /* floating working chip: lives OVER the scroller, never in its layout, so
    appearing/disappearing can't move the transcript */
