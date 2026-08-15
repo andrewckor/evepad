@@ -63,6 +63,13 @@ function AsciiLoader({ cols = 10, rows = 1, className = "" }) {
 }
 
 const MsgRow = React.memo(function MsgRow({ m }) {
+  // Expanded thought/tool-output rows; local to the row, survives memo skips.
+  const [openParts, setOpenParts] = React.useState(() => new Set());
+  const toggle = (id) => setOpenParts((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
   const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const isUser = m.info.role === "user";
   return (
@@ -79,19 +86,47 @@ const MsgRow = React.memo(function MsgRow({ m }) {
               <Streamdown key={p.id} className="chat-md">{p.text}</Streamdown>
             );
           }
+          if (p.type === "reasoning") {
+            // Native-opencode style: a dim collapsed "thought" row; click for
+            // the full reasoning text.
+            if (!p.text?.trim()) return null;
+            const ms = p.time?.end && p.time?.start ? p.time.end - p.time.start : null;
+            const dur = ms == null ? "" : ms < 1000 ? ` ${ms}ms` : ` ${(ms / 1000).toFixed(1)}s`;
+            const open = openParts.has(p.id);
+            return (
+              <div key={p.id}>
+                <button className="oc-thought mono" onClick={() => toggle(p.id)}>
+                  ✱ thought{dur}
+                </button>
+                {open && <div className="oc-thought-body">{p.text}</div>}
+              </div>
+            );
+          }
           if (p.type === "tool") {
             const st = p.state?.status;
+            const output = p.state?.output;
+            const open = openParts.has(p.id);
+            const expandable = st === "completed" && output;
             return (
-              <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
-                <MarkerIcon>
-                  {st === "error" ? <CrossCircle />
-                    : ["pending", "running"].includes(st) ? <AsciiLoader cols={2} rows={2} className="mini" />
-                    : (TOOL_ICONS[p.tool] ?? <Wrench />)}
-                </MarkerIcon>
-                <MarkerContent className="mono">
-                  {p.tool} <span className="dim2">{partLabel(p)}</span>
-                </MarkerContent>
-              </Marker>
+              <div key={p.id}>
+                <Marker
+                  className={"oc-" + (st ?? "pending") + (expandable ? " oc-expandable" : "")}
+                  onClick={expandable ? () => toggle(p.id) : undefined}
+                  role={expandable ? "button" : undefined}
+                >
+                  <MarkerIcon>
+                    {st === "error" ? <CrossCircle />
+                      : ["pending", "running"].includes(st) ? <AsciiLoader cols={2} rows={2} className="mini" />
+                      : (TOOL_ICONS[p.tool] ?? <Wrench />)}
+                  </MarkerIcon>
+                  <MarkerContent className="mono">
+                    {p.tool} <span className="dim2">{partLabel(p)}</span>
+                  </MarkerContent>
+                </Marker>
+                {open && (
+                  <pre className="oc-tool-out">{String(output).slice(0, 4000)}</pre>
+                )}
+              </div>
             );
           }
           return null;
