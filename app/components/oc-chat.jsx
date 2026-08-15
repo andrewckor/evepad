@@ -11,6 +11,25 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Streamdown } from "streamdown";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  MessageScrollerProvider, MessageScroller, MessageScrollerViewport,
+  MessageScrollerContent, MessageScrollerItem, MessageScrollerButton,
+} from "@/components/ui/message-scroller";
+import { Message, MessageContent } from "@/components/ui/message";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
+import {
+  Select, SelectTrigger, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectValue,
+} from "@/components/ui/select";
+import { ArrowUp, Plus, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CheckCircle, CrossCircle } from "vercel-geist-icons";
+
+// Geist icon per opencode tool — nearest concept, never invented (AGENTS.md).
+const TOOL_ICONS = {
+  bash: <Terminal />, edit: <Pencil />, write: <Pencil />,
+  read: <MagnifyingGlass />, glob: <MagnifyingGlass />, grep: <MagnifyingGlass />, list: <MagnifyingGlass />,
+  webfetch: <Globe />,
+};
 
 const fetchJson = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -47,7 +66,6 @@ export default function OcChat({ project, onIdle }) {
   const [modelKey, setModelKey] = useState(null);
   const [agentName, setAgentName] = useState(null); // null = server default
   const [palIndex, setPalIndex] = useState(0);
-  const scroller = useRef(null);
   const inputRef = useRef(null);
   const onIdleRef = useRef(onIdle);
   onIdleRef.current = onIdle;
@@ -209,11 +227,7 @@ export default function OcChat({ project, onIdle }) {
     return () => { disposed = true; abort?.abort(); };
   }, [project]);
 
-  // ---- autoscroll
   const msgs = [...store.current.values()].sort((a, b) => String(a.info.id).localeCompare(String(b.info.id)));
-  useEffect(() => {
-    scroller.current?.scrollTo(0, scroller.current.scrollHeight);
-  });
 
   // ---- actions
   const selModel = boot?.models.find((m) => `${m.providerID}:${m.modelID}` === modelKey);
@@ -422,22 +436,26 @@ export default function OcChat({ project, onIdle }) {
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error}</div>;
   if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8 }}><Spinner /> connecting to opencode…</div>;
 
+  const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
+
   return (
     <>
       <div className="oc-head">
-        <select
-          className="oc-session"
-          value={sessionId ?? ""}
-          onChange={(e) => setSessionId(e.target.value || null)}
-          title="Session"
-        >
-          {!boot.sessions.length && <option value="">new session</option>}
-          {boot.sessions.map((s) => (
-            <option key={s.id} value={s.id}>{(s.title ?? s.id).slice(0, 46)}</option>
-          ))}
-        </select>
-        <button
-          className="oc-new"
+        <Select value={sessionId ?? ""} onValueChange={(v) => v && setSessionId(v)}>
+          <SelectTrigger size="sm" className="oc-session-trigger" title="Session">
+            <SelectValue placeholder="new session">
+              {(boot.sessions.find((se) => se.id === sessionId)?.title ?? sessionId ?? "new session").slice(0, 40)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {boot.sessions.map((se) => (
+              <SelectItem key={se.id} value={se.id}>{(se.title ?? se.id).slice(0, 46)}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          size="icon-sm"
           title="New session"
           onClick={async () => {
             try {
@@ -446,61 +464,97 @@ export default function OcChat({ project, onIdle }) {
               setSessionId(created.id);
             } catch (e) { setError(e.message); }
           }}
-        >+</button>
+        ><Plus /></Button>
         <div className="spacer" />
         {busy && (
-          <button className="oc-abort" onClick={() => sessionId && act({ action: "abort", sessionId }).catch(() => {})}>
-            stop
-          </button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="oc-abort"
+            onClick={() => sessionId && act({ action: "abort", sessionId }).catch(() => {})}
+          ><Stop /> Stop</Button>
         )}
       </div>
 
-      <div className="buildchat" ref={scroller}>
-        {!msgs.length && (
-          <div className="chat-empty">
-            <div className="dim">Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
-              Ask, change code, or type <span className="mono">/</span> for commands (<span className="mono">/undo</span>,
-              <span className="mono"> /redo</span>, <span className="mono">/compact</span>…).</div>
-          </div>
-        )}
-        {msgs.map((m) => {
-          const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-          return (
-            <div key={m.info.id} className={"bmsg " + (m.info.role === "user" ? "user" : "assistant")}>
-              {parts.map((p) => {
-                if (p.type === "text") {
-                  return m.info.role === "user"
-                    ? <div key={p.id} className="bmsg-user">{p.text}</div>
-                    : (p.text?.trim() ? <Streamdown key={p.id} className="chat-md">{p.text}</Streamdown> : null);
-                }
-                if (p.type === "tool") {
-                  const st = p.state?.status;
+      <div className="oc-body">
+        <MessageScrollerProvider autoScroll>
+          <MessageScroller className="h-full">
+            <MessageScrollerViewport>
+              <MessageScrollerContent className="px-3 py-2">
+                {!msgs.length && (
+                  <div className="chat-empty">
+                    <div className="dim">Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
+                      Ask, change code, or type <span className="mono">/</span> for commands (<span className="mono">/undo</span>,
+                      <span className="mono"> /models</span>, <span className="mono">/compact</span>…).</div>
+                  </div>
+                )}
+                {msgs.map((m) => {
+                  const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+                  const isUser = m.info.role === "user";
                   return (
-                    <div key={p.id} className={"msg-tool mono oc-" + (st ?? "pending")}>
-                      {st === "completed" ? "✓" : st === "error" ? "✗" : <Spinner className="oc-spin" />} {p.tool} <span className="dim2">{partLabel(p)}</span>
-                    </div>
+                    <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)} scrollAnchor={isUser}>
+                      <Message align={isUser ? "end" : "start"}>
+                        <MessageContent>
+                          {parts.map((p) => {
+                            if (p.type === "text") {
+                              if (!p.text?.trim()) return null;
+                              return isUser ? (
+                                <Bubble key={p.id} variant="default" align="end">
+                                  <BubbleContent>{p.text}</BubbleContent>
+                                </Bubble>
+                              ) : (
+                                <Streamdown key={p.id} className="chat-md">{p.text}</Streamdown>
+                              );
+                            }
+                            if (p.type === "tool") {
+                              const st = p.state?.status;
+                              return (
+                                <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
+                                  <MarkerIcon>
+                                    {st === "completed" ? <CheckCircle />
+                                      : st === "error" ? <CrossCircle />
+                                      : <Spinner className="oc-spin" />}
+                                  </MarkerIcon>
+                                  <MarkerContent className="mono">
+                                    <span className="oc-tool-ic">{TOOL_ICONS[p.tool] ?? <Wrench />}</span>
+                                    {p.tool} <span className="dim2">{partLabel(p)}</span>
+                                  </MarkerContent>
+                                </Marker>
+                              );
+                            }
+                            return null;
+                          })}
+                        </MessageContent>
+                      </Message>
+                    </MessageScrollerItem>
                   );
-                }
-                if (p.type === "reasoning") return null;
-                return null;
-              })}
-            </div>
-          );
-        })}
-        {perms.filter((perm) => perm.sessionID === sessionId).map((perm) => (
-          <div key={perm.id} className="oc-perm">
-            <div className="oc-perm-title mono">{perm.permission ?? perm.type}: {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}</div>
-            <div className="oc-perm-actions">
-              <Button variant="outline" size="sm" onClick={() => respond(perm, "once")}>Allow once</Button>
-              <Button variant="outline" size="sm" onClick={() => respond(perm, "always")}>Always</Button>
-              <Button variant="ghost" size="sm" className="oc-deny" onClick={() => respond(perm, "reject")}>Deny</Button>
-            </div>
-          </div>
-        ))}
-        {busy && !perms.length && (
-          <div className="dim mono" style={{ display: "flex", gap: 8, alignItems: "center" }}><Spinner /> working…</div>
-        )}
-        {error && boot && <div className="bad" style={{ fontSize: 13 }}>{error}</div>}
+                })}
+                {visiblePerms.map((perm) => (
+                  <MessageScrollerItem key={perm.id} messageId={perm.id}>
+                    <div className="oc-perm">
+                      <div className="oc-perm-title mono">{perm.permission ?? perm.type}: {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}</div>
+                      <div className="oc-perm-actions">
+                        <Button variant="outline" size="sm" onClick={() => respond(perm, "once")}>Allow once</Button>
+                        <Button variant="outline" size="sm" onClick={() => respond(perm, "always")}>Always</Button>
+                        <Button variant="ghost" size="sm" className="oc-deny" onClick={() => respond(perm, "reject")}>Deny</Button>
+                      </div>
+                    </div>
+                  </MessageScrollerItem>
+                ))}
+                {busy && !visiblePerms.length && (
+                  <MessageScrollerItem messageId="working">
+                    <Marker>
+                      <MarkerIcon><Spinner className="oc-spin" /></MarkerIcon>
+                      <MarkerContent className="mono">working…</MarkerContent>
+                    </Marker>
+                  </MessageScrollerItem>
+                )}
+                {error && boot && <div className="bad" style={{ fontSize: 13 }}>{error}</div>}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+        </MessageScrollerProvider>
       </div>
 
       <div className="chat-composer">
@@ -519,8 +573,8 @@ export default function OcChat({ project, onIdle }) {
             ))}
           </div>
         )}
-        <div className="chat-input">
-          <input
+        <div className="oc-input">
+          <Input
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -528,28 +582,35 @@ export default function OcChat({ project, onIdle }) {
             placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}… ("/" for commands)`}
             autoFocus
           />
-          <button onClick={() => send()} disabled={!input.trim()}>↩</button>
+          <Button variant="outline" size="icon" title="Send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></Button>
         </div>
-        {boot.models.length > 0 && (
-          <div className="chat-model">
-            <select
+        <div className="chat-model oc-model-row">
+          {boot.models.length > 0 && (
+            <Select
               value={modelKey ?? ""}
-              onChange={(e) => { setModelKey(e.target.value); sessionStorage.setItem("build-model", e.target.value); }}
-              aria-label="Model"
+              onValueChange={(v) => { setModelKey(v); sessionStorage.setItem("build-model", v); }}
             >
-              {[...new Set(boot.models.map((m) => m.provider))].map((prov) => (
-                <optgroup key={prov} label={prov}>
-                  {boot.models.filter((m) => m.provider === prov).map((m) => (
-                    <option key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
-                      {m.name}{m.free ? " · free" : ""}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-            {agentName && <span className="oc-agent mono" title="Active agent (set via /agents)">{agentName}</span>}
-          </div>
-        )}
+              <SelectTrigger size="sm" className="oc-model-trigger" aria-label="Model">
+                <SelectValue placeholder="model">
+                  {selModel ? `${selModel.name}${selModel.free ? " · free" : ""}` : "model"}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {[...new Set(boot.models.map((m) => m.provider))].map((prov) => (
+                  <SelectGroup key={prov}>
+                    <SelectLabel>{prov}</SelectLabel>
+                    {boot.models.filter((m) => m.provider === prov).map((m) => (
+                      <SelectItem key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
+                        {m.name}{m.free ? " · free" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          {agentName && <span className="oc-agent mono" title="Active agent (set via /agents)">{agentName}</span>}
+        </div>
       </div>
     </>
   );
