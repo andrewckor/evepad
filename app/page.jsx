@@ -27,6 +27,11 @@ function EveMark() {
 function Logo({ p }) {
   const [ok, setOk] = useState(false);
   const src = p.productionUrl ? `${p.productionUrl}/favicon.ico` : null;
+  // Same recipe as Vercel's dashboard: the API has no logo image, only
+  // framework (+ optional custom avatar) — art is chosen client-side.
+  const mark = p.framework === "eve"
+    ? <EveMark />
+    : <span className="mono" style={{ fontSize: 13 }}>{p.name.slice(0, 1).toUpperCase()}</span>;
   return (
     <span className="agentlogo">
       {src && (
@@ -35,7 +40,7 @@ function Logo({ p }) {
           onLoad={() => setOk(true)} onError={() => setOk(false)}
         />
       )}
-      {!ok && <EveMark />}
+      {!ok && mark}
     </span>
   );
 }
