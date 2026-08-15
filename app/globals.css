@@ -329,7 +329,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 /* homepage agent cards */
 .home-head{display:flex;align-items:baseline;gap:14px;margin:6px 0 20px}
 .home-head h1{font-size:20px;font-weight:600;margin:0}
-.agentgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.agentgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:18px}
 .agentcard{
   display:flex;flex-direction:column;gap:9px;text-align:left;
   background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);
