@@ -663,12 +663,13 @@ export default function OcChat({ project, onIdle }) {
   }, [boot]);
 
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error.text ?? String(error)}</div>;
-  if (!boot) return (
-    <div className="oc-boot">
-      <LoadingState label="Starting editor" />
-    </div>
-  );
 
+  // Booting renders the real chrome — header, empty transcript, composer —
+  // with a single line where the first thought will appear. A full-panel
+  // spinner that then swaps for a different layout is the thing that makes a
+  // web app feel like a web app.
+  const booting = !boot;
+  const sessions = boot?.sessions ?? [];
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
 
   return (
@@ -679,16 +680,16 @@ export default function OcChat({ project, onIdle }) {
             run long and each carries a timestamp — and a select's tight rows
             left no room for either. */}
         <Popover open={sessOpen} onOpenChange={setSessOpen}>
-          <PopoverTrigger className="oc-session-trigger">
+          <PopoverTrigger className="oc-session-trigger" disabled={booting}>
             <span className="oc-session-name">
-              {(boot.sessions.find((se) => se.id === sessionId)?.title ?? sessionId ?? "new session").slice(0, 40)}
+              {booting ? project : (sessions.find((se) => se.id === sessionId)?.title ?? sessionId ?? "new session").slice(0, 40)}
             </span>
             <span className="oc-session-chev"><ChevronDownSmall /></span>
           </PopoverTrigger>
           <PopoverContent align="start" className="oc-sesspop">
             <div className="oc-sess-head">Sessions</div>
             <div className="oc-sess-list">
-              {boot.sessions.map((se) => (
+              {sessions.map((se) => (
                 <button
                   key={se.id}
                   className={"oc-sess-row" + (se.id === sessionId ? " on" : "")}
@@ -706,6 +707,7 @@ export default function OcChat({ project, onIdle }) {
           variant="outline"
           size="icon-sm"
           className="oc-newchat"
+          disabled={booting}
           onClick={async () => {
             try {
               const created = await act({ action: "new" });
@@ -727,7 +729,10 @@ export default function OcChat({ project, onIdle }) {
                   height, but the transcript's last line never rests under
                   the working/diff strip pinned to its bottom. */}
               <MessageScrollerContent className="px-3 py-2 pb-8">
-                {!msgs.length && (
+                {booting && (
+                  <LoadingState label="Connecting to the editor" elapsed={false} />
+                )}
+                {!booting && !msgs.length && (
                   <div className="chat-empty">
                     <div className="dim">Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
                       Ask, change code, or type <span className="mono">/</span> for commands (<span className="mono">/undo</span>,
@@ -830,8 +835,9 @@ export default function OcChat({ project, onIdle }) {
               e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
             }}
             onKeyDown={onKey}
-            placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
+            placeholder={booting ? "Connecting…" : busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
             className="oc-ta"
+            disabled={booting}
             autoFocus
           />
           <div className="oc-card-row">
@@ -839,6 +845,7 @@ export default function OcChat({ project, onIdle }) {
               <Tip label="Commands — same as typing /">
                 <button
                   className="oc-plus"
+                  disabled={booting}
                   onClick={() => { setInput("/"); inputRef.current?.focus({ preventScroll: true }); }}
                 ><SlashForward /></button>
               </Tip>
@@ -853,7 +860,7 @@ export default function OcChat({ project, onIdle }) {
                 </Tip>
               ) : (
                 <Tip label="Send">
-                  <button className="oc-send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></button>
+                  <button className="oc-send" onClick={() => send()} disabled={booting || !input.trim()}><ArrowUp /></button>
                 </Tip>
               )}
             </TooltipProvider>

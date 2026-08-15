@@ -679,11 +679,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   .pixgrid>span,.shimmer-text,.loadstate-label{animation:none!important}
   .shimmer-text,.loadstate-label{color:var(--dim);background-image:none}
 }
-/* editor boot: dead-centre in the panel, loader over label */
-.oc-boot{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:12px;color:var(--dim);
-}
+/* Connecting: the chrome is real, so the only thing to dim is the composer. */
+.oc-ta:disabled{cursor:default}
+.oc-plus:disabled,.oc-send:disabled{opacity:.35;cursor:default}
 .graph-load{
   position:absolute;inset:0;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:12px;color:var(--dim);
