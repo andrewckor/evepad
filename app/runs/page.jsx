@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { preload } from "swr";
 import { I, triggerIcon } from "@/app/components/icons.jsx";
-import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
+import { Check, ChevronLeft, ChevronRight } from "vercel-geist-icons";
 
 const ENVS = ["local", "preview", "production"];
 
@@ -193,7 +193,7 @@ function Dashboard() {
   const [sizeOpen, setSizeOpen] = useState(false);
   useEffect(() => {
     const saved = Number(sessionStorage.getItem("runsPageSize"));
-    if ([10, 25, 50, 100].includes(saved)) setPageSize(saved);
+    if ([10, 20, 30, 40, 50].includes(saved)) setPageSize(saved);
   }, []);
   const [trigOpen, setTrigOpen] = useState(false);
 
@@ -372,10 +372,10 @@ function Dashboard() {
                 </button>
                 {sizeOpen && (
                   <div className="menu up" onMouseLeave={() => setSizeOpen(false)}>
-                    {[10, 25, 50, 100].map((n) => (
+                    {[10, 20, 30, 40, 50].map((n) => (
                       <button key={n} data-on={n === pageSize ? "1" : "0"}
                         onClick={() => { setPageSize(n); setPage(0); sessionStorage.setItem("runsPageSize", String(n)); setSizeOpen(false); }}>
-                        Show {n}
+                        <span className="tick">{n === pageSize ? <Check /> : null}</span> Show {n}
                       </button>
                     ))}
                   </div>
