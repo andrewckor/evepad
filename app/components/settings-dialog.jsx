@@ -49,6 +49,9 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="set-dialog">
         <TooltipProvider delay={200}>
+        {/* Geist puts the content on pure black inside the panel; the panel's
+            own #0a0a0a only shows through its footer strip. */}
+        <div className="set-body">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>How this cockpit is wired up.</DialogDescription>
@@ -108,6 +111,7 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
           )) : (
             <div className="set-empty">No agent has a folder on this Mac yet — open Build on one and choose its folder.</div>
           )}
+        </div>
         </div>
         </TooltipProvider>
       </DialogContent>
