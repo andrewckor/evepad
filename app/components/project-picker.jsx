@@ -10,7 +10,8 @@ import { useState } from "react";
 import useSWR from "swr";
 import { I } from "./icons.jsx";
 import ProjectLogo from "./project-logo.jsx";
-import { ChevronUpSmall, ChevronDownSmall, Check } from "vercel-geist-icons";
+import { Badge } from "./badge.jsx";
+import { ChevronUpSmall, ChevronDownSmall } from "vercel-geist-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
@@ -67,13 +68,11 @@ export default function ProjectPicker({ value, onChange }) {
         onSelect={() => { onChange(p); setOpen(false); }}
         className="pk-row"
       >
-        <ProjectLogo p={p} size={20} />
+        {/* Dot + name only — the tile repeats what the trigger already shows,
+            and the checkmark repeats the trigger's selection. */}
         <span className={"dot" + (p.live ? " on" : "")} />
         <span className="pk-name">{p.name}</span>
-        {p.name === current?.name && <Check className="pk-check" />}
-        {/* Only the port earns space: "remote" duplicated what the folder
-            button (and its tooltip) already say. */}
-        {p.live && <span className="pk-sub mono">:{p.localPort}</span>}
+        {p.live && <Badge variant="gray-subtle" size="sm" className="pk-port">:{p.localPort}</Badge>}
         {state ? (
           <Tip label={state}><span className="devbtn busy">{I.loader}</span></Tip>
         ) : p.live ? (
