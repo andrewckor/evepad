@@ -58,10 +58,15 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;pad
 .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
 svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 /* vercel-geist-icons render at 1em; size by context like Vercel does. */
-.search>svg,.trigger-badge svg,.rowchev svg{width:16px;height:16px}
+.search>svg,.trigger-badge svg{width:16px;height:16px}
 /* Row hover gives the trailing chevron a chip — measured rgba(255,255,255,.14),
    4px radius, 2px padding, icon #878787. */
+/* Their chevron sits in a 16px box but the visible glyph is only ~4.7x8.1px —
+   Geist's draws far heavier at that size, so scale the box to match what the
+   eye sees. Hover lifts it to #ededed. */
 .rowchev{text-align:center;color:#878787}
+.rowchev svg{width:11px;height:11px}
+tbody tr:hover .rowchev{color:var(--fg)}
 .rowchev span{display:inline-flex;align-items:center;justify-content:center;padding:2px;border-radius:4px;transition:background .12s}
 tbody tr:hover .rowchev span{background:rgba(255,255,255,.14)}
 .picker>button svg,.chatbtn svg,.copybtn svg,.sec-chev svg{width:14px;height:14px;flex:none}
