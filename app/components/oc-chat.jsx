@@ -21,7 +21,7 @@ import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
 import { AsciiLoader } from "./ascii-loader.jsx";
 import {
-  Select, SelectTrigger, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectValue,
+  Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from "@/components/ui/select";
 import { ArrowUp, Plus, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CrossCircle } from "vercel-geist-icons";
 
@@ -415,20 +415,6 @@ export default function OcChat({ project, onIdle }) {
       localStorage.setItem(skey("oc-model-history"), JSON.stringify([key, ...h].slice(0, 8)));
     } catch {}
   };
-  // The dropdown mounts every item on open — 194 Radix rows cost ~360ms. Keep
-  // it to current + recents + defaults; the /models palette is the browser.
-  const shortModels = (() => {
-    if (!boot) return [];
-    let history = [];
-    try { history = JSON.parse(localStorage.getItem(skey("oc-model-history")) ?? "[]"); } catch {}
-    const keys = [...new Set([
-      modelKey,
-      ...history,
-      `${boot.defaults.provider}:${boot.defaults.model}`,
-      "vercel:zai/glm-5.2-fast",
-    ].filter(Boolean))];
-    return keys.map((k) => boot.models.find((m) => `${m.providerID}:${m.modelID}` === k)).filter(Boolean).slice(0, 10);
-  })();
   const ensureSession = async () => {
     if (sessionRef.current) return sessionRef.current;
     const created = await act({ action: "new" });
@@ -803,28 +789,12 @@ export default function OcChat({ project, onIdle }) {
           </div>
         </div>
         <div className="chat-model oc-model-row">
-          {boot.models.length > 0 && (
-            <Select
-              value={modelKey ?? ""}
-              onValueChange={(v) => {
-                if (v === "__all") { setInput("/models "); inputRef.current?.focus({ preventScroll: true }); return; }
-                chooseModel(v);
-              }}
-            >
-              <SelectTrigger size="sm" className="oc-model-trigger" aria-label="Model">
-                <SelectValue placeholder="model">
-                  {selModel ? `${selModel.name}${selModel.free ? " · free" : ""}` : "model"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {shortModels.map((m) => (
-                  <SelectItem key={`${m.providerID}:${m.modelID}`} value={`${m.providerID}:${m.modelID}`}>
-                    {m.name}{m.free ? " · free" : ""} <span className="oc-ago">{m.provider}</span>
-                  </SelectItem>
-                ))}
-                <SelectItem value="__all">All models… <span className="oc-ago">/models</span></SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Read-only: /models is the switcher, so a picker here would be a
+              second way to do one thing. */}
+          {selModel && (
+            <span className="oc-modelname" title="Active model — change it with /models">
+              {selModel.name}{selModel.free ? " · free" : ""}
+            </span>
           )}
           {agentName && <span className="oc-agent mono" title="Active agent (set via /agents)">{agentName}</span>}
         </div>
