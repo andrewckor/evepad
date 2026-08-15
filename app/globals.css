@@ -310,6 +310,8 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 /* skeleton loaders */
 @keyframes shimmer{0%{opacity:.4}50%{opacity:.85}100%{opacity:.4}}
 .sk{background:var(--panel2);border-radius:var(--r-sm);animation:shimmer 1.2s ease-in-out infinite}
+.skrow td{padding:0 16px;border-bottom:1px solid var(--line)}
+.skrow .sk.row{height:20px;margin:11px 0}
 .sk.line{height:13px}
 .sk.card{height:180px;border-radius:var(--r-lg)}
 .sk.row{height:44px;border-radius:0;border-bottom:1px solid var(--line)}

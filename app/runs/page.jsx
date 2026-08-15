@@ -70,6 +70,9 @@ function PeriodPicker({ value, onChange }) {
   );
 }
 
+const ENV_DEFAULT = "local,preview,production";
+const ENV_KEY = "eve-cockpit:env";
+
 // Multi-select environments, Vercel-style: checkboxes + Select All. Value is a
 // comma list in the URL ("local,production").
 function EnvPicker({ value, onChange }) {
@@ -184,7 +187,7 @@ function StackedBars({ data }) {
 function Dashboard() {
   const router = useRouter();
   const q = useSearchParams();
-  const environment = q.get("environment") ?? "local";
+  const environment = q.get("environment") ?? ENV_DEFAULT;
   const period = q.get("period") ?? DEFAULT_PERIOD;
   const project = q.get("project") ?? "";
 
@@ -205,15 +208,14 @@ function Dashboard() {
   };
   const setParam = (k, v) => setParams({ [k]: v });
 
-  // Environment is a global app setting: persist every change, and when the URL
-  // carries no environment (fresh visit, bare link), restore the last choice.
+  // Environment is one global app setting — same across projects, tabs and
+  // restarts. localStorage (not sessionStorage) so it survives the browser
+  // closing; the URL still wins when a link carries an explicit choice.
   useEffect(() => {
     const inUrl = q.get("environment");
-    if (inUrl) sessionStorage.setItem("env", inUrl);
-    else {
-      const saved = sessionStorage.getItem("env");
-      if (saved && saved !== "local") setParam("environment", saved);
-    }
+    if (inUrl) { localStorage.setItem(ENV_KEY, inUrl); return; }
+    const saved = localStorage.getItem(ENV_KEY);
+    if (saved && saved !== ENV_DEFAULT) setParam("environment", saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.get("environment")]);
 
@@ -272,6 +274,8 @@ function Dashboard() {
 
         {data?.error && <div className="err"><b>{environment}</b> unavailable — {data.error}</div>}
 
+        {/* Charts skeleton ONLY before the very first data. On later loads they
+            hold their last render — redrawing them mid-fetch reads as a flash. */}
         {isLoading && !data ? (
           <div className="charts">
             <div className="sk card" /><div className="sk card" />
@@ -347,7 +351,12 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {sessions.slice(page * pageSize, (page + 1) * pageSize).map((s) => (
+              {isLoading && Array.from({ length: Math.min(pageSize, 8) }).map((_, i) => (
+                <tr key={`sk-${i}`} className="skrow">
+                  <td colSpan={9}><div className="sk row" style={{ opacity: 1 - i * 0.1 }} /></td>
+                </tr>
+              ))}
+              {!isLoading && sessions.slice(page * pageSize, (page + 1) * pageSize).map((s) => (
                 <tr key={s.runId} onMouseEnter={() => warm(s)} onClick={() => router.push(runHref(s))}>
                   <td className="title-cell">
                     {multiEnv && <span className={"envchip" + (s.environment === "local" ? " loc" : s.environment === "production" ? " prod" : "")}>{envShort(s.environment)}</span>}
@@ -390,9 +399,6 @@ function Dashboard() {
               <Button variant="outline" size="icon-sm" disabled={(page + 1) * pageSize >= sessions.length}
                 onClick={() => setPage((p) => p + 1)} title="Next page"><ChevronRight /></Button>
             </div>
-          )}
-          {isLoading && !sessions.length && (
-            <div>{[0, 1, 2, 3, 4].map((i) => <div key={i} className="sk row" style={{ opacity: 1 - i * 0.15 }} />)}</div>
           )}
           {!isLoading && !sessions.length && !data?.error && (
             <div className="empty">
