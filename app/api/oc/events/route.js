@@ -3,7 +3,7 @@
 // part/message updates, session status, and permission asks.
 
 import { resolveProject } from "../../../../lib/projects.js";
-import { ocClient } from "../../../../lib/opencode.js";
+import { eventHub } from "../../../../lib/opencode.js";
 
 export const dynamic = "force-dynamic";
 
@@ -25,30 +25,33 @@ export async function GET(request) {
   const project = await resolveProject(name);
   if (!project?.localPath) return new Response("no local checkout", { status: 409 });
 
-  let client, dir;
+  let hub;
   try {
-    ({ client, dir } = await ocClient(project.localPath));
+    hub = await eventHub(project.localPath);
   } catch (e) {
     return new Response(String(e.message ?? e), { status: 502 });
   }
 
-  const abort = new AbortController();
-  request.signal.addEventListener("abort", () => abort.abort());
   const enc = new TextEncoder();
-
+  let listener;
   const stream = new ReadableStream({
-    async start(controller) {
-      try {
-        const sub = await client.event.subscribe({ query: { directory: dir }, signal: abort.signal });
-        controller.enqueue(enc.encode(JSON.stringify({ type: "hello" }) + "\n"));
-        for await (const ev of sub.stream) {
-          if (!FORWARD.has(ev.type)) continue;
-          controller.enqueue(enc.encode(JSON.stringify(ev) + "\n"));
-        }
-      } catch {} // client went away or server rebooted — the UI reconnects
-      try { controller.close(); } catch {}
+    start(controller) {
+      const push = (ev) => {
+        if (!FORWARD.has(ev.type)) return;
+        try { controller.enqueue(enc.encode(JSON.stringify(ev) + "\n")); }
+        catch { hub.subs.delete(listener); }
+      };
+      controller.enqueue(enc.encode(JSON.stringify({ type: "hello", hub: { state: hub.state, events: hub.events, subs: hub.subs.size, pending: hub.pending.size } }) + "\n"));
+      // Replay asks that are still unanswered — a reload must not lose them.
+      for (const pe of hub.pending.values()) push(pe);
+      listener = push;
+      hub.subs.add(listener);
+      request.signal.addEventListener("abort", () => {
+        hub.subs.delete(listener);
+        try { controller.close(); } catch {}
+      });
     },
-    cancel() { abort.abort(); },
+    cancel() { hub.subs.delete(listener); },
   });
 
   return new Response(stream, {

@@ -92,7 +92,6 @@ export default function OcChat({ project, onIdle }) {
           next.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
         }
         store.current = next;
-        setPerms([]);
         // A transcript ending in an unfinished tool call means a run is still
         // live (or wedged on a permission ask we can't replay) — surface the
         // stop button so it's recoverable.
@@ -195,7 +194,8 @@ export default function OcChat({ project, onIdle }) {
         // they lag, like message.part.delta). Handle both.
         case "permission.asked":
         case "permission.updated": {
-          if (p.sessionID !== sid) return;
+          // No session filter here: replayed asks can arrive before boot
+          // resolves the session id. Filtered at render instead.
           setPerms((ps) => [...ps.filter((x) => x.id !== p.id), p]);
           return;
         }
@@ -487,7 +487,7 @@ export default function OcChat({ project, onIdle }) {
             </div>
           );
         })}
-        {perms.map((perm) => (
+        {perms.filter((perm) => perm.sessionID === sessionId).map((perm) => (
           <div key={perm.id} className="oc-perm">
             <div className="oc-perm-title mono">{perm.permission ?? perm.type}: {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}</div>
             <div className="oc-perm-actions">
