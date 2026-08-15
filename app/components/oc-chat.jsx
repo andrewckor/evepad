@@ -193,6 +193,7 @@ export default function OcChat({ project, onIdle }) {
   const [agentName, setAgentName] = useState(null); // null = server default
   const [palIndex, setPalIndex] = useState(0);
   const inputRef = useRef(null);
+  const bodyRef = useRef(null);
   const onIdleRef = useRef(onIdle);
   onIdleRef.current = onIdle;
   const answered = useRef(new Set());
@@ -648,6 +649,29 @@ export default function OcChat({ project, onIdle }) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
+  // Same scroll treatment as the runs table, vertical: no visible bar, and the
+  // edge fades only on the side where content actually continues — a permanent
+  // fade on a transcript that fits reads as a rendering bug.
+  useEffect(() => {
+    const el = bodyRef.current?.querySelector('[data-slot="message-scroller-viewport"]');
+    if (!el) return;
+    const update = () => {
+      const room = el.scrollHeight - el.clientHeight;
+      const state = room <= 1 ? "none"
+        : el.scrollTop <= 1 ? "start"
+        : el.scrollTop >= room - 1 ? "end"
+        : "middle";
+      if (el.dataset.scroll !== state) el.dataset.scroll = state;
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true, subtree: true, characterData: true });
+    return () => { el.removeEventListener("scroll", update); ro.disconnect(); mo.disconnect(); };
+  }, [boot]);
+
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error.text ?? String(error)}</div>;
   if (!boot) return (
     <div className="oc-boot">
@@ -696,10 +720,10 @@ export default function OcChat({ project, onIdle }) {
         )}
       </div>
 
-      <div className="oc-body">
+      <div className="oc-body" ref={bodyRef}>
         <MessageScrollerProvider autoScroll>
           <MessageScroller className="h-full">
-            <MessageScrollerViewport>
+            <MessageScrollerViewport className="oc-scroll">
               <MessageScrollerContent className="px-3 py-2">
                 {!msgs.length && (
                   <div className="chat-empty">
@@ -736,9 +760,8 @@ export default function OcChat({ project, onIdle }) {
             <MessageScrollerButton />
           </MessageScroller>
         </MessageScrollerProvider>
-      </div>
 
-      <div className="oc-status">
+        <div className="oc-status">
         <span className={"oc-status-inner" + (busy && !visiblePerms.length ? " on" : "")}>
           <AsciiLoader cols={12} rows={1} /> <span className="oc-shimmer mono">working…</span>
         </span>
@@ -762,6 +785,7 @@ export default function OcChat({ project, onIdle }) {
             </button>
           </span>
         )}
+        </div>
       </div>
 
       <div className="chat-composer">

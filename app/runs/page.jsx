@@ -71,7 +71,9 @@ function PeriodPicker({ value, onChange }) {
 }
 
 const ENV_DEFAULT = "local,preview,production";
-const ENV_KEY = "eve-cockpit:env";
+// v2: the v1 key could hold a URL-derived value, which is no longer a
+// preference — a fresh key resets everyone to "all environments" once.
+const ENV_KEY = "eve-cockpit:env2";
 
 // Multi-select environments, Vercel-style: checkboxes + Select All. Value is a
 // comma list in the URL ("local,production").
@@ -225,15 +227,21 @@ function Dashboard() {
   const setParam = (k, v) => setParams({ [k]: v });
 
   // Environment is one global app setting — same across projects, tabs and
-  // restarts. localStorage (not sessionStorage) so it survives the browser
-  // closing; the URL still wins when a link carries an explicit choice.
+  // restarts — and it starts with every environment selected. Only the picker
+  // writes it: a URL that carries ?environment= is a link (our own nav copies
+  // the current value into every href), not a preference, so persisting those
+  // let one visit to a filtered link silently become the global default.
   useEffect(() => {
-    const inUrl = q.get("environment");
-    if (inUrl) { localStorage.setItem(ENV_KEY, inUrl); return; }
+    if (q.get("environment")) return;
     const saved = localStorage.getItem(ENV_KEY);
     if (saved && saved !== ENV_DEFAULT) setParam("environment", saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.get("environment")]);
+
+  const pickEnv = (v) => {
+    localStorage.setItem(ENV_KEY, v);
+    setParam("environment", v);
+  };
 
   const isLocal = environment.split(",").includes("local");
   const { data, isLoading } = useSWR(
@@ -283,7 +291,7 @@ function Dashboard() {
     <>
       <div className="wrap">
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-          <EnvPicker value={environment} onChange={(v) => setParam("environment", v)} />
+          <EnvPicker value={environment} onChange={pickEnv} />
           <div className="spacer" />
           <PeriodPicker value={period} onChange={(v) => setParam("period", v)} />
         </div>
