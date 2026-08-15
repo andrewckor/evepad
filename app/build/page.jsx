@@ -238,6 +238,9 @@ function Build() {
       <div className="buildflow">
         {infoLoading && <div className="empty"><Spinner /> Compiling agent manifest…</div>}
         {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
+        {info?.eveVersion && (
+          <span className="eve-ver mono" title="Installed eve framework version">eve v{info.eveVersion}</span>
+        )}
         {info && (
           <ReactFlow
             nodes={nodes}

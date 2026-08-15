@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { I } from "./components/icons.jsx";
 import { Badge } from "./components/badge.jsx";
+import { Globe, Sparkles } from "vercel-geist-icons";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -153,27 +154,31 @@ function Home() {
               <b>{p.name}</b>
               <div className="spacer" />
               {busy[p.name] ? (
-                <span className="devbtn busy">{I.loader}</span>
+                <span className="devbtn busy" title="Working on it — starting or stopping the dev server">{I.loader}</span>
               ) : p.live ? (
-                <span className="devbtn stop" title="Stop local server" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span>
+                <span className="devbtn stop" title={`Stop the local eve dev server on :${p.localPort}`} onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span>
               ) : p.localPath ? (
-                <span className="devbtn play" title="Start eve dev" onClick={(e) => devAction(e, p, "start")}>{I.play}</span>
+                <span className="devbtn play" title={`Start eve dev for ${p.name} (installs deps and pulls creds if needed)`} onClick={(e) => devAction(e, p, "start")}>{I.play}</span>
               ) : (
-                <span className="devbtn locate" title="Connect a local checkout" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span>
+                <span className="devbtn locate" title={`Locate ${p.name}\u2019s checkout folder \u2014 enables start, Build and local runs`} onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span>
               )}
             </div>
             <div className="agentmeta">
               {p.live ? (
                 <>
-                  <Badge variant="green-subtle" size="sm" dot>Running <span className="mono">:{p.localPort}</span></Badge>
-                  {p.model && <span className="mono dim2">{p.model}</span>}
+                  <Badge variant="green-subtle" size="sm" dot title={`eve dev serving on 127.0.0.1:${p.localPort}`}>Running <span className="mono">:{p.localPort}</span></Badge>
+                  {p.model && <span className="cardfact mono dim2" title="Agent model"><Sparkles /> {p.model}</span>}
                 </>
               ) : (
                 <>
                   {/* Linked means "also lives in production", not mere link
                       plumbing — a checkout that never deployed reads Local
                       only even when .vercel/project.json exists. */}
-                  <Badge variant="gray-subtle" size="sm">
+                  <Badge variant="gray-subtle" size="sm" title={
+                    p.localPath
+                      ? (p.productionUrl ? "Checkout on this machine, deployed to Vercel production" : "Checkout on this machine, never deployed")
+                      : "Vercel project with no checkout on this machine \u2014 use the folder button to connect one"
+                  }>
                     {p.localPath ? (p.productionUrl ? "Linked" : "Local only") : "Remote only"}
                   </Badge>
                   {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
@@ -181,7 +186,11 @@ function Home() {
               )}
             </div>
             <div className="agentmeta agenturl">
-              {p.productionUrl && <span className="dim2" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{p.productionUrl.replace(/^https?:\/\//, "")}</span>}
+              {p.productionUrl && (
+                <span className="cardfact dim2" title="Production deployment" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <Globe /> {p.productionUrl.replace(/^https?:\/\//, "")}
+                </span>
+              )}
             </div>
           </div>
         ))}

@@ -6,7 +6,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { resolveProject } from "../../../lib/projects.js";
+import { resolveProject, eveVersionAt } from "../../../lib/projects.js";
 
 const exec = promisify(execFile);
 const cache = new Map(); // name -> {at, data}
@@ -79,6 +79,7 @@ export async function GET(request) {
       schedules: liveSchedules(),
       channels: [...byChannel.values()],
       diagnostics: info.diagnostics ?? null,
+      eveVersion: eveVersionAt(project.localPath),
     };
     cache.set(project.name, { at: Date.now(), data });
     return Response.json(data);
