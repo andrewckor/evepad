@@ -856,9 +856,15 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-spin{width:11px;height:11px;display:inline-block;vertical-align:-1px}
 /* Approval reads as part of the trace, not as an alarm: same card surface
    and metrics as a Thinking row, with amber carried by the label alone. */
+/* Docked over the transcript, same geometry as the slash palette. */
+.oc-perm-dock{
+  position:absolute;left:14px;right:14px;bottom:calc(100% - 6px);z-index:30;
+  display:flex;flex-direction:column;gap:6px;
+}
 .oc-perm{
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
-  padding:10px 12px;margin:4px 0;display:flex;flex-direction:column;gap:10px;
+  background:#0a0a0a;border:1px solid var(--line2);border-radius:var(--r);
+  padding:10px 12px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 -12px 40px rgba(0,0,0,.65);
   animation:fade-up 320ms cubic-bezier(.23,1,.32,1) both;
 }
 .oc-perm-title{

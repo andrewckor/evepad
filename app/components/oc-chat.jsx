@@ -722,20 +722,6 @@ export default function OcChat({ project, onIdle }) {
                     <MsgRow m={m} rev={m.rev ?? 0} live={busy && i === msgs.length - 1} />
                   </MessageScrollerItem>
                 ))}
-                {visiblePerms.map((perm) => (
-                  <MessageScrollerItem key={perm.id} messageId={perm.id}>
-                    <div className="oc-perm">
-                      <div className="oc-perm-title mono">
-                        <b>{perm.permission ?? perm.type}</b> {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}
-                      </div>
-                      <div className="oc-perm-actions">
-                        <Button variant="outline" size="sm" onClick={() => respond(perm, "once")}>Allow once</Button>
-                        <Button variant="outline" size="sm" onClick={() => respond(perm, "always")}>Always</Button>
-                        <Button variant="ghost" size="sm" className="oc-deny" onClick={() => respond(perm, "reject")}>Deny</Button>
-                      </div>
-                    </div>
-                  </MessageScrollerItem>
-                ))}
                 {error && boot && (
                   <div className={"oc-notice" + (error.kind === "stopped" ? " quiet" : "")}>
                     <span>{error.kind === "stopped" ? "■ stopped" : error.text}</span>
@@ -779,6 +765,26 @@ export default function OcChat({ project, onIdle }) {
       </div>
 
       <div className="chat-composer">
+        {/* Approval floats over the transcript like the slash palette: a run
+            is blocked until you answer, so it belongs next to the input you
+            are already looking at — not parked at the bottom of a transcript
+            you may have scrolled away from. */}
+        {visiblePerms.length > 0 && (
+          <div className="oc-perm-dock">
+            {visiblePerms.map((perm) => (
+              <div className="oc-perm" key={perm.id}>
+                <div className="oc-perm-title mono">
+                  <b>{perm.permission ?? perm.type}</b> {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}
+                </div>
+                <div className="oc-perm-actions">
+                  <Button variant="outline" size="sm" onClick={() => respond(perm, "once")}>Allow once</Button>
+                  <Button variant="outline" size="sm" onClick={() => respond(perm, "always")}>Always</Button>
+                  <Button variant="ghost" size="sm" className="oc-deny" onClick={() => respond(perm, "reject")}>Deny</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {palette && (
           <div className="oc-palette">
             {palette.items.map((it, i) => (
