@@ -679,3 +679,24 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
     @apply font-sans;
   }
 }
+/* ---- pointer affordance everywhere something is clickable ----
+   Tailwind v4's preflight and Radix primitives default several interactive
+   elements to cursor:default; normalize the whole app. */
+a[href],
+button:not(:disabled),
+select,
+summary,
+[role="button"],
+[role="option"],
+[role="menuitem"],
+[role="tab"],
+[data-slot="select-trigger"]:not([disabled]),
+[data-slot="select-item"],
+.devbtn,
+.agentcard,
+tbody tr[data-href], tbody tr,
+.box-name,
+.tl {
+  cursor: pointer;
+}
+button:disabled { cursor: default; }
