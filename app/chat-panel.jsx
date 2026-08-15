@@ -7,7 +7,7 @@
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
-import { SidebarRight, PlusCircle } from "vercel-geist-icons";
+import { SidebarRight, PlusCircle, ArrowRight, ArrowDown } from "vercel-geist-icons";
 import { Streamdown } from "streamdown";
 import {
   MessageScrollerProvider, MessageScroller, MessageScrollerViewport,
@@ -163,7 +163,9 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
           >
             <SidebarRight style={dock === "right" ? { transform: "rotate(90deg)" } : undefined} />
           </button>
-          <button onClick={onClose} title="Close">—</button>
+          <button className="closebtn" onClick={onClose} title="Close panel">
+            {dock === "right" ? <ArrowRight /> : <ArrowDown />}
+          </button>
         </div>
       </div>
       <div className="chat-body">

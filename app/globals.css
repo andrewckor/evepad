@@ -665,6 +665,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .termside.right .term-head{height:56px}
 .term-head button{border:1px solid var(--line);border-radius:var(--r-sm);padding:3px 11px;font-size:11.5px;color:var(--dim)}
 .term-head button:hover{color:var(--fg);border-color:#4a4a4a}
+/* icon-only head buttons: square, centered glyph (dock + close) */
+.term-head .dockbtn,.term-head .closebtn{
+  width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;font-size:14px;
+}
 .term-body{flex:1;padding:8px 12px;overflow:hidden}
 .term-body .xterm{height:100%}
 

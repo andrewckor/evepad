@@ -5,7 +5,7 @@
 // commands all work. xterm.js renders; a pty on the cockpit server hosts.
 
 import { useEffect, useRef, useState } from "react";
-import { SidebarRight } from "vercel-geist-icons";
+import { SidebarRight, ArrowRight, ArrowDown } from "vercel-geist-icons";
 import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
 
@@ -105,15 +105,6 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
     };
   }, [project.name]);
 
-  const kill = async () => {
-    await fetch("/api/term", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ project: project.name, action: "stop" }),
-    });
-    onClose();
-  };
-
   const off = dock === "right" ? { x: "100%" } : { y: "100%" };
   return (
     <motion.aside
@@ -140,8 +131,11 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
                 to bottom, split-right when it will dock back to the side. */}
             <SidebarRight style={dock === "right" ? { transform: "rotate(90deg)" } : undefined} />
           </button>
-          <button onClick={kill} title="Kill the terminal process">kill</button>
-          <button onClick={onClose} title="Close (keeps running)">—</button>
+          {/* Close points the way the panel leaves: right when docked right,
+              down when docked to the bottom. */}
+          <button className="closebtn" onClick={onClose} title="Close panel">
+            {dock === "right" ? <ArrowRight /> : <ArrowDown />}
+          </button>
         </div>
       </div>
       <div className="term-body" ref={mount} />
