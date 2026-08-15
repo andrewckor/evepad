@@ -213,6 +213,8 @@ export default function OcChat({ project, onIdle }) {
   sessionRef.current = sessionId;
   const [busy, setBusy] = useState(false);
   const [perms, setPerms] = useState([]); // pending permission asks
+  const [diff, setDiff] = useState([]);   // [{file, additions, deletions}] for this session
+  const [diffOpen, setDiffOpen] = useState(false);
   const [error, setError] = useState(null);
   const [input, setInput] = useState("");
   const [modelKey, setModelKey] = useState(null);
@@ -344,6 +346,11 @@ export default function OcChat({ project, onIdle }) {
           if (p.sessionID !== sid) return;
           const t = p.status?.type ?? p.type;
           setBusy(t !== "idle");
+          return;
+        }
+        case "session.diff": {
+          if (p.sessionID !== sid) return;
+          setDiff(p.diff ?? []);
           return;
         }
         case "session.idle": {
@@ -725,6 +732,26 @@ export default function OcChat({ project, onIdle }) {
         <span className={"oc-status-inner" + (busy && !visiblePerms.length ? " on" : "")}>
           <AsciiLoader cols={12} rows={1} /> <span className="oc-shimmer mono">working…</span>
         </span>
+        <span className="spacer" />
+        {diff.length > 0 && (
+          <span className="oc-diff">
+            {diffOpen && (
+              <span className="oc-diff-pop">
+                {diff.map((d) => (
+                  <span key={d.file} className="oc-diff-row mono">
+                    <span className="oc-diff-file">{d.file.split("/").slice(-2).join("/")}</span>
+                    <span className="ok">+{d.additions}</span> <span className="bad">−{d.deletions}</span>
+                  </span>
+                ))}
+              </span>
+            )}
+            <button className="oc-diff-chip mono" onClick={() => setDiffOpen((o) => !o)}>
+              {diff.length} file{diff.length === 1 ? "" : "s"} changed
+              <span className="ok"> +{diff.reduce((n, d) => n + d.additions, 0)}</span>
+              <span className="bad"> −{diff.reduce((n, d) => n + d.deletions, 0)}</span>
+            </button>
+          </span>
+        )}
       </div>
 
       <div className="chat-composer">

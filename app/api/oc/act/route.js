@@ -76,6 +76,10 @@ export async function POST(request) {
       case "unshare":
         await client.session.unshare({ path, query, throwOnError: true });
         return Response.json({ ok: true });
+      case "diff": {
+        const r = await client.session.diff({ path, query, throwOnError: true });
+        return Response.json({ diff: (r.data ?? []).map((d) => ({ file: d.file, additions: d.additions, deletions: d.deletions })) });
+      }
       case "abort":
         await client.session.abort({ path, query, throwOnError: true });
         return Response.json({ ok: true });

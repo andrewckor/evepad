@@ -12,6 +12,7 @@ const FORWARD = new Set([
   "message.part.updated",
   "message.part.delta",
   "session.updated",
+  "session.diff",
   "session.status",
   "session.idle",
   "session.error",
@@ -38,7 +39,15 @@ export async function GET(request) {
     start(controller) {
       const push = (ev) => {
         if (!FORWARD.has(ev.type)) return;
-        try { controller.enqueue(enc.encode(JSON.stringify(ev) + "\n")); }
+        let out = ev;
+        if (ev.type === "session.diff") {
+          // Strip file contents — the chip only needs names and counts.
+          out = { type: ev.type, properties: {
+            sessionID: ev.properties?.sessionID,
+            diff: (ev.properties?.diff ?? []).map((d) => ({ file: d.file, additions: d.additions, deletions: d.deletions })),
+          } };
+        }
+        try { controller.enqueue(enc.encode(JSON.stringify(out) + "\n")); }
         catch { hub.subs.delete(listener); }
       };
       controller.enqueue(enc.encode(JSON.stringify({ type: "hello", hub: { state: hub.state, events: hub.events, subs: hub.subs.size, pending: hub.pending.size, types: hub.types } }) + "\n"));
