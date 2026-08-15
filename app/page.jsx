@@ -156,7 +156,9 @@ function Home() {
     <div className="wrap">
       <div className="home-head">
         <h1>{projects.length} Agents</h1>
-        <span className="dim">{projects.filter((p) => p.live).length} running locally</span>
+        {projects.some((p) => p.live) && (
+          <span className="dim">{projects.filter((p) => p.live).length} running locally</span>
+        )}
       </div>
       <TooltipProvider delay={150}>
       <div className="agentgrid">
