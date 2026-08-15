@@ -142,7 +142,7 @@ function Home() {
               ) : p.localPath ? (
                 <Tip label="Start local server"><span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>{I.play}</span></Tip>
               ) : (
-                <Tip label="Link local project"><span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span></Tip>
+                <Tip label="Choose local folder"><span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span></Tip>
               )}
             </div>
             <div className="agentmeta">
@@ -153,15 +153,14 @@ function Home() {
                 </>
               ) : (
                 <>
-                  {/* Linked means "also lives in production", not mere link
-                      plumbing — a checkout that never deployed reads Local
-                      only even when .vercel/project.json exists. */}
+                  {/* One fact only: is this agent's code on this Mac. Whether
+                      it's deployed is already answered by the production URL
+                      row below, and "Linked" tried to say both at once — the
+                      same word Vercel uses for linking a project. */}
                   <Badge variant="gray-subtle" size="sm" title={
-                    p.localPath
-                      ? (p.productionUrl ? "Local checkout, deployed" : "Local checkout, not deployed")
-                      : "No local checkout"
+                    p.localPath ? `Folder on this Mac: ${p.localPath}` : "No folder on this Mac — open Build to choose one"
                   }>
-                    {p.localPath ? (p.productionUrl ? "Linked" : "Local only") : "Remote only"}
+                    {p.localPath ? "On this Mac" : "Remote only"}
                   </Badge>
                   {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
                 </>

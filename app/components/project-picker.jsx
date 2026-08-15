@@ -84,7 +84,7 @@ export default function ProjectPicker({ value, onChange }) {
             <span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>{I.play}</span>
           </Tip>
         ) : (
-          <Tip label="Link local project">
+          <Tip label="Choose local folder">
             <span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span>
           </Tip>
         )}

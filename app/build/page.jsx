@@ -309,14 +309,14 @@ function NoCheckout({ project, onLinked }) {
   return (
     <div className="nocheckout">
       <span className="nocheckout-ic"><FolderPlus /></span>
-      <b>No local checkout</b>
+      <b>No folder on this Mac</b>
       <p>
         Build works on the agent&rsquo;s code, and <span className="mono">{project}</span> isn&rsquo;t
-        on this machine yet. Point it at the folder to chat with it, edit its
-        tools and watch the graph update.
+        on this Mac yet. Choose its folder to chat with it, edit its tools and
+        watch the graph update. Nothing on Vercel changes.
       </p>
       <Button onClick={link} disabled={busy}>
-        {busy ? "Opening…" : "Link local project"}
+        {busy ? "Opening…" : "Choose folder"}
       </Button>
     </div>
   );
@@ -381,7 +381,7 @@ function Build() {
 
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);
 
-  if (!project) return <div className="empty">Pick a project first — Build works on a local checkout.</div>;
+  if (!project) return <div className="empty">Pick an agent first — Build works on its folder here.</div>;
 
   // Build edits files, so with no checkout there is nothing to show and both
   // panes would render their own copy of the same error. One empty state with

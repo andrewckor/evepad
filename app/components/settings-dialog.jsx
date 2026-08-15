@@ -67,7 +67,7 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
 
         <div className="set-section">
           <div className="set-section-title">
-            Local checkouts
+            Local folders
             <span className="set-count">{linked.length}</span>
           </div>
           {/* The registry: which agent maps to which folder on this machine.
@@ -79,25 +79,22 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
               <span className="set-link-name">{p.name}</span>
               <span className="set-link-path mono" title={p.localPath}>{tilde(p.localPath)}</span>
               {/* A running dev server is rediscovered on the next probe and
-                  re-registers its own folder — measured: forget succeeds, then
-                  the entry is back within one poll. So a live row says why it
-                  can't be unlinked instead of showing a dead button. */}
-              {p.live ? (
-                <span className="set-running" title="Its folder is detected from the running server. Stop it to unlink.">
-                  running
-                </span>
-              ) : (
+                  re-registers its folder — measured: forget succeeds, the entry
+                  is gone, and it's back after one poll. So the button is
+                  disabled while it runs. The title lives on the wrapper: a
+                  disabled button swallows pointer events, tooltip included. */}
+              <span title={p.live ? "Stop the server before forgetting" : `Forget ${p.localPath}`}>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="set-unlink"
-                  title={`Forget ${p.localPath}`}
+                  disabled={p.live}
                   onClick={() => unlink(p)}
-                >Unlink</Button>
-              )}
+                >Forget</Button>
+              </span>
             </div>
           )) : (
-            <div className="set-empty">No agents linked yet — open Build on one and point it at its folder.</div>
+            <div className="set-empty">No agent has a folder on this Mac yet — open Build on one and choose its folder.</div>
           )}
         </div>
       </DialogContent>
