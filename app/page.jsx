@@ -140,8 +140,8 @@ function Home() {
   return (
     <div className="wrap">
       <div className="home-head">
-        <h1>Agents</h1>
-        <span className="dim">{projects.length} agents · {projects.filter((p) => p.live).length} running locally</span>
+        <h1>{projects.length} Agents</h1>
+        <span className="dim">{projects.filter((p) => p.live).length} running locally</span>
       </div>
       <div className="agentgrid">
         <NewAgentCard onCreated={(name) => router.push(`/runs?project=${encodeURIComponent(name)}&environment=local`)} />
