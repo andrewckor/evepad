@@ -244,9 +244,15 @@ function NoCheckout({ project, onLinked }) {
       });
       const body = await r.json();
       if (!r.ok) throw new Error(body.error ?? "failed");
-      onLinked?.();
+      // Backing out of the folder picker answers 200 {cancelled} — revalidating
+      // on that would just fail again and look like the link didn't take.
+      if (body.cancelled) return;
+      // Await the refetch so the button stays in its pending state until the
+      // page is ready to swap; dropping it earlier flashes this empty state
+      // back for a frame with the folder already chosen.
+      await onLinked?.();
     } catch (e) {
-      if (e.message !== "cancelled") alert(e.message);
+      alert(e.message);
     } finally {
       setBusy(false);
     }
@@ -261,7 +267,7 @@ function NoCheckout({ project, onLinked }) {
         tools and watch the graph update.
       </p>
       <Button onClick={link} disabled={busy}>
-        {busy ? "Choose a folder…" : "Link local project"}
+        {busy ? "Opening…" : "Link local project"}
       </Button>
     </div>
   );
