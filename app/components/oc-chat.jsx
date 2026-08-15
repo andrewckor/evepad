@@ -248,7 +248,7 @@ export default function OcChat({ project, onIdle }) {
           ?? b.models.find((x) => x.default) ?? b.models[0];
         if (m) setModelKey(`${m.providerID}:${m.modelID}`);
       })
-      .catch((e) => !stale && setError(e.message));
+      .catch((e) => !stale && setError({ kind: "error", text: e.message }));
     return () => { stale = true; };
   }, [project]);
 
@@ -276,7 +276,7 @@ export default function OcChat({ project, onIdle }) {
         ));
         bump();
       })
-      .catch((e) => !stale && setError(e.message));
+      .catch((e) => !stale && setError({ kind: "error", text: e.message }));
     return () => { stale = true; };
   }, [project, sessionId]);
 
@@ -362,7 +362,10 @@ export default function OcChat({ project, onIdle }) {
         case "session.error": {
           if (p.sessionID && p.sessionID !== sid) return;
           setBusy(false);
-          setError(String(p.error?.data?.message ?? p.error?.name ?? "session error").slice(0, 300));
+          const msg = String(p.error?.data?.message ?? p.error?.name ?? "session error");
+          // A user-initiated stop is not an error — show it as quiet status.
+          if (/abort/i.test(msg)) setError({ kind: "stopped", text: "stopped" });
+          else setError({ kind: "error", text: msg.slice(0, 300) });
           return;
         }
         case "session.updated": {
@@ -564,7 +567,7 @@ export default function OcChat({ project, onIdle }) {
       });
       bump(); setBusy(true);
       await act({ action: "prompt", sessionId: sid, text, provider: selModel?.providerID, model: selModel?.modelID, agent: agentName });
-    } catch (e) { setError(e.message); setBusy(false); }
+    } catch (e) { setError({ kind: "error", text: e.message }); setBusy(false); }
   };
 
   // Graph buttons (and anything else in the cockpit) can hand us text.
@@ -667,7 +670,7 @@ export default function OcChat({ project, onIdle }) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
-  if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error}</div>;
+  if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error.text ?? String(error)}</div>;
   if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><AsciiLoader cols={14} rows={2} /> <span className="oc-shimmer">connecting to opencode…</span></div>;
 
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
@@ -696,7 +699,7 @@ export default function OcChat({ project, onIdle }) {
               const created = await act({ action: "new" });
               setBoot((b) => b && { ...b, sessions: [{ id: created.id, title: created.title, updated: Date.now() }, ...b.sessions] });
               setSessionId(created.id);
-            } catch (e) { setError(e.message); }
+            } catch (e) { setError({ kind: "error", text: e.message }); }
           }}
         ><Plus /></Button>
         <div className="spacer" />
@@ -739,7 +742,12 @@ export default function OcChat({ project, onIdle }) {
                     </div>
                   </MessageScrollerItem>
                 ))}
-                {error && boot && <div className="bad" style={{ fontSize: 13 }}>{error}</div>}
+                {error && boot && (
+                  <div className={"oc-notice" + (error.kind === "stopped" ? " quiet" : "")}>
+                    <span>{error.kind === "stopped" ? "■ stopped" : error.text}</span>
+                    <button className="oc-notice-x" title="Dismiss" onClick={() => setError(null)}>×</button>
+                  </div>
+                )}
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton />

@@ -540,6 +540,14 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-head{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
 .oc-abort{color:var(--bad)}
 .oc-completed{color:var(--dim)}
+.oc-notice{
+  display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--bad);
+  border:1px solid rgba(255,97,102,.35);border-radius:var(--r);padding:6px 10px;margin:4px 0;
+}
+.oc-notice.quiet{color:var(--dim2);border-color:var(--line);font-family:var(--mono);font-size:11.5px}
+.oc-notice span{flex:1;word-break:break-word}
+.oc-notice-x{color:var(--dim2);font-size:14px;line-height:1}
+.oc-notice-x:hover{color:var(--fg)}
 .oc-ago{margin-left:8px;color:var(--dim2);font-size:11px;font-family:var(--mono)}
 .oc-expandable{cursor:pointer}
 .oc-expandable:hover .mono{color:var(--fg)}
