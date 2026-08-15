@@ -786,8 +786,13 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-card:focus-within{border-color:var(--line2)}
 .oc-ta{
   background:transparent;border:none;outline:none;resize:none;width:100%;
-  color:var(--fg);font:14px/1.5 var(--sans);max-height:140px;
+  color:var(--fg);font:14px/1.5 var(--sans);
+  /* five lines of 1.5em, then it scrolls — with no visible bar, like every
+     other scroll region here */
+  max-height:105px;overflow-y:auto;
+  scrollbar-width:none;-ms-overflow-style:none;
 }
+.oc-ta::-webkit-scrollbar{display:none;width:0}
 .oc-ta::placeholder{color:var(--dim2)}
 .oc-card-row{display:flex;align-items:center;justify-content:space-between}
 .oc-plus{

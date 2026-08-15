@@ -832,8 +832,13 @@ export default function OcChat({ project, onIdle }) {
             value={input}
             onChange={(e) => {
               setInput(e.target.value);
-              e.target.style.height = "auto";
-              e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+              // Grow to five lines, then scroll. The cap is read from the
+              // computed line-height rather than hardcoded, so it stays five
+              // lines if the type ever changes.
+              const el = e.target;
+              const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
+              el.style.height = "auto";
+              el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
             }}
             onKeyDown={onKey}
             placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
