@@ -1,7 +1,7 @@
 // Everything the custom OpenCode UI needs to boot: sessions for this
 // checkout, the command registry, the model catalog, and defaults.
 
-import { resolveProject } from "../../../../lib/projects.js";
+import { resolveProject, identityTag } from "../../../../lib/projects.js";
 import { ocClient, listModels, DEFAULTS } from "../../../../lib/opencode.js";
 
 export const dynamic = "force-dynamic";
@@ -55,6 +55,7 @@ async function build(project) {
         .map((a) => ({ name: a.name, description: a.description ?? "", builtIn: a.builtIn })),
       models,
       defaults: DEFAULTS,
+      identity: identityTag(),
     });
   }
 }

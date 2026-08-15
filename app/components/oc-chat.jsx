@@ -225,6 +225,9 @@ export default function OcChat({ project, onIdle }) {
   onIdleRef.current = onIdle;
   const answered = useRef(new Set());
 
+  const idRef = useRef("anon");
+  const skey = (k) => `${idRef.current}:${k}`;
+
   const act = useCallback((body) =>
     fetchJson("/api/oc/act", {
       method: "POST",
@@ -240,10 +243,11 @@ export default function OcChat({ project, onIdle }) {
       .then((b) => {
         if (stale) return;
         setBoot(b);
-        const saved = sessionStorage.getItem(`oc-session:${project}`);
+        idRef.current = b.identity ?? "anon";
+        const saved = sessionStorage.getItem(skey(`oc-session:${project}`));
         const pick = b.sessions.find((s) => s.id === saved) ?? b.sessions[0];
         setSessionId(pick?.id ?? null);
-        const savedModel = sessionStorage.getItem("build-model");
+        const savedModel = sessionStorage.getItem(skey("build-model"));
         const m = b.models.find((x) => `${x.providerID}:${x.modelID}` === savedModel)
           ?? b.models.find((x) => x.default) ?? b.models[0];
         if (m) setModelKey(`${m.providerID}:${m.modelID}`);
@@ -255,7 +259,7 @@ export default function OcChat({ project, onIdle }) {
   // ---- hydrate transcript on session switch
   useEffect(() => {
     if (!sessionId) { store.current = new Map(); bump(); return; }
-    sessionStorage.setItem(`oc-session:${project}`, sessionId);
+    sessionStorage.setItem(skey(`oc-session:${project}`), sessionId);
     let stale = false;
     fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sessionId}`)
       .then(({ messages }) => {
@@ -433,10 +437,10 @@ export default function OcChat({ project, onIdle }) {
   const selModel = boot?.models.find((m) => `${m.providerID}:${m.modelID}` === modelKey);
   const chooseModel = (key) => {
     setModelKey(key);
-    sessionStorage.setItem("build-model", key);
+    sessionStorage.setItem(skey("build-model"), key);
     try {
-      const h = JSON.parse(localStorage.getItem("oc-model-history") ?? "[]").filter((k) => k !== key);
-      localStorage.setItem("oc-model-history", JSON.stringify([key, ...h].slice(0, 8)));
+      const h = JSON.parse(localStorage.getItem(skey("oc-model-history")) ?? "[]").filter((k) => k !== key);
+      localStorage.setItem(skey("oc-model-history"), JSON.stringify([key, ...h].slice(0, 8)));
     } catch {}
   };
   // The dropdown mounts every item on open — 194 Radix rows cost ~360ms. Keep
@@ -444,7 +448,7 @@ export default function OcChat({ project, onIdle }) {
   const shortModels = (() => {
     if (!boot) return [];
     let history = [];
-    try { history = JSON.parse(localStorage.getItem("oc-model-history") ?? "[]"); } catch {}
+    try { history = JSON.parse(localStorage.getItem(skey("oc-model-history")) ?? "[]"); } catch {}
     const keys = [...new Set([
       modelKey,
       ...history,
