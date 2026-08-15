@@ -934,7 +934,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    and metrics as a Thinking row, with amber carried by the label alone. */
 /* Docked over the transcript, same geometry as the slash palette. */
 .oc-perm-dock{
-  position:absolute;left:16px;right:16px;bottom:calc(100% - 6px);z-index:30;
+  position:absolute;left:16px;right:16px;bottom:calc(100% + 4px);z-index:30;
   display:flex;flex-direction:column;gap:6px;
 }
 .oc-perm{
@@ -958,7 +958,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-deny{color:var(--bad)}
 .chat-composer{position:relative}
 .oc-palette{
-  position:absolute;left:16px;right:16px;bottom:calc(100% - 6px);z-index:30;
+  position:absolute;left:16px;right:16px;bottom:calc(100% + 4px);z-index:30;
   border:1px solid var(--line2);border-radius:var(--r);
   background:#0a0a0a;overflow:hidden;box-shadow:0 -12px 40px rgba(0,0,0,.65);
 }
