@@ -489,6 +489,23 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .pgbtn:hover:not(:disabled){background:var(--hover);border-color:var(--line2)}
 .pgbtn:disabled{color:var(--dim2);cursor:default}
 
+/* Geist Badge — measured spec from vercel.com/geist/badge */
+.gbadge{
+  display:inline-flex;align-items:center;gap:5px;
+  height:24px;padding:0 12px;border-radius:9999px;
+  font:500 12px var(--sans);white-space:nowrap;
+}
+.gbadge.sm{height:20px;padding:0 10px;font-size:11px}
+.gbadge.gray{background:#454545;color:#fff}
+.gbadge.green{background:oklch(0.5811 0.1815 146.55);color:#fff}
+.gbadge.amber{background:oklch(0.8187 0.1969 76.46);color:#000}
+.gbadge.red{background:oklch(0.5801 0.227 25.12);color:#fff}
+.gbadge.blue{background:oklch(0.5151 0.2307 257.85);color:#fff}
+.gbadge.green-subtle{color:oklch(0.731 0.2158 148.29);background:color-mix(in oklab, oklch(0.731 0.2158 148.29) 14%, transparent)}
+.gbadge.gray-subtle{color:var(--dim);background:var(--panel2)}
+.gbadge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.gbadge .mono{font-size:inherit;color:inherit;opacity:.75}
+
 /* ---- custom opencode client ---- */
 /* generative ASCII loader — shaded-block wave in a <pre> */
 .ascii-load{

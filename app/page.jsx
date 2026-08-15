@@ -8,6 +8,7 @@ import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { I } from "./components/icons.jsx";
+import { Badge } from "./components/badge.jsx";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -149,7 +150,6 @@ function Home() {
           <div key={p.name} className="agentcard" onClick={() => open(p)} role="button" tabIndex={0}>
             <div className="agentrow">
               <Logo p={p} />
-              <span className={"dot" + (p.live ? " on" : "")} />
               <b>{p.name}</b>
               <div className="spacer" />
               {busy[p.name] ? (
@@ -164,9 +164,15 @@ function Home() {
             </div>
             <div className="agentmeta">
               {p.live ? (
-                <><span className="ok">running</span><span className="mono dim2">:{p.localPort}</span>{p.model && <span className="mono dim2">{p.model}</span>}</>
+                <>
+                  <Badge variant="green-subtle" size="sm" dot>Running <span className="mono">:{p.localPort}</span></Badge>
+                  {p.model && <span className="mono dim2">{p.model}</span>}
+                </>
               ) : (
-                <><span className="dim2">{p.localPath ? "stopped" : "remote only"}</span>{p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}</>
+                <>
+                  <Badge variant="gray-subtle" size="sm">{p.localPath ? "Stopped" : "Remote"}</Badge>
+                  {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
+                </>
               )}
             </div>
             <div className="agentmeta">
