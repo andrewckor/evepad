@@ -7,7 +7,7 @@
 // registry, so /undo, /models, /compact and custom commands all work here
 // without reimplementation.
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
 import { Streamdown } from "streamdown";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,15 @@ const TOOL_ICONS = {
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
+// opencode-style loader: a 2x3 dot matrix stepping like the TUI logo blocks.
+function DotLoader() {
+  return (
+    <span className="dotload" aria-label="working">
+      <i /><i /><i /><i /><i /><i />
+    </span>
+  );
+}
+
 const MsgRow = React.memo(function MsgRow({ m }) {
   const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const isUser = m.info.role === "user";
@@ -56,7 +65,7 @@ const MsgRow = React.memo(function MsgRow({ m }) {
               <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
                 <MarkerIcon>
                   {st === "error" ? <CrossCircle />
-                    : ["pending", "running"].includes(st) ? <Spinner className="oc-spin" />
+                    : ["pending", "running"].includes(st) ? <DotLoader />
                     : (TOOL_ICONS[p.tool] ?? <Wrench />)}
                 </MarkerIcon>
                 <MarkerContent className="mono">
@@ -99,9 +108,40 @@ export default function OcChat({ project, onIdle }) {
   const bumpTimer = useRef(null);
   const bumpSoon = () => {
     if (bumpTimer.current) return;
-    bumpTimer.current = setTimeout(() => { bumpTimer.current = null; setVersion((v) => v + 1); }, 80);
+    bumpTimer.current = setTimeout(() => {
+      bumpTimer.current = null;
+      // Streaming updates are non-urgent: let typing/scrolling interrupt them.
+      startTransition(() => setVersion((v) => v + 1));
+    }, 80);
   };
   const touch = (msg) => { msg.rev = (msg.rev ?? 0) + 1; };
+  const lastEventAt = useRef(0);
+  // Merge server messages into the store WITHOUT replacing untouched message
+  // objects — preserving identity keeps memoized rows mounted and the
+  // scroller anchored (a full store swap remounts every row and jumps).
+  const mergeMessages = (messages) => {
+    let changed = false;
+    for (const m of messages) {
+      const existing = store.current.get(m.info.id);
+      if (!existing) {
+        store.current.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
+        changed = true;
+        continue;
+      }
+      for (const p of m.parts) {
+        const prev = existing.parts.get(p.id);
+        const prevLen = (prev?.text?.length ?? 0);
+        const nextLen = (p.text?.length ?? 0);
+        if (!prev || prev.state?.status !== p.state?.status || prevLen !== nextLen) {
+          existing.parts.set(p.id, p);
+          touch(existing);
+          changed = true;
+        }
+      }
+      if (existing.info.role !== m.info.role) { existing.info = m.info; touch(existing); changed = true; }
+    }
+    return changed;
+  };
 
   const [boot, setBoot] = useState(null); // {sessions, commands, models, defaults}
   const [sessionId, setSessionId] = useState(null);
@@ -154,6 +194,8 @@ export default function OcChat({ project, onIdle }) {
     fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sessionId}`)
       .then(({ messages }) => {
         if (stale) return;
+        // Session switch: a fresh store is correct (merging would mix
+        // transcripts). Mid-session refreshes go through mergeMessages.
         const next = new Map();
         for (const m of messages) {
           next.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
@@ -202,6 +244,7 @@ export default function OcChat({ project, onIdle }) {
     })();
 
     const applyEvent = (ev) => {
+      lastEventAt.current = Date.now();
       const p = ev.properties ?? {};
       const sid = sessionRef.current;
       switch (ev.type) {
@@ -281,16 +324,18 @@ export default function OcChat({ project, onIdle }) {
   useEffect(() => {
     if (!busy || !sessionId) return;
     const tick = async () => {
+      // Events healthy -> nothing to do. This poll exists solely for a dead
+      // bus; running it alongside live events double-rendered the transcript
+      // and yanked the scroller every 3 seconds.
+      if (Date.now() - lastEventAt.current < 4000) return;
       try {
         const { messages } = await fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sessionId}`);
-        const next = new Map();
-        for (const m of messages) next.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
-        store.current = next;
+        const changed = mergeMessages(messages);
         const lastMsg = messages.at(-1);
         const waiting = lastMsg?.info.role === "assistant" &&
           lastMsg.parts.some((p) => p.type === "tool" && ["pending", "running"].includes(p.state?.status));
         if (!waiting && lastMsg?.parts.some((p) => p.type === "step-finish")) setBusy(false);
-        bump();
+        if (changed) bump();
         const { pending } = await fetchJson(`/api/oc/pending?project=${encodeURIComponent(project)}&session=${sessionId}`);
         if (pending) {
           setPerms((ps) => {
@@ -520,7 +565,7 @@ export default function OcChat({ project, onIdle }) {
   };
 
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error}</div>;
-  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8 }}><Spinner /> connecting to opencode…</div>;
+  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><DotLoader /> <span className="oc-shimmer">connecting to opencode…</span></div>;
 
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
 
@@ -594,8 +639,8 @@ export default function OcChat({ project, onIdle }) {
                 {busy && !visiblePerms.length && (
                   <MessageScrollerItem messageId="working">
                     <Marker>
-                      <MarkerIcon><Spinner className="oc-spin" /></MarkerIcon>
-                      <MarkerContent className="mono">working…</MarkerContent>
+                      <MarkerIcon><DotLoader /></MarkerIcon>
+                      <MarkerContent className="mono oc-shimmer">working…</MarkerContent>
                     </Marker>
                   </MessageScrollerItem>
                 )}
