@@ -12,9 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
-const ENV_KEY = "eve-cockpit:env2";
-const ENVS = ["local", "preview", "production"];
-const cap = (s) => s[0].toUpperCase() + s.slice(1);
 // Home-relative paths fit without truncation, which beats any clever
 // ellipsis: the RTL trick that keeps a path's tail visible also drags its
 // leading slash to the far end, so "/Users/andrew/x" renders "Users/andrew/x/".
@@ -37,7 +34,6 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
   // every page for a panel nobody has opened.
   const { data: projects, mutate } = useSWR(open ? "/api/projects" : null, fetcher);
   const linked = (projects?.projects ?? []).filter((p) => p.localPath);
-  const env = typeof window === "undefined" ? null : localStorage.getItem(ENV_KEY);
 
   const unlink = async (p) => {
     await fetch("/api/registry", {
@@ -66,13 +62,6 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
           </Row>
           <Row label="Credentials" hint={account?.tokenSource === "VERCEL_TOKEN" ? "from the environment" : "~/Library/Application Support/com.vercel.cli"}>
             {account?.tokenSource ?? "none"}
-          </Row>
-        </div>
-
-        <div className="set-section">
-          <div className="set-section-title">Preferences</div>
-          <Row label="Environments" hint="changed from the Runs page">
-            {(env ?? ENVS.join(",")).split(",").map(cap).join(" + ")}
           </Row>
         </div>
 

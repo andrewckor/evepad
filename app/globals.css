@@ -740,7 +740,8 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .acc-item svg{font-size:14px}
 
 /* ---- settings dialog ---- */
-.set-dialog{max-width:560px}
+.set-dialog{max-width:560px;overflow:hidden}
+.set-dialog>*,.set-section,.set-row,.set-row-main,.set-link{min-width:0}
 .set-section{margin-top:18px}
 .set-section-title{
   display:flex;align-items:center;gap:8px;
