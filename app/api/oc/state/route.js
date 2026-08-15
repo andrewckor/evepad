@@ -9,27 +9,37 @@ export const dynamic = "force-dynamic";
 // Boot data changes slowly (sessions list, commands, models, agents) — serve
 // the last snapshot instantly and refresh behind, so opening Build or
 // switching projects never blocks on four upstream calls.
-const cache = new Map(); // name -> {at, data}
+const cache = new Map();    // name -> {at, data}
+const pending = new Map();  // name -> in-flight build promise
+const failed = new Map();   // name -> {at, message}
 const TTL = 15_000;
 
+// This request NEVER waits on the opencode boot. A cold boot takes seconds,
+// and a held connection is one of the browser's six per host — enough of them
+// and the next page navigation queues behind this route. So: kick the work
+// off, answer {booting:true} immediately, let the client poll.
 export async function GET(request) {
   const name = new URL(request.url).searchParams.get("project") ?? "";
   const project = await resolveProject(name);
   if (!project?.localPath) return Response.json({ error: "No local checkout." }, { status: 409 });
-  const hit = cache.get(project.name);
-  if (hit && Date.now() - hit.at < TTL) return Response.json(hit.data);
-  if (hit) {
-    // stale: refresh in the background, serve instantly
-    build(project).then((data) => cache.set(project.name, { at: Date.now(), data })).catch(() => {});
-    return Response.json(hit.data);
+  const key = project.name;
+
+  const hit = cache.get(key);
+  const fresh = hit && Date.now() - hit.at < TTL;
+  if (fresh) return Response.json(hit.data);
+
+  if (!pending.has(key)) {
+    const p = build(project)
+      .then((data) => { cache.set(key, { at: Date.now(), data }); failed.delete(key); })
+      .catch((e) => { failed.set(key, { at: Date.now(), message: String(e.message ?? e).slice(0, 250) }); })
+      .finally(() => pending.delete(key));
+    pending.set(key, p);
   }
-  try {
-    const data = await build(project);
-    cache.set(project.name, { at: Date.now(), data });
-    return Response.json(data);
-  } catch (e) {
-    return Response.json({ error: String(e.message ?? e).slice(0, 250) }, { status: 502 });
-  }
+
+  if (hit) return Response.json(hit.data); // stale is better than waiting
+  const err = failed.get(key);
+  if (err && Date.now() - err.at < 5_000) return Response.json({ error: err.message }, { status: 502 });
+  return Response.json({ booting: true }, { status: 202 });
 }
 
 async function build(project) {

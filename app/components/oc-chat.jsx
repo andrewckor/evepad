@@ -211,7 +211,17 @@ export default function OcChat({ project, onIdle }) {
   useEffect(() => {
     let stale = false;
     setBoot(null); setError(null); store.current = new Map(); bump();
-    fetchJson(`/api/oc/state?project=${encodeURIComponent(project)}`)
+    // /api/oc/state answers 202 {booting} rather than holding the connection
+    // open through a cold opencode boot — poll until it's ready.
+    const load = async () => {
+      for (let i = 0; i < 150 && !stale; i++) {
+        const b = await fetchJson(`/api/oc/state?project=${encodeURIComponent(project)}`);
+        if (!b?.booting) return b;
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      throw new Error("editor did not start");
+    };
+    load()
       .then((b) => {
         if (stale) return;
         setBoot(b);
@@ -257,7 +267,13 @@ export default function OcChat({ project, onIdle }) {
   }, [project, sessionId]);
 
   // ---- live events (one stream per project; reconnects with backoff)
+  // Gated on boot: this stream never closes, and holding it open during the
+  // boot window costs one of the browser's six HTTP/1.1 connections per host —
+  // with state + manifest + projects already in flight, a page navigation
+  // queued behind them and felt blocked. Nothing is missed by waiting: there
+  // is no session to receive events for until boot resolves.
   useEffect(() => {
+    if (!boot) return;
     let disposed = false;
     let abort;
     (async () => {
@@ -369,7 +385,7 @@ export default function OcChat({ project, onIdle }) {
     };
 
     return () => { disposed = true; abort?.abort(); };
-  }, [project]);
+  }, [project, Boolean(boot)]);
 
   useEffect(() => {
     if (!busy || !sessionId) return;

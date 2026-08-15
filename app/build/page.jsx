@@ -234,11 +234,20 @@ function Build() {
   const q = useSearchParams();
   const project = q.get("project") ?? "";
 
-  const { data: info, error: infoErr, isLoading: infoLoading, mutate: refetchInfo } = useSWR(
+  const { data: raw, error: infoErr, mutate: refetchInfo } = useSWR(
     project ? `/api/agent-info?project=${encodeURIComponent(project)}` : null,
     fetcher,
-    { refreshInterval: 3000, revalidateOnFocus: true, keepPreviousData: true },
+    {
+      // The route answers 202 {compiling} instead of holding the connection —
+      // poll quickly until the manifest lands, then fall back to the watch
+      // interval that keeps the graph in sync with the files.
+      refreshInterval: (latest) => (latest?.compiling ? 400 : 3000),
+      revalidateOnFocus: true,
+      keepPreviousData: true,
+    },
   );
+  const info = raw?.compiling ? null : raw;
+  const infoLoading = !info && !infoErr;
 
   // Graph buttons hand text to the chat: explain/delete submit, edit
   // pre-fills the composer so you finish the sentence yourself.

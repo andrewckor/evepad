@@ -9,8 +9,33 @@ import { join } from "node:path";
 import { resolveProject, eveVersionAt } from "../../../lib/projects.js";
 
 const exec = promisify(execFile);
-const cache = new Map(); // name -> {at, data}
+const cache = new Map();     // name -> {at, data}
+const compiling = new Map(); // name -> in-flight compile promise
 const TTL = 10_000;
+
+// Extracted so the route can run it in the background and answer immediately.
+async function compile(project) {
+  const { stdout } = await exec("npm", ["exec", "--", "eve", "info", "--json"], {
+    cwd: project.localPath, timeout: 120_000, maxBuffer: 16 << 20,
+  });
+  const info = JSON.parse(stdout.slice(stdout.indexOf("{")));
+  const byChannel = new Map();
+  for (const c of info.channels ?? []) {
+    const key = `${c.name}:${c.kind}`;
+    if (!byChannel.has(key)) byChannel.set(key, { name: c.name, kind: c.kind, routes: 0 });
+    byChannel.get(key).routes += 1;
+  }
+  return {
+    name: info.agent?.name ?? info.name ?? project.name,
+    model: info.model ?? info.agent?.model?.id ?? null,
+    instructions: info.instructions ?? null,
+    skills: info.skills ?? [],
+    subagents: info.subagents ?? [],
+    channels: [...byChannel.values()],
+    diagnostics: info.diagnostics ?? null,
+    eveVersion: eveVersionAt(project.localPath),
+  };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +78,20 @@ export async function GET(request) {
   const hit = cache.get(project.name);
   if (!fresh && hit && Date.now() - hit.at < TTL * 6) {
     return Response.json({ ...hit.data, tools: liveTools(), schedules: liveSchedules() });
+  }
+
+  // Never hold the connection for a cold `eve info` compile (seconds): start
+  // it, answer {compiling:true}, let the client poll. A held request costs one
+  // of six HTTP/1.1 slots and delays the next navigation.
+  if (!hit) {
+    if (!compiling.has(project.name)) {
+      const p = compile(project)
+        .then((data) => cache.set(project.name, { at: Date.now(), data }))
+        .catch(() => {})
+        .finally(() => compiling.delete(project.name));
+      compiling.set(project.name, p);
+    }
+    return Response.json({ compiling: true, tools: liveTools(), schedules: liveSchedules() }, { status: 202 });
   }
 
   try {
