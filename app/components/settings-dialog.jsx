@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 // Home-relative paths fit without truncation, which beats any clever
@@ -47,6 +48,7 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="set-dialog">
+        <TooltipProvider delay={200}>
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>How this cockpit is wired up.</DialogDescription>
@@ -78,27 +80,36 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
               <span className={"dot" + (p.live ? " on" : "")} />
               <span className="set-link-name">{p.name}</span>
               <span className="set-link-path mono" title={p.localPath}>{tilde(p.localPath)}</span>
-              {/* A running dev server is rediscovered on the next probe and
-                  re-registers its folder — measured: forget succeeds, the entry
-                  is gone, and it's back after one poll. So the button is
-                  disabled while it runs. The title lives on the wrapper: a
-                  disabled button swallows pointer events, tooltip included. */}
-              <span className="set-link-act" title={p.live
-                ? "Stop the server before removing"
-                : `Remove ${tilde(p.localPath)} from this list — the folder stays on your Mac`}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="set-unlink"
-                  disabled={p.live}
-                  onClick={() => unlink(p)}
-                >Remove</Button>
-              </span>
+              {/* Native title never fired here: the browser suppresses it on
+                  a disabled control, and moving it to the wrapper only helped
+                  in theory — our own tooltip is a real element, so it shows
+                  and can be tested. */}
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <span className="set-link-act">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="set-unlink"
+                        disabled={p.live}
+                        onClick={() => unlink(p)}
+                      >Remove</Button>
+                    </span>
+                  }
+                />
+                <TooltipContent>
+                  {p.live
+                    ? "Stop the server before removing"
+                    : `Remove ${tilde(p.localPath)} from this list — the folder stays on your Mac`}
+                </TooltipContent>
+              </Tooltip>
             </div>
           )) : (
             <div className="set-empty">No agent has a folder on this Mac yet — open Build on one and choose its folder.</div>
           )}
         </div>
+        </TooltipProvider>
       </DialogContent>
     </Dialog>
   );
