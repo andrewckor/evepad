@@ -10,6 +10,19 @@ import useSWR from "swr";
 import { I } from "./components/icons.jsx";
 import { Badge } from "./components/badge.jsx";
 import { Globe, Sparkles } from "vercel-geist-icons";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+
+// Icon-only controls get real tooltips (instant, styled), not the browser's
+// sluggish native title.
+function Tip({ label, children }) {
+  // Base UI trigger: custom elements go through `render`, not Radix asChild.
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -145,6 +158,7 @@ function Home() {
         <h1>{projects.length} Agents</h1>
         <span className="dim">{projects.filter((p) => p.live).length} running locally</span>
       </div>
+      <TooltipProvider delay={150}>
       <div className="agentgrid">
         <NewAgentCard onCreated={(name) => router.push(`/runs?project=${encodeURIComponent(name)}&environment=local`)} />
         {projects.map((p) => (
@@ -154,13 +168,13 @@ function Home() {
               <b>{p.name}</b>
               <div className="spacer" />
               {busy[p.name] ? (
-                <span className="devbtn busy" title="Working on it — starting or stopping the dev server">{I.loader}</span>
+                <Tip label="Working on it — starting or stopping the dev server"><span className="devbtn busy">{I.loader}</span></Tip>
               ) : p.live ? (
-                <span className="devbtn stop" title={`Stop the local eve dev server on :${p.localPort}`} onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span>
+                <Tip label={`Stop the local eve dev server on :${p.localPort}`}><span className="devbtn stop" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span></Tip>
               ) : p.localPath ? (
-                <span className="devbtn play" title={`Start eve dev for ${p.name} (installs deps and pulls creds if needed)`} onClick={(e) => devAction(e, p, "start")}>{I.play}</span>
+                <Tip label={`Start eve dev for ${p.name} — installs deps and pulls creds if needed`}><span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>{I.play}</span></Tip>
               ) : (
-                <span className="devbtn locate" title={`Locate ${p.name}\u2019s checkout folder \u2014 enables start, Build and local runs`} onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span>
+                <Tip label={`Locate ${p.name}\u2019s checkout folder — enables start, Build and local runs`}><span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span></Tip>
               )}
             </div>
             <div className="agentmeta">
@@ -187,14 +201,23 @@ function Home() {
             </div>
             <div className="agentmeta agenturl">
               {p.productionUrl && (
-                <span className="cardfact dim2" title="Production deployment" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                <a
+                  className="cardfact carddomain dim2"
+                  href={p.productionUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={`Open ${p.productionUrl} in a new tab`}
+                  onClick={(e) => e.stopPropagation() /* don't also open the card's runs view */}
+                  style={{ overflow: "hidden", textOverflow: "ellipsis" }}
+                >
                   <Globe /> {p.productionUrl.replace(/^https?:\/\//, "")}
-                </span>
+                </a>
               )}
             </div>
           </div>
         ))}
       </div>
+      </TooltipProvider>
       {!projects.length && <div className="empty">Looking for agents…</div>}
     </div>
   );

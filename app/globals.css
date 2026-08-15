@@ -354,6 +354,8 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .agenturl{margin-top:8px;font-family:var(--sans);font-size:13px}
 .cardfact{display:inline-flex;align-items:center;gap:5px;min-width:0}
 .cardfact svg{width:13px;height:13px;flex:none;opacity:.8}
+.carddomain{transition:color .12s}
+.carddomain:hover{color:var(--fg);text-decoration:underline;text-underline-offset:3px}
 .newinput{
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
   color:var(--fg);padding:8px 11px;font:inherit;font-size:13.5px;outline:none;width:100%;
