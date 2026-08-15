@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { preload } from "swr";
 import { I, triggerIcon } from "@/app/components/icons.jsx";
+import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
 
 const ENVS = ["local", "preview", "production"];
 
@@ -40,6 +41,8 @@ const ago = (iso) => {
 };
 const statusClass = (s) => (s === "completed" ? "ok" : s === "failed" ? "bad" : "warn");
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+// "channel:photon" reads as just "photon" — the icon already says channel.
+const trigLabel = (t) => (t?.startsWith("channel:") ? t.slice(8) : cap(t));
 // Chip labels: abbreviate only where unambiguous — "prev" reads as "previous".
 const envShort = (e) => (e === "production" ? "prod" : e);
 
@@ -185,6 +188,13 @@ function Dashboard() {
 
   const [search, setSearch] = useState("");
   const [trigger, setTrigger] = useState("all");
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(0);
+  const [sizeOpen, setSizeOpen] = useState(false);
+  useEffect(() => {
+    const saved = Number(sessionStorage.getItem("runsPageSize"));
+    if ([10, 25, 50, 100].includes(saved)) setPageSize(saved);
+  }, []);
   const [trigOpen, setTrigOpen] = useState(false);
 
   const setParams = (patch) => {
@@ -215,6 +225,8 @@ function Dashboard() {
 
   const all = data?.sessions ?? [];
   const triggers = useMemo(() => [...new Set(all.map((s) => s.trigger))], [all]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setPage(0); }, [project, environment, period, trigger]);
   const sessions = all.filter(
     (s) =>
       (trigger === "all" || s.trigger === trigger) &&
@@ -271,7 +283,7 @@ function Dashboard() {
                 <span className="legend">
                   {triggers.map((t, i) => (
                     <span key={t}><i style={{ background: i === 0 ? "var(--purple)" : "var(--blue)" }} />
-                      {cap(t)} <b>{sessions.filter((s) => s.trigger === t).length}</b>
+                      {trigLabel(t)} <b>{sessions.filter((s) => s.trigger === t).length}</b>
                     </span>
                   ))}
                 </span>
@@ -301,14 +313,14 @@ function Dashboard() {
           </div>
           <div className="picker">
             <button onClick={() => setTrigOpen((o) => !o)}>
-              <span>{trigger === "all" ? "All Triggers" : cap(trigger)}</span>
+              <span>{trigger === "all" ? "All Triggers" : trigLabel(trigger)}</span>
               <span className="chev">{I.chevDown}</span>
             </button>
             {trigOpen && (
               <div className="menu right" onMouseLeave={() => setTrigOpen(false)}>
                 <button data-on={trigger === "all" ? "1" : "0"} onClick={() => { setTrigger("all"); setTrigOpen(false); }}>All Triggers</button>
                 {triggers.map((t) => (
-                  <button key={t} data-on={trigger === t ? "1" : "0"} onClick={() => { setTrigger(t); setTrigOpen(false); }}>{cap(t)}</button>
+                  <button key={t} data-on={trigger === t ? "1" : "0"} onClick={() => { setTrigger(t); setTrigOpen(false); }}>{trigLabel(t)}</button>
                 ))}
               </div>
             )}
@@ -334,13 +346,13 @@ function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {sessions.map((s) => (
+              {sessions.slice(page * pageSize, (page + 1) * pageSize).map((s) => (
                 <tr key={s.runId} onMouseEnter={() => warm(s)} onClick={() => router.push(runHref(s))}>
                   <td className="title-cell">
                     {multiEnv && <span className={"envchip" + (s.environment === "local" ? " loc" : s.environment === "production" ? " prod" : "")}>{envShort(s.environment)}</span>}
                     {s.title}
                   </td>
-                  <td><span className="trigger-badge">{triggerIcon(s.trigger)} {cap(s.trigger)}</span></td>
+                  <td><span className="trigger-badge">{triggerIcon(s.trigger)} {trigLabel(s.trigger)}</span></td>
                   <td className="num">{money(s.costUsd)}</td>
                   <td className="num">{kt(s.inputTokens)}</td>
                   <td className="num">{kt(s.outputTokens)}</td>
@@ -352,6 +364,29 @@ function Dashboard() {
               ))}
             </tbody>
           </table>
+          {sessions.length > 0 && (
+            <div className="tfoot">
+              <div className="picker">
+                <button className="tfoot-size" onClick={() => setSizeOpen((o) => !o)}>
+                  Show {pageSize} <span className="chev">{I.chevDown}</span>
+                </button>
+                {sizeOpen && (
+                  <div className="menu up" onMouseLeave={() => setSizeOpen(false)}>
+                    {[10, 25, 50, 100].map((n) => (
+                      <button key={n} data-on={n === pageSize ? "1" : "0"}
+                        onClick={() => { setPageSize(n); setPage(0); sessionStorage.setItem("runsPageSize", String(n)); setSizeOpen(false); }}>
+                        Show {n}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="spacer" />
+              <span className="tfoot-page">{page + 1} of {Math.max(1, Math.ceil(sessions.length / pageSize))}</span>
+              <button className="pgbtn" disabled={page === 0} onClick={() => setPage((p) => p - 1)} title="Previous page"><ChevronLeft /></button>
+              <button className="pgbtn" disabled={(page + 1) * pageSize >= sessions.length} onClick={() => setPage((p) => p + 1)} title="Next page"><ChevronRight /></button>
+            </div>
+          )}
           {isLoading && !sessions.length && (
             <div>{[0, 1, 2, 3, 4].map((i) => <div key={i} className="sk row" style={{ opacity: 1 - i * 0.15 }} />)}</div>
           )}
