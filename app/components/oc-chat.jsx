@@ -662,9 +662,12 @@ export default function OcChat({ project, onIdle }) {
             <MessageScrollerButton />
           </MessageScroller>
         </MessageScrollerProvider>
-        <div className={"oc-working" + (busy && !visiblePerms.length ? " on" : "")} aria-hidden={!busy}>
+      </div>
+
+      <div className="oc-status">
+        <span className={"oc-status-inner" + (busy && !visiblePerms.length ? " on" : "")}>
           <AsciiLoader cols={12} rows={1} /> <span className="oc-shimmer mono">working…</span>
-        </div>
+        </span>
       </div>
 
       <div className="chat-composer">
