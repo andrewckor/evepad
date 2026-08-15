@@ -1,0 +1,70 @@
+// Fallback discovery of pending permission asks. The event bus is the primary
+// path, but opencode's per-instance buses can starve subscriptions (instance
+// disposal, SDK-internal SSE retries), and pending asks are not listable via
+// any API. The server log IS authoritative about asks, and the session's
+// message state says whether a run is actually waiting — combine the two.
+
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import { resolveProject } from "../../../../lib/projects.js";
+import { ocClient } from "../../../../lib/opencode.js";
+
+export const dynamic = "force-dynamic";
+
+const LOG = join(homedir(), ".local", "share", "opencode", "log", "opencode.log");
+
+export async function GET(request) {
+  const url = new URL(request.url);
+  const name = url.searchParams.get("project") ?? "";
+  const sessionId = url.searchParams.get("session") ?? "";
+  const project = await resolveProject(name);
+  if (!project?.localPath) return Response.json({ error: "No local checkout." }, { status: 409 });
+  if (!sessionId) return Response.json({ pending: [] });
+
+  try {
+    const { client, dir } = await ocClient(project.localPath);
+    const res = await client.session.messages({
+      path: { id: sessionId }, query: { directory: dir }, throwOnError: true,
+    });
+    const last = res.data.at(-1);
+    const waitingParts = last?.info.role === "assistant"
+      ? last.parts.filter((p) => p.type === "tool" && ["pending", "running"].includes(p.state?.status))
+      : [];
+    if (!waitingParts.length) return Response.json({ pending: [] });
+
+    // The run is waiting on something. Find its run-context ids in the log
+    // (lines mentioning this session), then that context's trailing asks.
+    let tail = "";
+    try {
+      const buf = readFileSync(LOG, "utf8");
+      tail = buf.slice(-400_000);
+    } catch { return Response.json({ pending: [] }); }
+
+    const runIds = new Set();
+    for (const m of tail.matchAll(/run=([0-9a-f]+)[^\n]*session\.id=/g)) {
+      if (tail.includes(`run=${m[1]}`) && tail.slice(m.index, m.index + 400).includes(sessionId)) runIds.add(m[1]);
+    }
+    const asks = [];
+    for (const m of tail.matchAll(/timestamp=(\S+) level=INFO run=([0-9a-f]+) message=asking id=(per_\w+) permission=(\w+) patterns="((?:[^"\\]|\\.)*)"/g)) {
+      const [, ts, run, id, permission, rawPatterns] = m;
+      if (!runIds.has(run)) continue;
+      let patterns = [];
+      try { patterns = JSON.parse(rawPatterns.replace(/\\"/g, '"')); } catch {}
+      asks.push({ id, permission, patterns, ts });
+    }
+    // Only the newest asks can still be pending — cap to the number of
+    // tool parts actually waiting.
+    const pending = asks.slice(-Math.max(waitingParts.length, 1)).map((a) => ({
+      id: a.id,
+      sessionID: sessionId,
+      permission: a.permission,
+      patterns: a.patterns,
+      metadata: { command: a.patterns.join(" && ") },
+      fromLog: true,
+    }));
+    return Response.json({ pending });
+  } catch (e) {
+    return Response.json({ error: String(e.message ?? e).slice(0, 200) }, { status: 502 });
+  }
+}

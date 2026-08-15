@@ -69,6 +69,7 @@ export default function OcChat({ project, onIdle }) {
   const inputRef = useRef(null);
   const onIdleRef = useRef(onIdle);
   onIdleRef.current = onIdle;
+  const answered = useRef(new Set());
 
   const act = useCallback((body) =>
     fetchJson("/api/oc/act", {
@@ -227,6 +228,36 @@ export default function OcChat({ project, onIdle }) {
     return () => { disposed = true; abort?.abort(); };
   }, [project]);
 
+  useEffect(() => {
+    if (!busy || !sessionId) return;
+    const tick = async () => {
+      try {
+        const { messages } = await fetchJson(`/api/oc/messages?project=${encodeURIComponent(project)}&session=${sessionId}`);
+        const next = new Map();
+        for (const m of messages) next.set(m.info.id, { info: m.info, parts: new Map(m.parts.map((p) => [p.id, p])) });
+        store.current = next;
+        const lastMsg = messages.at(-1);
+        const waiting = lastMsg?.info.role === "assistant" &&
+          lastMsg.parts.some((p) => p.type === "tool" && ["pending", "running"].includes(p.state?.status));
+        if (!waiting && lastMsg?.parts.some((p) => p.type === "step-finish")) setBusy(false);
+        bump();
+        const { pending } = await fetchJson(`/api/oc/pending?project=${encodeURIComponent(project)}&session=${sessionId}`);
+        if (pending) {
+          setPerms((ps) => {
+            const merged = [...ps];
+            for (const p of pending) {
+              if (answered.current.has(p.id)) continue;
+              if (!merged.some((x) => x.id === p.id)) merged.push(p);
+            }
+            return merged;
+          });
+        }
+      } catch {}
+    };
+    const iv = setInterval(tick, 3000);
+    return () => clearInterval(iv);
+  }, [busy, sessionId, project]);
+
   const msgs = [...store.current.values()].sort((a, b) => String(a.info.id).localeCompare(String(b.info.id)));
 
   // ---- actions
@@ -361,10 +392,15 @@ export default function OcChat({ project, onIdle }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boot, modelKey, sessionId]);
 
-  const respond = (perm, response) =>
-    act({ action: "permission", sessionId: perm.sessionID, permissionId: perm.id, response })
+  const respond = (perm, response) => {
+    answered.current.add(perm.id);
+    return act({ action: "permission", sessionId: perm.sessionID, permissionId: perm.id, response })
       .then(() => setPerms((ps) => ps.filter((x) => x.id !== perm.id)))
-      .catch((e) => setError(e.message));
+      .catch(() => {
+        // Log-derived ids can be stale (already answered) — drop silently.
+        setPerms((ps) => ps.filter((x) => x.id !== perm.id));
+      });
+  };
 
   // ---- palette: /cmd filters commands; "/models q", "/agents q",
   // "/sessions q" flip into searchable pickers.
