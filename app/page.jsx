@@ -170,18 +170,18 @@ function Home() {
                 </>
               ) : (
                 <>
-                  {/* Sync state, not run state: Linked = checkout + Vercel
-                      project; Local only = checkout without a Vercel record;
-                      Remote only = Vercel project with no known checkout. */}
+                  {/* Linked means "also lives in production", not mere link
+                      plumbing — a checkout that never deployed reads Local
+                      only even when .vercel/project.json exists. */}
                   <Badge variant="gray-subtle" size="sm">
-                    {p.localPath ? (p.id ? "Linked" : "Local only") : "Remote only"}
+                    {p.localPath ? (p.productionUrl ? "Linked" : "Local only") : "Remote only"}
                   </Badge>
                   {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
                 </>
               )}
             </div>
-            <div className="agentmeta">
-              {p.productionUrl && <span className="dim2 mono" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{p.productionUrl.replace(/^https?:\/\//, "")}</span>}
+            <div className="agentmeta agenturl">
+              {p.productionUrl && <span className="dim2" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{p.productionUrl.replace(/^https?:\/\//, "")}</span>}
             </div>
           </div>
         ))}

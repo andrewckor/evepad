@@ -351,6 +351,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .agentlogo img{width:100%;height:100%;object-fit:cover}
 .agentmeta{display:flex;align-items:center;gap:10px;font-size:12.5px;min-height:16px}
+.agenturl{margin-top:8px;font-family:var(--sans);font-size:13px}
 .newinput{
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
   color:var(--fg);padding:8px 11px;font:inherit;font-size:13.5px;outline:none;width:100%;
