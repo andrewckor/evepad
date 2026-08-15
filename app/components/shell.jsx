@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { SPRING } from "./motion.js";
 import dynamic from "next/dynamic";
 import ProjectPicker from "./project-picker.jsx";
+import AccountMenu from "./account-menu.jsx";
 import ChatPanel from "../chat-panel.jsx";
 
 import { I } from "./icons.jsx";
@@ -97,6 +98,8 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
             </motion.div>
           )}
         </AnimatePresence>
+        <AccountMenu />
+        <span className="topsep" />
         <ProjectPicker value={project} onChange={pickProject} />
         {isBuild && project && (
           <Link className="chatbtn" href={listHref({ from: "build" })} title={`Agent runs for ${project}`}>

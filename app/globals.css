@@ -700,6 +700,77 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   .pixgrid>span,.shimmer-text,.loadstate-label{animation:none!important}
   .shimmer-text,.loadstate-label{color:var(--dim);background-image:none}
 }
+/* ---- account (top-bar scope slot) ---- */
+.acc-trigger{
+  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 8px;flex:none;
+  border-radius:var(--r-sm);color:var(--dim);font-size:13px;max-width:200px;
+  transition:background .1s,color .1s;
+}
+.acc-trigger:hover{background:var(--hover);color:var(--fg)}
+.acc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The breadcrumb slash Vercel uses between scope and project. */
+.topsep{flex:none;width:1px;height:18px;background:var(--line2);transform:rotate(18deg);margin:0 2px}
+.acc-avatar{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  border-radius:50%;overflow:hidden;background:var(--panel2);border:1px solid var(--line);
+  color:var(--dim);font-weight:600;
+}
+.acc-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.acc-pop{width:280px;padding:6px}
+.acc-head{display:flex;align-items:center;gap:10px;padding:8px}
+.acc-head-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.acc-head-text b{font-size:13px;font-weight:500;color:var(--fg)}
+.acc-head-text i{font-style:normal;font-size:11.5px;color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-sep{height:1px;background:var(--line);margin:6px -6px}
+.acc-label{padding:2px 8px 4px;font-size:11px;font-weight:500;color:var(--dim2)}
+.acc-scope{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-sm);font-size:13px;color:var(--dim)}
+.acc-scope.on{color:var(--fg)}
+.acc-scope-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc-check{display:inline-flex;font-size:13px;color:var(--ok)}
+.acc-hint{padding:4px 8px 6px;font-size:11px;color:var(--dim2)}
+.acc-out{padding:8px}
+.acc-out b{font-size:13px;font-weight:500;color:var(--fg)}
+.acc-out p{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--dim)}
+.acc-item{
+  display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;
+  border-radius:var(--r-sm);font-size:13px;color:var(--dim);text-align:left;
+  transition:background .1s,color .1s;
+}
+.acc-item:hover{background:var(--hover);color:var(--fg)}
+.acc-item svg{font-size:14px}
+
+/* ---- settings dialog ---- */
+.set-dialog{max-width:560px}
+.set-section{margin-top:18px}
+.set-section-title{
+  display:flex;align-items:center;gap:8px;
+  font-size:11.5px;font-weight:500;color:var(--dim2);
+  padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:2px;
+}
+.set-count{
+  font-size:10.5px;color:var(--dim);background:var(--panel2);
+  border-radius:999px;padding:1px 7px;
+}
+.set-row{padding:8px 0;border-bottom:1px solid var(--line)}
+.set-row:last-child{border-bottom:none}
+.set-row-main{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.set-label{font-size:13px;color:var(--dim)}
+.set-value{font-size:13px;color:var(--fg);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.set-hint{display:block;font-size:11px;color:var(--dim2);margin-top:2px}
+.set-link{
+  display:flex;align-items:center;gap:10px;padding:7px 0;
+  border-bottom:1px solid var(--line);font-size:13px;
+}
+.set-link:last-child{border-bottom:none}
+.set-link-name{color:var(--fg);flex:none}
+.set-link-path{
+  flex:1;min-width:0;font-size:11px;color:var(--dim2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.set-unlink{color:var(--dim2);font-size:12px;padding:2px 6px;border-radius:var(--r-sm)}
+.set-unlink:hover{color:var(--bad);background:var(--hover)}
+.set-empty{font-size:12.5px;color:var(--dim2);padding:10px 0}
+
 /* No-checkout empty state: one centred column, the icon large and quiet, and
    the action that resolves it right there. */
 .nocheckout{

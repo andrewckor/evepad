@@ -1,0 +1,87 @@
+"use client";
+
+// The Vercel account this cockpit is reading from, in the top bar's scope
+// slot — left of the project switcher, the way the dashboard reads
+// "team / project". No sidebar: the account is not a place you go, it's the
+// scope everything else is inside.
+//
+// Read-only by design. `vercel login` and `vercel switch` own the account and
+// team; a switcher here would be a second source of truth for state the CLI
+// already holds, and the two would drift.
+
+import { useState } from "react";
+import useSWR from "swr";
+import { SettingsGear, CheckCircleFill } from "vercel-geist-icons";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import SettingsDialog from "./settings-dialog.jsx";
+
+const fetcher = (url) => fetch(url).then((r) => r.json());
+
+function Avatar({ src, name, size = 20 }) {
+  const [failed, setFailed] = useState(false);
+  const initial = (name ?? "?").trim().slice(0, 1).toUpperCase();
+  return (
+    <span className="acc-avatar" style={{ width: size, height: size, fontSize: size < 24 ? 9 : 12 }}>
+      {src && !failed
+        ? <img src={src} alt="" onError={() => setFailed(true)} />
+        : initial}
+    </span>
+  );
+}
+
+export default function AccountMenu() {
+  const [open, setOpen] = useState(false);
+  const [settings, setSettings] = useState(false);
+  // Identity changes about never; the route caches for a minute and this
+  // refreshes on focus, which covers a `vercel switch` in another window.
+  const { data } = useSWR("/api/account", fetcher, { revalidateOnFocus: true });
+
+  const scope = data?.scope;
+  const label = data?.loggedIn ? scope?.name ?? "Vercel" : "Not signed in";
+
+  return (
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger className="acc-trigger" title={data?.loggedIn ? `${label} — Vercel account` : "Vercel account"}>
+          <Avatar src={scope?.avatarUrl} name={label} />
+          <span className="acc-name">{label}</span>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="acc-pop">
+          {data?.loggedIn ? (
+            <>
+              <div className="acc-head">
+                <Avatar src={data.user.avatarUrl} name={data.user.name} size={32} />
+                <span className="acc-head-text">
+                  <b>{data.user.name}</b>
+                  <i>{data.user.email}</i>
+                </span>
+              </div>
+              <div className="acc-sep" />
+              <div className="acc-label">Scope</div>
+              {/* Every team the token can reach, with the active one marked.
+                  Switching is `vercel switch` — shown, not offered. */}
+              {[scope, ...(data.teams ?? []).filter((t) => t.id !== scope?.id)].filter(Boolean).map((t) => (
+                <div key={t.id ?? t.slug} className={"acc-scope" + (t.slug === scope?.slug ? " on" : "")}>
+                  <Avatar src={t.avatarUrl} name={t.name} size={18} />
+                  <span className="acc-scope-name">{t.name}</span>
+                  {t.slug === scope?.slug && <span className="acc-check"><CheckCircleFill /></span>}
+                </div>
+              ))}
+              <div className="acc-hint mono">vercel switch — to change scope</div>
+            </>
+          ) : (
+            <div className="acc-out">
+              <b>Not signed in to Vercel</b>
+              <p>{data?.hint ?? data?.error ?? "Run `vercel login` to see your deployed agents."}</p>
+            </div>
+          )}
+          <div className="acc-sep" />
+          <button className="acc-item" onClick={() => { setOpen(false); setSettings(true); }}>
+            <SettingsGear /> Settings
+          </button>
+        </PopoverContent>
+      </Popover>
+      <SettingsDialog open={settings} onOpenChange={setSettings} account={data} />
+    </>
+  );
+}
