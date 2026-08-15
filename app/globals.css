@@ -499,15 +499,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .pgbtn:hover:not(:disabled){background:var(--hover);border-color:var(--line2)}
 .pgbtn:disabled{color:var(--dim2);cursor:default}
 
-/* Tooltip: Vercel's dark treatment — the shadcn default is bg-foreground
-   (white on black text), which reads as an alert here. */
-[data-slot="tooltip-content"]{
-  background:#0a0a0a !important;color:var(--fg) !important;
-  border:1px solid var(--line2);box-shadow:0 8px 24px rgba(0,0,0,.6);
-  font-size:12px;padding:5px 9px;
-}
-.tooltip-arrow{display:none}
-
 /* Geist Badge — measured spec from vercel.com/geist/badge */
 .gbadge{
   display:inline-flex;align-items:center;gap:5px;
