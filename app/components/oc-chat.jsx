@@ -21,11 +21,10 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import LoadingState from "./loading-state.jsx";
 import Thinking from "./thinking.jsx";
-import {
-  Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
-} from "@/components/ui/select";
 import { ArrowUp, Plus, SlashForward } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { ChevronDownSmall } from "vercel-geist-icons";
 
 // Base UI tooltips take a `render` element, not asChild.
 const Tip = ({ label, children }) => (
@@ -172,6 +171,7 @@ export default function OcChat({ project, onIdle }) {
   sessionRef.current = sessionId;
   const [busy, setBusy] = useState(false);
   // Bumped whenever a run begins, so the elapsed timer restarts with it.
+  const [sessOpen, setSessOpen] = useState(false);
   const [runKey, setRunKey] = useState(0);
   useEffect(() => { if (busy) setRunKey((k) => k + 1); }, [busy]);
   const [perms, setPerms] = useState([]); // pending permission asks
@@ -675,18 +675,32 @@ export default function OcChat({ project, onIdle }) {
     <>
       <div className="oc-head">
         <TooltipProvider delay={300}>
-        <Select value={sessionId ?? ""} onValueChange={(v) => v && setSessionId(v)}>
-          <SelectTrigger size="sm" className="oc-session-trigger" title="Session">
-            <SelectValue placeholder="new session">
+        {/* A Popover, not a Select: sessions are a browsable list — titles
+            run long and each carries a timestamp — and a select's tight rows
+            left no room for either. */}
+        <Popover open={sessOpen} onOpenChange={setSessOpen}>
+          <PopoverTrigger className="oc-session-trigger">
+            <span className="oc-session-name">
               {(boot.sessions.find((se) => se.id === sessionId)?.title ?? sessionId ?? "new session").slice(0, 40)}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {boot.sessions.map((se) => (
-              <SelectItem key={se.id} value={se.id}>{(se.title ?? se.id).slice(0, 42)}<span className="oc-ago">{ago(se.updated)}</span></SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            </span>
+            <span className="oc-session-chev"><ChevronDownSmall /></span>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="oc-sesspop">
+            <div className="oc-sess-head">Sessions</div>
+            <div className="oc-sess-list">
+              {boot.sessions.map((se) => (
+                <button
+                  key={se.id}
+                  className={"oc-sess-row" + (se.id === sessionId ? " on" : "")}
+                  onClick={() => { setSessionId(se.id); setSessOpen(false); }}
+                >
+                  <span className="oc-sess-title">{se.title ?? se.id}</span>
+                  <span className="oc-ago">{ago(se.updated)}</span>
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+        </Popover>
         <Tip label="Start a new chat">
         <Button
           variant="outline"

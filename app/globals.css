@@ -790,11 +790,35 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-session-trigger,.oc-newchat{
   border:none!important;background:transparent!important;box-shadow:none!important;
   border-radius:var(--r-sm)!important;color:var(--dim)!important;
-  transition:background .1s,color .1s;
+  height:28px!important;transition:background .1s,color .1s;
 }
-.oc-session-trigger{padding:4px 6px!important;height:auto!important;font-size:13px!important}
+.oc-session-trigger{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:0 6px!important;font-size:13px!important;max-width:280px;
+}
+.oc-session-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-session-chev{display:inline-flex;font-size:12px;color:var(--dim2);flex:none}
 .oc-session-trigger:hover,.oc-newchat:hover{background:var(--hover)!important;color:var(--fg)!important}
-.oc-newchat{width:24px!important;height:24px!important;padding:0!important;font-size:13px!important}
+/* Square box matching the tab's height; the glyph itself sits smaller. */
+.oc-newchat{width:28px!important;padding:0!important}
+/* shadcn sizes button icons with a size-4 utility, so the glyph needs its
+   own override — the box stays 28 to match the tab, the plus reads smaller. */
+.oc-newchat svg{width:13px!important;height:13px!important}
+/* Session menu: roomier than a select — long titles get a full row, and the
+   timestamp sits on the right instead of fighting the title for space. */
+.oc-sesspop{width:320px;padding:4px}
+.oc-sess-head{
+  padding:6px 8px 4px;font-size:11.5px;font-weight:500;color:var(--dim2);
+}
+.oc-sess-list{display:flex;flex-direction:column;max-height:320px;overflow:auto}
+.oc-sess-row{
+  display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:var(--r-sm);
+  font-size:13px;color:var(--dim);text-align:left;transition:background .1s,color .1s;
+}
+.oc-sess-row:hover{background:var(--hover);color:var(--fg)}
+.oc-sess-row.on{color:var(--fg)}
+.oc-sess-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-sess-row .oc-ago{margin-left:0;flex:none}
 .oc-completed{color:var(--dim)}
 .oc-notice{
   display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--bad);
