@@ -116,13 +116,16 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
         )}
         <div className="spacer" />
         <div className="crumbstack">
-          <div className="crumb-title">
+          {/* layout="position" animates only where the title sits, never its
+              box — so the run-id subtitle still pushes it up smoothly, while
+              swapping "Agent Runs" for "Build" no longer squeezes the width. */}
+          <motion.div layout="position" transition={SPRING} className="crumb-title">
             {isDetail ? <Link href={listHref()}>Agent Runs</Link> : <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>}
-          </div>
+          </motion.div>
           <AnimatePresence>
             {isDetail && (
               <motion.div
-                layout
+                layout="position"
                 className="crumb-sub"
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
