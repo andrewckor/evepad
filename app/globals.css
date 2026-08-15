@@ -679,6 +679,27 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   .pixgrid>span,.shimmer-text,.loadstate-label{animation:none!important}
   .shimmer-text,.loadstate-label{color:var(--dim);background-image:none}
 }
+/* No-checkout empty state: one centred column, the icon large and quiet, and
+   the action that resolves it right there. */
+.nocheckout{
+  height:calc(100dvh - 56px);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;padding:40px;text-align:center;
+}
+.nocheckout-ic{display:inline-flex;font-size:28px;color:var(--dim2);margin-bottom:2px}
+.nocheckout b{font-size:15px;font-weight:600;color:var(--fg)}
+.nocheckout p{max-width:380px;font-size:13px;line-height:1.6;color:var(--dim);margin:0 0 6px}
+.nocheckout .mono{color:var(--fg)}
+/* Explicit, like every button here — shadcn's utilities lose to the reset. */
+.nocheckout button{
+  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;
+  border:1px solid var(--line2);border-radius:var(--r-sm);
+  font-size:13px;font-weight:500;color:var(--fg);
+  transition:background .1s,border-color .1s;
+}
+.nocheckout button:hover:not(:disabled){background:var(--hover);border-color:#4a4a4a}
+.nocheckout button:disabled{opacity:.5;cursor:default}
+.nocheckout button svg{font-size:14px}
+
 /* Connecting: the chrome is real, so the only thing to dim is the composer. */
 .oc-ta:disabled{cursor:default}
 .oc-plus:disabled,.oc-send:disabled{opacity:.35;cursor:default}

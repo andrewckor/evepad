@@ -7,13 +7,13 @@
 // Edits land on disk, so generated tools appear as graph rows moments later;
 // the graph's buttons inject prompts straight into the TUI.
 
-import { useMemo, useRef, Suspense } from "react";
+import { useMemo, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { Copy, Pencil, Trash } from "vercel-geist-icons";
+import { Copy, Pencil, Trash, FolderPlus } from "vercel-geist-icons";
 import OcChat from "../components/oc-chat.jsx";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
@@ -229,6 +229,44 @@ function ManifestLoader({ label = "Compiling manifest…", sub = "Reading tools,
   );
 }
 
+// Shown when the selected agent has no folder on this machine. The button
+// runs the same "locate" action the project switcher uses, so linking here
+// and linking there are the same operation.
+function NoCheckout({ project, onLinked }) {
+  const [busy, setBusy] = useState(false);
+  const link = async () => {
+    setBusy(true);
+    try {
+      const r = await fetch("/api/dev", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ project, action: "locate" }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error ?? "failed");
+      onLinked?.();
+    } catch (e) {
+      if (e.message !== "cancelled") alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="nocheckout">
+      <span className="nocheckout-ic"><FolderPlus /></span>
+      <b>No local checkout</b>
+      <p>
+        Build works on the agent&rsquo;s code, and <span className="mono">{project}</span> isn&rsquo;t
+        on this machine yet. Point it at the folder to chat with it, edit its
+        tools and watch the graph update.
+      </p>
+      <Button variant="outline" size="sm" onClick={link} disabled={busy}>
+        <FolderPlus /> {busy ? "Choose a folder…" : "Link local project"}
+      </Button>
+    </div>
+  );
+}
+
 function Build() {
   const q = useSearchParams();
   const project = q.get("project") ?? "";
@@ -274,6 +312,13 @@ function Build() {
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);
 
   if (!project) return <div className="empty">Pick a project first — Build works on a local checkout.</div>;
+
+  // Build edits files, so with no checkout there is nothing to show and both
+  // panes would render their own copy of the same error. One empty state with
+  // the action that fixes it instead.
+  if (/no local checkout/i.test(infoErr?.message ?? "")) {
+    return <NoCheckout project={project} onLinked={refetchInfo} />;
+  }
 
   return (
     <div className="buildpage">
