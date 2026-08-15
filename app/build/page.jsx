@@ -81,9 +81,9 @@ function toGraph(info, actions) {
 
   // -- top-right: channel icon circles feed the Channels pill
   const CHAN_W = 140;
-  const chanCX = 260;
+  const chanCX = 180;
   const circleY = 0;
-  const pillY = channels.length ? 92 : 40;
+  const pillY = channels.length ? 140 : 40;
   channels.forEach((c, i) => {
     const x = chanCX + (i - (channels.length - 1) / 2) * 96;
     const isSlack = /slack/i.test(c.name) || /slack/i.test(c.kind);
@@ -114,7 +114,7 @@ function toGraph(info, actions) {
   if (schedules.length) {
     const schedH = 42 + schedules.length * 44;
     nodes.push({
-      id: "box:schedules", position: { x: -260 - 110, y: srcBottom - schedH }, style: { width: 220 },
+      id: "box:schedules", position: { x: -180 - 110, y: srcBottom - schedH }, style: { width: 220 },
       data: {
         label: (
           <div className="toolbox">
@@ -139,7 +139,7 @@ function toGraph(info, actions) {
     E("e:box:schedules", "box:schedules", "agent");
   } else {
     nodes.push({
-      id: "cat:schedules", position: { x: -260 - 66, y: srcBottom - 38 }, style: { width: 132 },
+      id: "cat:schedules", position: { x: -180 - 66, y: srcBottom - 38 }, style: { width: 132 },
       data: { label: (<div className="pill-label">0 Schedules</div>) },
       className: "gpill empty", sourcePosition: "bottom", targetPosition: "top",
     });
@@ -159,7 +159,7 @@ function toGraph(info, actions) {
   // -- bottom: capabilities the agent reaches for
   const yCaps = yAgent + 110;
   nodes.push({
-    id: "box:tools", position: { x: -160 - 115, y: yCaps }, style: { width: 230 },
+    id: "box:tools", position: { x: -150 - 115, y: yCaps }, style: { width: 230 },
     data: {
       label: (
         <div className="toolbox">
@@ -182,7 +182,7 @@ function toGraph(info, actions) {
   E("e:agent-tools", "agent", "box:tools", { dashed: !tools.length });
 
   nodes.push({
-    id: "cat:connections", position: { x: 260 - 75, y: yCaps }, style: { width: 150 },
+    id: "cat:connections", position: { x: 180 - 75, y: yCaps }, style: { width: 150 },
     data: { label: (<div className="pill-label">{connections.length} Connections</div>) },
     className: "gpill" + (connections.length ? "" : " empty"), targetPosition: "top",
   });
