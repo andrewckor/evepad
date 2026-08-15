@@ -486,18 +486,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 
 /* table footer — Vercel-style pagination */
 .tfoot{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--line);font-size:13.5px;color:var(--fg)}
-.tfoot-size{display:inline-flex;align-items:center;gap:7px;color:var(--fg)}
-.tfoot-size:hover{color:var(--blue)}
-.tfoot-size .chev{display:inline-flex;color:var(--dim2)}
-.tfoot .menu.up{top:auto;bottom:calc(100% + 6px);min-width:130px}
-.tfoot .menu .tick{width:14px;display:inline-flex;font-size:13px;color:var(--fg)}
+.tfoot-size{border:none;background:transparent;color:var(--fg);padding:0;height:auto;font-size:13.5px;gap:7px}
+.tfoot-size:hover{color:var(--blue);background:transparent}
 .tfoot-page{color:var(--dim);font-size:13px;margin-right:2px}
-.pgbtn{
-  width:30px;height:30px;border:1px solid var(--line);border-radius:var(--r-sm);
-  display:inline-flex;align-items:center;justify-content:center;color:var(--fg);font-size:13px;
-}
-.pgbtn:hover:not(:disabled){background:var(--hover);border-color:var(--line2)}
-.pgbtn:disabled{color:var(--dim2);cursor:default}
+
 
 /* Geist Badge — measured spec from vercel.com/geist/badge */
 .gbadge{

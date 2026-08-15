@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { preload } from "swr";
 import { I, triggerIcon } from "@/app/components/icons.jsx";
-import { Check, ChevronLeft, ChevronRight } from "vercel-geist-icons";
+import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
+import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 
 const ENVS = ["local", "preview", "production"];
 
@@ -190,7 +192,6 @@ function Dashboard() {
   const [trigger, setTrigger] = useState("all");
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(0);
-  const [sizeOpen, setSizeOpen] = useState(false);
   useEffect(() => {
     const saved = Number(sessionStorage.getItem("runsPageSize"));
     if ([10, 20, 30, 40, 50].includes(saved)) setPageSize(saved);
@@ -366,25 +367,28 @@ function Dashboard() {
           </table>
           {sessions.length > 0 && (
             <div className="tfoot">
-              <div className="picker">
-                <button className="tfoot-size" onClick={() => setSizeOpen((o) => !o)}>
-                  Show {pageSize} <span className="chev">{I.chevDown}</span>
-                </button>
-                {sizeOpen && (
-                  <div className="menu up" onMouseLeave={() => setSizeOpen(false)}>
-                    {[10, 20, 30, 40, 50].map((n) => (
-                      <button key={n} data-on={n === pageSize ? "1" : "0"}
-                        onClick={() => { setPageSize(n); setPage(0); sessionStorage.setItem("runsPageSize", String(n)); setSizeOpen(false); }}>
-                        <span className="tick">{n === pageSize ? <Check /> : null}</span> Show {n}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(v) => {
+                  setPageSize(Number(v)); setPage(0);
+                  sessionStorage.setItem("runsPageSize", v);
+                }}
+              >
+                <SelectTrigger size="sm" className="tfoot-size" aria-label="Rows per page">
+                  <SelectValue>Show {pageSize}</SelectValue>
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {[10, 20, 30, 40, 50].map((n) => (
+                    <SelectItem key={n} value={String(n)}>Show {n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <div className="spacer" />
               <span className="tfoot-page">{page + 1} of {Math.max(1, Math.ceil(sessions.length / pageSize))}</span>
-              <button className="pgbtn" disabled={page === 0} onClick={() => setPage((p) => p - 1)} title="Previous page"><ChevronLeft /></button>
-              <button className="pgbtn" disabled={(page + 1) * pageSize >= sessions.length} onClick={() => setPage((p) => p + 1)} title="Next page"><ChevronRight /></button>
+              <Button variant="outline" size="icon-sm" disabled={page === 0}
+                onClick={() => setPage((p) => p - 1)} title="Previous page"><ChevronLeft /></Button>
+              <Button variant="outline" size="icon-sm" disabled={(page + 1) * pageSize >= sessions.length}
+                onClick={() => setPage((p) => p + 1)} title="Next page"><ChevronRight /></Button>
             </div>
           )}
           {isLoading && !sessions.length && (
