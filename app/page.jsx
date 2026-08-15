@@ -10,6 +10,35 @@ import useSWR from "swr";
 import { I } from "./components/icons.jsx";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
+
+// Vercel-dashboard-style project tile. eve apps ship no favicon (their HTTP
+// surface 404s it), so the eve dot-grid mark is the identity — same glyph as
+// the agent pill in the Build graph. Favicon kept as a progressive upgrade
+// for any project that does serve one.
+function EveMark() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden>
+      {[[3,3],[8,2.5],[13,3],[2.5,8],[8,8],[13.5,8],[3,13],[8,13.5],[13,13]].map(([x,y],i)=>(
+        <circle key={i} cx={x} cy={y} r={i%2?1.1:1.5} fill="currentColor"/>
+      ))}
+    </svg>
+  );
+}
+function Logo({ p }) {
+  const [ok, setOk] = useState(false);
+  const src = p.productionUrl ? `${p.productionUrl}/favicon.ico` : null;
+  return (
+    <span className="agentlogo">
+      {src && (
+        <img
+          src={src} alt="" style={ok ? {} : { display: "none" }}
+          onLoad={() => setOk(true)} onError={() => setOk(false)}
+        />
+      )}
+      {!ok && <EveMark />}
+    </span>
+  );
+}
 const ago = (ts) => {
   if (!ts) return "";
   const s = (Date.now() - ts) / 1000;
@@ -104,13 +133,14 @@ function Home() {
     <div className="wrap">
       <div className="home-head">
         <h1>Agents</h1>
-        <span className="dim">{projects.filter((p) => p.live).length} running · {projects.length} projects</span>
+        <span className="dim">{projects.length} agents · {projects.filter((p) => p.live).length} running locally</span>
       </div>
       <div className="agentgrid">
         <NewAgentCard onCreated={(name) => router.push(`/runs?project=${encodeURIComponent(name)}&environment=local`)} />
         {projects.map((p) => (
           <div key={p.name} className="agentcard" onClick={() => open(p)} role="button" tabIndex={0}>
             <div className="agentrow">
+              <Logo p={p} />
               <span className={"dot" + (p.live ? " on" : "")} />
               <b>{p.name}</b>
               <div className="spacer" />

@@ -336,10 +336,17 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   padding:16px;cursor:pointer;transition:border-color .12s,background .12s;
 }
 .agentcard:hover{border-color:var(--line2);background:var(--panel)}
-.agentcard.new{align-items:flex-start;border-style:dashed}
-.agentcard.new:hover{border-color:#4a4a4a}
+.agentcard.new{align-items:flex-start}
+.agentcard.new:hover{background:var(--line);border-color:var(--line2)}
 .newplus{font-size:18px;color:var(--dim2);line-height:1;display:inline-flex}
 .agentrow{display:flex;align-items:center;gap:9px;width:100%}
+.agentlogo{
+  width:32px;height:32px;border-radius:8px;flex:none;
+  background:var(--panel2);border:1px solid var(--line);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--fg);overflow:hidden;
+}
+.agentlogo img{width:100%;height:100%;object-fit:cover}
 .agentmeta{display:flex;align-items:center;gap:10px;font-size:12.5px;min-height:16px}
 .newinput{
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
