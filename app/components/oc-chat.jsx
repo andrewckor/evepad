@@ -7,7 +7,7 @@
 // registry, so /undo, /models, /compact and custom commands all work here
 // without reimplementation.
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Streamdown } from "streamdown";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectGroup, SelectLabel, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Plus, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CheckCircle, CrossCircle } from "vercel-geist-icons";
+import { ArrowUp, Plus, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CrossCircle } from "vercel-geist-icons";
 
 // Geist icon per opencode tool — nearest concept, never invented (AGENTS.md).
 const TOOL_ICONS = {
@@ -30,6 +30,47 @@ const TOOL_ICONS = {
   read: <MagnifyingGlass />, glob: <MagnifyingGlass />, grep: <MagnifyingGlass />, list: <MagnifyingGlass />,
   webfetch: <Globe />,
 };
+
+// Memoized row: parts mutate in place at token rate, so identity can't drive
+// re-renders — a rev counter bumped on every change to that message does.
+const MsgRow = React.memo(function MsgRow({ m }) {
+  const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  const isUser = m.info.role === "user";
+  return (
+    <Message align={isUser ? "end" : "start"}>
+      <MessageContent>
+        {parts.map((p) => {
+          if (p.type === "text") {
+            if (!p.text?.trim()) return null;
+            return isUser ? (
+              <Bubble key={p.id} variant="default" align="end">
+                <BubbleContent>{p.text}</BubbleContent>
+              </Bubble>
+            ) : (
+              <Streamdown key={p.id} className="chat-md">{p.text}</Streamdown>
+            );
+          }
+          if (p.type === "tool") {
+            const st = p.state?.status;
+            return (
+              <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
+                <MarkerIcon>
+                  {st === "error" ? <CrossCircle />
+                    : ["pending", "running"].includes(st) ? <Spinner className="oc-spin" />
+                    : (TOOL_ICONS[p.tool] ?? <Wrench />)}
+                </MarkerIcon>
+                <MarkerContent className="mono">
+                  {p.tool} <span className="dim2">{partLabel(p)}</span>
+                </MarkerContent>
+              </Marker>
+            );
+          }
+          return null;
+        })}
+      </MessageContent>
+    </Message>
+  );
+}, (prev, next) => prev.m === next.m && prev.rev === next.rev);
 
 const fetchJson = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -54,6 +95,13 @@ export default function OcChat({ project, onIdle }) {
   const store = useRef(new Map());
   const [, setVersion] = useState(0);
   const bump = () => setVersion((v) => v + 1);
+  // Deltas arrive at token rate — coalesce their re-renders.
+  const bumpTimer = useRef(null);
+  const bumpSoon = () => {
+    if (bumpTimer.current) return;
+    bumpTimer.current = setTimeout(() => { bumpTimer.current = null; setVersion((v) => v + 1); }, 80);
+  };
+  const touch = (msg) => { msg.rev = (msg.rev ?? 0) + 1; };
 
   const [boot, setBoot] = useState(null); // {sessions, commands, models, defaults}
   const [sessionId, setSessionId] = useState(null);
@@ -174,13 +222,15 @@ export default function OcChat({ project, onIdle }) {
           let msg = store.current.get(part.messageID);
           if (!msg) { msg = { info: { id: part.messageID, sessionID: sid, role: "assistant" }, parts: new Map() }; store.current.set(part.messageID, msg); }
           msg.parts.set(part.id, part);
-          bump();
+          touch(msg);
+          bumpSoon();
           return;
         }
         case "message.part.delta": {
           if (p.sessionID !== sid) return;
-          const part = store.current.get(p.messageID)?.parts.get(p.partID);
-          if (part && p.field === "text") { part.text = (part.text ?? "") + p.delta; bump(); }
+          const msg = store.current.get(p.messageID);
+          const part = msg?.parts.get(p.partID);
+          if (part && p.field === "text") { part.text = (part.text ?? "") + p.delta; touch(msg); bumpSoon(); }
           return;
         }
         case "session.status": {
@@ -524,47 +574,11 @@ export default function OcChat({ project, onIdle }) {
                       <span className="mono"> /models</span>, <span className="mono">/compact</span>…).</div>
                   </div>
                 )}
-                {msgs.map((m) => {
-                  const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
-                  const isUser = m.info.role === "user";
-                  return (
-                    <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)} scrollAnchor={isUser}>
-                      <Message align={isUser ? "end" : "start"}>
-                        <MessageContent>
-                          {parts.map((p) => {
-                            if (p.type === "text") {
-                              if (!p.text?.trim()) return null;
-                              return isUser ? (
-                                <Bubble key={p.id} variant="default" align="end">
-                                  <BubbleContent>{p.text}</BubbleContent>
-                                </Bubble>
-                              ) : (
-                                <Streamdown key={p.id} className="chat-md">{p.text}</Streamdown>
-                              );
-                            }
-                            if (p.type === "tool") {
-                              const st = p.state?.status;
-                              return (
-                                <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
-                                  <MarkerIcon>
-                                    {st === "completed" ? <CheckCircle />
-                                      : st === "error" ? <CrossCircle />
-                                      : <Spinner className="oc-spin" />}
-                                  </MarkerIcon>
-                                  <MarkerContent className="mono">
-                                    <span className="oc-tool-ic">{TOOL_ICONS[p.tool] ?? <Wrench />}</span>
-                                    {p.tool} <span className="dim2">{partLabel(p)}</span>
-                                  </MarkerContent>
-                                </Marker>
-                              );
-                            }
-                            return null;
-                          })}
-                        </MessageContent>
-                      </Message>
-                    </MessageScrollerItem>
-                  );
-                })}
+                {msgs.map((m) => (
+                  <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)} scrollAnchor={m.info.role === "user"}>
+                    <MsgRow m={m} rev={m.rev ?? 0} />
+                  </MessageScrollerItem>
+                ))}
                 {visiblePerms.map((perm) => (
                   <MessageScrollerItem key={perm.id} messageId={perm.id}>
                     <div className="oc-perm">
