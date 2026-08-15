@@ -728,7 +728,7 @@ export default function OcChat({ project, onIdle }) {
               {/* pb clears the status overlay: the scroll area runs full
                   height, but the transcript's last line never rests under
                   the working/diff strip pinned to its bottom. */}
-              <MessageScrollerContent className="px-3 py-2 pb-8">
+              <MessageScrollerContent className="px-4 py-4 pb-9">
                 {!booting && !msgs.length && (
                   <div className="chat-empty">
                     <div className="dim">Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
