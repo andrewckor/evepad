@@ -19,7 +19,7 @@ import {
 import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
-import { AsciiLoader } from "./ascii-loader.jsx";
+import LoadingState, { PixelGrid } from "./loading-state.jsx";
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from "@/components/ui/select";
@@ -88,7 +88,7 @@ const MsgRow = React.memo(function MsgRow({ m }) {
                 >
                   <MarkerIcon>
                     {st === "error" ? <CrossCircle />
-                      : ["pending", "running"].includes(st) ? <AsciiLoader cols={2} rows={2} className="mini" />
+                      : ["pending", "running"].includes(st) ? <PixelGrid />
                       : (TOOL_ICONS[p.tool] ?? <Wrench />)}
                   </MarkerIcon>
                   <MarkerContent className="mono">
@@ -675,8 +675,7 @@ export default function OcChat({ project, onIdle }) {
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error.text ?? String(error)}</div>;
   if (!boot) return (
     <div className="oc-boot">
-      <AsciiLoader cols={6} rows={1} className="boot" />
-      <span className="oc-shimmer mono">Starting editor…</span>
+      <LoadingState label="Starting editor" />
     </div>
   );
 
@@ -724,7 +723,10 @@ export default function OcChat({ project, onIdle }) {
         <MessageScrollerProvider autoScroll>
           <MessageScroller className="h-full">
             <MessageScrollerViewport className="oc-scroll">
-              <MessageScrollerContent className="px-3 py-2">
+              {/* pb clears the status overlay: the scroll area runs full
+                  height, but the transcript's last line never rests under
+                  the working/diff strip pinned to its bottom. */}
+              <MessageScrollerContent className="px-3 py-2 pb-8">
                 {!msgs.length && (
                   <div className="chat-empty">
                     <div className="dim">Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
@@ -763,7 +765,7 @@ export default function OcChat({ project, onIdle }) {
 
         <div className="oc-status">
         <span className={"oc-status-inner" + (busy && !visiblePerms.length ? " on" : "")}>
-          <AsciiLoader cols={12} rows={1} /> <span className="oc-shimmer mono">working…</span>
+          <LoadingState label="Working" />
         </span>
         <span className="spacer" />
         {diff.length > 0 && (

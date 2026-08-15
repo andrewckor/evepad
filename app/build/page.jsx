@@ -15,7 +15,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash } from "vercel-geist-icons";
 import OcChat from "../components/oc-chat.jsx";
-import { AsciiLoader } from "../components/ascii-loader.jsx";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
 const AgentGraph = dynamic(() => import("../components/agent-graph.jsx"), {
