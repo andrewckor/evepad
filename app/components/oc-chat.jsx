@@ -143,6 +143,15 @@ const fetchJson = async (url, opts) => {
   return body;
 };
 
+const ago = (t) => {
+  if (!t) return "";
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 90) return "now";
+  if (s < 5400) return `${Math.round(s / 60)}m`;
+  if (s < 129600) return `${Math.round(s / 3600)}h`;
+  return `${Math.round(s / 86400)}d`;
+};
+
 function partLabel(part) {
   const input = part.state?.input ?? {};
   const file = input.filePath ?? input.path;
@@ -558,11 +567,20 @@ export default function OcChat({ project, onIdle }) {
     if (!input.startsWith("/") || !boot) return null;
     const spaceAt = input.indexOf(" ");
     if (spaceAt === -1) {
-      const q = input.slice(1);
+      const q = input.slice(1).toLowerCase();
       const items = allCommands
-        .filter((c) => c.name.startsWith(q))
+        .map((c) => {
+          const name = c.name.toLowerCase();
+          const score = name.startsWith(q) ? 0
+            : name.includes(q) ? 1
+            : (c.description ?? "").toLowerCase().includes(q) ? 2
+            : -1;
+          return { c, score };
+        })
+        .filter((x) => x.score >= 0)
+        .sort((a, b) => a.score - b.score || a.c.name.localeCompare(b.c.name))
         .slice(0, 9)
-        .map((c) => ({ key: c.name, label: `/${c.name}`, desc: c.description, run: () => send(`/${c.name}`) }));
+        .map(({ c }) => ({ key: c.name, label: `/${c.name}`, desc: c.description, run: () => send(`/${c.name}`) }));
       return items.length ? { items } : null;
     }
     const tok = input.slice(1, spaceAt);
@@ -599,7 +617,7 @@ export default function OcChat({ project, onIdle }) {
         .map((se) => ({
           key: se.id,
           label: (se.title ?? se.id).slice(0, 46),
-          desc: se.id === sessionId ? "current" : "",
+          desc: se.id === sessionId ? "current" : ago(se.updated),
           run: () => { setSessionId(se.id); setInput(""); },
         })) };
     }
@@ -615,6 +633,10 @@ export default function OcChat({ project, onIdle }) {
       if (e.key === "Tab") { e.preventDefault(); setInput(`${items[palIndex].label.startsWith("/") ? items[palIndex].label : input} `); return; }
       if (e.key === "Enter") { e.preventDefault(); items[Math.min(palIndex, items.length - 1)].run(); return; }
       if (e.key === "Escape") { setInput(""); return; }
+    }
+    if (e.key === "Escape" && !input && busy && sessionId) {
+      act({ action: "abort", sessionId }).catch(() => {});
+      return;
     }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
@@ -635,7 +657,7 @@ export default function OcChat({ project, onIdle }) {
           </SelectTrigger>
           <SelectContent>
             {boot.sessions.map((se) => (
-              <SelectItem key={se.id} value={se.id}>{(se.title ?? se.id).slice(0, 46)}</SelectItem>
+              <SelectItem key={se.id} value={se.id}>{(se.title ?? se.id).slice(0, 42)}<span className="oc-ago">{ago(se.updated)}</span></SelectItem>
             ))}
           </SelectContent>
         </Select>
