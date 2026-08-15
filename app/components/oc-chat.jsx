@@ -729,9 +729,6 @@ export default function OcChat({ project, onIdle }) {
                   height, but the transcript's last line never rests under
                   the working/diff strip pinned to its bottom. */}
               <MessageScrollerContent className="px-3 py-2 pb-8">
-                {booting && (
-                  <LoadingState label="Connecting to the editor" elapsed={false} />
-                )}
                 {!booting && !msgs.length && (
                   <div className="chat-empty">
                     <div className="dim">Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
@@ -759,11 +756,15 @@ export default function OcChat({ project, onIdle }) {
         </MessageScrollerProvider>
 
         <div className="oc-status">
-        <span className={"oc-status-inner" + (busy && !visiblePerms.length ? " on" : "")}>
-          {/* keyed on the run: the strip stays mounted for its fade, so
-              without this the timer would count from page load, not from
-              the moment work started. */}
-          <LoadingState key={runKey} label="Working" />
+        <span className={"oc-status-inner" + ((booting || (busy && !visiblePerms.length)) ? " on" : "")}>
+          {/* Connecting borrows the thinking indicator's slot — the place
+              this panel already says what it is doing. Keyed on the run so
+              the timer starts with the work, not with the page. */}
+          <LoadingState
+            key={booting ? "boot" : runKey}
+            label={booting ? "Connecting to the editor" : "Working"}
+            elapsed={!booting}
+          />
         </span>
         <span className="spacer" />
         {diff.length > 0 && (
@@ -835,7 +836,7 @@ export default function OcChat({ project, onIdle }) {
               e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
             }}
             onKeyDown={onKey}
-            placeholder={booting ? "Connecting…" : busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
+            placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
             className="oc-ta"
             disabled={booting}
             autoFocus
