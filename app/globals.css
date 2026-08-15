@@ -488,12 +488,17 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .box-actions .del:hover{color:var(--fg)}
 .box-item.empty{color:var(--dim2);cursor:default;padding:7px 15px}
 .box-item.empty:hover{background:none}
-.circle-label{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%}
+/* The whole label is the hit area — the caption is as clickable as the
+   circle, so it points too. */
+.circle-label{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;cursor:pointer}
 .circle{
   width:46px;height:46px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
   background:var(--panel2);border:1px solid var(--line2);
 }
 .circle-label i{font-style:normal;font-size:10.5px;color:var(--dim2);max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The unknown-kind mark reads at the API badge's optical size, not the 1em
+   default, which sat noticeably smaller than the badges beside it. */
+.circle svg{font-size:19px}
 .tool-circle{color:var(--blue);font-family:var(--mono);font-size:12px;text-transform:uppercase}
 .api-badge{
   border:1.5px solid var(--dim);border-radius:5px;padding:1px 4px;
@@ -787,12 +792,14 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-ta{
   background:transparent;border:none;outline:none;resize:none;width:100%;
   color:var(--fg);font:14px/1.5 var(--sans);
-  /* five lines of 1.5em, then it scrolls — with no visible bar, like every
-     other scroll region here */
+  /* five lines of 1.5em, then it scrolls — on a styled bar, not the native
+     one, and not hidden: past five lines you need to see there's more. */
   max-height:105px;overflow-y:auto;
-  scrollbar-width:none;-ms-overflow-style:none;
 }
-.oc-ta::-webkit-scrollbar{display:none;width:0}
+.oc-ta::-webkit-scrollbar{width:6px}
+.oc-ta::-webkit-scrollbar-track{background:transparent}
+.oc-ta::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:3px}
+.oc-ta::-webkit-scrollbar-thumb:hover{background:#4a4a4a}
 .oc-ta::placeholder{color:var(--dim2)}
 .oc-card-row{display:flex;align-items:center;justify-content:space-between}
 .oc-plus{
