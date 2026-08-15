@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, Suspense } from "react";
+import { useState, useRef, useEffect, use, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -157,23 +157,74 @@ function Detail({ runId }) {
   const [tlView, setTlView] = useState("Markdown");
   const isLocal = environment === "local";
 
-  const { data: run, isLoading, error } = useSWR(
-    `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(project)}`,
-    fetcher,
-    {
-      // Poll while the session is open — production included (reads are the
-      // in-process client behind a 4s server cache, ~free per poll). A local
-      // no-polling prod page was a leftover from the slow CLI days. Terminal
-      // runs are immutable: stop polling entirely.
-      refreshInterval: (latest) => {
-        const st = latest?.session?.status;
-        if (st === "completed" || st === "failed") return 0;
-        return isLocal ? 2000 : 5000;
-      },
-      revalidateOnFocus: true,
-      keepPreviousData: true,
+  const detailKey = `/api/run/${encodeURIComponent(runId)}?environment=${environment}&project=${encodeURIComponent(project)}`;
+  const [tailing, setTailing] = useState(false);
+  const tailingRef = useRef(false);
+  tailingRef.current = tailing;
+
+  const { data: run, isLoading, error, mutate } = useSWR(detailKey, fetcher, {
+    // Hybrid live model: snapshot on land, then the stream notifier below
+    // nudges a fresh refetch the moment a new chunk arrives. Polling stays as
+    // the fallback — fast when there is no tail, slow heartbeat when there is.
+    refreshInterval: (latest) => {
+      const st = latest?.session?.status;
+      if (st === "completed" || st === "failed") return 0;
+      if (tailingRef.current) return 30_000; // tail is live — heartbeat only
+      return isLocal ? 2000 : 5000;
     },
-  );
+    revalidateOnFocus: true,
+    keepPreviousData: true,
+  });
+
+  // Subscribe to the run's user stream (production/preview): each new chunk
+  // nudges one fresh snapshot refetch, debounced so bursts coalesce.
+  const open = run?.session?.status && run.session.status !== "completed" && run.session.status !== "failed";
+  useEffect(() => {
+    if (isLocal || !open) return;
+    let disposed = false;
+    let abort;
+    let debounce = null;
+    const nudge = () => {
+      if (debounce) return;
+      debounce = setTimeout(() => {
+        debounce = null;
+        fetch(`${detailKey}&fresh=1`).then((r) => r.json()).then((d) => mutate(d, { revalidate: false })).catch(() => {});
+      }, 300);
+    };
+    (async () => {
+      while (!disposed) {
+        try {
+          abort = new AbortController();
+          const res = await fetch(
+            `/api/run/${encodeURIComponent(runId)}/stream?environment=${environment}&project=${encodeURIComponent(project)}`,
+            { signal: abort.signal },
+          );
+          if (!res.ok) { setTailing(false); return; } // local/terminal/unsupported — polling covers it
+          setTailing(true);
+          const reader = res.body.getReader();
+          const dec = new TextDecoder();
+          let buf = "";
+          for (;;) {
+            const { done, value } = await reader.read();
+            if (done || disposed) break;
+            buf += dec.decode(value, { stream: true });
+            const lines = buf.split("\n");
+            buf = lines.pop();
+            for (const line of lines) {
+              let f;
+              try { f = JSON.parse(line); } catch { continue; }
+              if (f.type === "chunk") nudge();
+              if (f.type === "done") { setTailing(false); nudge(); return; }
+            }
+          }
+        } catch {}
+        setTailing(false);
+        if (!disposed) await new Promise((r) => setTimeout(r, 3000));
+      }
+    })();
+    return () => { disposed = true; clearTimeout(debounce); abort?.abort(); setTailing(false); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, environment, project, isLocal, open]);
 
   if (error) {
     return (
