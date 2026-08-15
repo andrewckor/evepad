@@ -769,6 +769,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .set-unlink{color:var(--dim2);font-size:12px;padding:2px 6px;border-radius:var(--r-sm)}
+.set-running{flex:none;font-size:11.5px;color:var(--dim2);cursor:default}
 .set-unlink:hover{color:var(--bad);background:var(--hover)}
 .set-empty{font-size:12.5px;color:var(--dim2);padding:10px 0}
 

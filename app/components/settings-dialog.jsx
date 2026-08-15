@@ -79,16 +79,22 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
               <span className="set-link-name">{p.name}</span>
               <span className="set-link-path mono" title={p.localPath}>{tilde(p.localPath)}</span>
               {/* A running dev server is rediscovered on the next probe and
-                  re-registers its own folder, so unlinking it can't stick —
-                  say that instead of offering a button that undoes itself. */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="set-unlink"
-                disabled={p.live}
-                title={p.live ? "Stop the local server first — while it runs, its folder is detected live" : `Forget ${p.localPath}`}
-                onClick={() => unlink(p)}
-              >Unlink</Button>
+                  re-registers its own folder — measured: forget succeeds, then
+                  the entry is back within one poll. So a live row says why it
+                  can't be unlinked instead of showing a dead button. */}
+              {p.live ? (
+                <span className="set-running" title="Its folder is detected from the running server. Stop it to unlink.">
+                  running
+                </span>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="set-unlink"
+                  title={`Forget ${p.localPath}`}
+                  onClick={() => unlink(p)}
+                >Unlink</Button>
+              )}
             </div>
           )) : (
             <div className="set-empty">No agents linked yet — open Build on one and point it at its folder.</div>
