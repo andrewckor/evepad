@@ -480,7 +480,7 @@ export default function OcChat({ project, onIdle }) {
       const { text, submit } = e.detail ?? {};
       if (!text) return;
       if (submit) send(text);
-      else { setInput(text); inputRef.current?.focus(); }
+      else { setInput(text); inputRef.current?.focus({ preventScroll: true }); }
     };
     window.addEventListener("oc:send", h);
     return () => window.removeEventListener("oc:send", h);
@@ -620,7 +620,7 @@ export default function OcChat({ project, onIdle }) {
                   </div>
                 )}
                 {msgs.map((m) => (
-                  <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)} scrollAnchor={m.info.role === "user"}>
+                  <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)}>
                     <MsgRow m={m} rev={m.rev ?? 0} />
                   </MessageScrollerItem>
                 ))}
@@ -687,7 +687,7 @@ export default function OcChat({ project, onIdle }) {
             <button
               className="oc-plus"
               title={'Commands ("/")'}
-              onClick={() => { setInput("/"); inputRef.current?.focus(); }}
+              onClick={() => { setInput("/"); inputRef.current?.focus({ preventScroll: true }); }}
             ><Plus /></button>
             <button className="oc-send" title="Send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></button>
           </div>
