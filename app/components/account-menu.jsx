@@ -37,7 +37,9 @@ export default function AccountMenu() {
   const { data } = useSWR("/api/account", fetcher, { revalidateOnFocus: true });
 
   const scope = data?.scope;
-  const label = data?.loggedIn ? scope?.name ?? "Vercel" : "Not signed in";
+  // Before the first response there is no answer yet — "Not signed in" would
+  // be a claim, and it flashed on every cold load.
+  const label = !data ? "…" : data.loggedIn ? scope?.name ?? "Vercel" : "Not signed in";
 
   return (
     <>

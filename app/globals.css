@@ -740,7 +740,17 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .acc-item svg{font-size:14px}
 
 /* ---- settings dialog ---- */
-.set-dialog{max-width:560px;overflow:hidden}
+/* Geist modal, measured on vercel.com/geist/modal: the backdrop is solid
+   black at 80% with NO backdrop-filter (shadcn ships black/10 + blur), and the
+   panel is #0a0a0a at radius 12 with 24px padding. */
+[data-slot="dialog-overlay"]{
+  background:#000;opacity:.8;backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+.set-dialog{
+  max-width:540px;overflow:hidden;
+  background:var(--panel);border-radius:var(--r-lg);padding:24px;
+  box-shadow:0 8px 30px rgba(0,0,0,.6);
+}
 .set-dialog>*,.set-section,.set-row,.set-row-main,.set-link{min-width:0}
 .set-section{margin-top:18px}
 .set-section-title{

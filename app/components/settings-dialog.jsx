@@ -101,7 +101,7 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
                 <TooltipContent>
                   {p.live
                     ? "Stop the server before removing"
-                    : `Remove ${tilde(p.localPath)} from this list — the folder stays on your Mac`}
+                    : "Remove this agent from the cockpit, folder remains on Mac"}
                 </TooltipContent>
               </Tooltip>
             </div>
