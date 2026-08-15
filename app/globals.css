@@ -493,7 +493,20 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .tfoot-page{color:var(--dim);font-size:13px;margin-right:2px}
 
 
+/* Geist keyboard input — measured from vercel.com/geist/keyboard-input:
+   24px tall, #0a0a0a ground, 4px radius, 14px Geist, 6px side padding. */
+.kbd{
+  display:inline-flex;align-items:center;justify-content:center;
+  height:24px;min-width:24px;padding:0 6px;border-radius:4px;
+  background:#0a0a0a;border:1px solid var(--line);color:var(--dim);
+  font:400 12px var(--sans);flex:none;cursor:pointer;
+}
+.kbd:hover{color:var(--fg);border-color:var(--line2)}
+
 /* ---- project switcher (Popover + Command, Vercel-style) ---- */
+/* search row: input flexes, the Esc key sits inside the same bar */
+.pk-search{display:flex;align-items:center;gap:8px;padding-right:10px;border-bottom:1px solid var(--line)}
+.pk-search [data-slot="command-input-wrapper"]{flex:1;border-bottom:none}
 .pk-trigger{
   display:inline-flex;align-items:center;gap:9px;height:36px;padding:0 10px 0 8px;
   border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);
@@ -501,7 +514,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .pk-trigger:hover{background:var(--hover);border-color:var(--line2)}
 .pk-trigger-name{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pk-pop{width:258px;padding:0;overflow:hidden}
+.pk-pop{width:300px;padding:0;overflow:hidden}
 /* One internal scroll region: faded top and bottom edges, no visible bar —
    the list feels like it scrolls inside the panel. */
 .pk-list{max-height:330px;scrollbar-width:none;-ms-overflow-style:none;

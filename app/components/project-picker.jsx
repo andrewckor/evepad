@@ -72,7 +72,7 @@ export default function ProjectPicker({ value, onChange }) {
             and the checkmark repeats the trigger's selection. */}
         <span className={"dot" + (p.live ? " on" : "")} />
         <span className="pk-name">{p.name}</span>
-        {p.live && <Badge variant="gray-subtle" size="sm" className="pk-port">:{p.localPort}</Badge>}
+        {p.live && <Badge variant="green-subtle" size="sm" className="pk-port">:{p.localPort}</Badge>}
         {state ? (
           <Tip label={state}><span className="devbtn busy">{I.loader}</span></Tip>
         ) : p.live ? (
@@ -110,11 +110,14 @@ export default function ProjectPicker({ value, onChange }) {
       <PopoverContent align="start" className="pk-pop">
         <TooltipProvider delay={200}>
           <Command>
-            <CommandInput placeholder="Find project…" />
+            <div className="pk-search">
+              <CommandInput placeholder="Find project…" />
+              <kbd className="kbd" onClick={() => setOpen(false)}>Esc</kbd>
+            </div>
             <CommandList className="pk-list">
               <CommandEmpty>No project found.</CommandEmpty>
               {live.length > 0 && <CommandGroup heading="Running locally">{live.map(Row)}</CommandGroup>}
-              {rest.length > 0 && <CommandGroup heading="Vercel projects">{rest.map(Row)}</CommandGroup>}
+              {rest.length > 0 && <CommandGroup heading="Other agents">{rest.map(Row)}</CommandGroup>}
             </CommandList>
           </Command>
         </TooltipProvider>
