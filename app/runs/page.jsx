@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { preload } from "swr";
 import { I, triggerIcon } from "@/app/components/icons.jsx";
@@ -195,6 +195,22 @@ function Dashboard() {
   const [trigger, setTrigger] = useState("all");
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(0);
+  const scrollRef = useRef(null);
+  const updateScrollEdges = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const more = el.scrollWidth - el.clientWidth;
+    const at = el.scrollLeft;
+    el.dataset.scroll = more <= 1 ? "none" : at <= 1 ? "start" : at >= more - 1 ? "end" : "middle";
+  };
+  useEffect(() => {
+    updateScrollEdges();
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(updateScrollEdges);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
   useEffect(() => {
     const saved = Number(sessionStorage.getItem("runsPageSize"));
     if ([10, 20, 30, 40, 50].includes(saved)) setPageSize(saved);
@@ -333,18 +349,15 @@ function Dashboard() {
         </div>
 
         <div className="tablecard">
-          {/* Only the table scrolls sideways — the footer must not ride along. */}
-          <div className="tablescroll">
+          {/* Only the table scrolls sideways — the footer must not ride along.
+              data-scroll drives the edge fades so they appear only on the side
+              that actually has more content. */}
+          <div className="tablescroll" ref={scrollRef} onScroll={updateScrollEdges}>
           <table>
             {/* Fixed layout: Run always takes the remaining space regardless of
                 content length; numeric columns never drift. */}
-            <colgroup>
-              <col />
-              <col style={{ width: 170 }} /><col style={{ width: 100 }} />
-              <col style={{ width: 110 }} /><col style={{ width: 110 }} />
-              <col style={{ width: 80 }} /><col style={{ width: 110 }} />
-              <col style={{ width: 110 }} /><col style={{ width: 40 }} />
-            </colgroup>
+{/* No fixed widths: like Vercel, data columns size to their content
+                (max-content) and the Run column absorbs whatever is left. */}
             <thead>
               <tr>
                 <th>Run</th><th>Trigger</th><th className="num">Cost</th>
@@ -371,7 +384,7 @@ function Dashboard() {
                   <td className="num">{s.turns}{s.subagents ? ` +${s.subagents}` : ""}</td>
                   <td className="num">{ago(s.createdAt)}</td>
                   <td className="num">{ago(s.createdAt)}</td>
-                  <td className="rowchev">{I.chevRight}</td>
+                  <td className="rowchev"><span>{I.chevRight}</span></td>
                 </tr>
               ))}
             </tbody>

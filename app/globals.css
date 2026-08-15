@@ -59,6 +59,11 @@ button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;pad
 svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 /* vercel-geist-icons render at 1em; size by context like Vercel does. */
 .search>svg,.trigger-badge svg,.rowchev svg{width:16px;height:16px}
+/* Row hover gives the trailing chevron a chip — measured rgba(255,255,255,.14),
+   4px radius, 2px padding, icon #878787. */
+.rowchev{text-align:center;color:#878787}
+.rowchev span{display:inline-flex;align-items:center;justify-content:center;padding:2px;border-radius:4px;transition:background .12s}
+tbody tr:hover .rowchev span{background:rgba(255,255,255,.14)}
 .picker>button svg,.chatbtn svg,.copybtn svg,.sec-chev svg{width:14px;height:14px;flex:none}
 
 /* ---- top bar ---- */
@@ -188,15 +193,31 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
 /* Horizontal scroll region, same treatment as the project switcher: no
    visible bar, edges faded so content dissolves instead of clipping. The
    footer lives outside it, so pagination never scrolls with the columns. */
-.tablescroll{
-  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;
-  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
-  mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
+.tablescroll{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none}
+/* Fade only where content actually continues — a permanent fade on a table
+   that fits reads as a rendering bug. */
+.tablescroll[data-scroll="middle"]{
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0,#000 24px,#000 calc(100% - 24px),transparent 100%);
+}
+.tablescroll[data-scroll="start"]{
+  -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 24px),transparent 100%);
+  mask-image:linear-gradient(to right,#000 calc(100% - 24px),transparent 100%);
+}
+.tablescroll[data-scroll="end"]{
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 24px);
+  mask-image:linear-gradient(to right,transparent 0,#000 24px);
 }
 .tablescroll::-webkit-scrollbar{display:none;width:0;height:0}
-/* Fixed layout keeps the Run column at full remaining width even when every
-   title is short — columns never drift with content. */
-table{width:100%;min-width:1150px;border-collapse:collapse;table-layout:fixed}
+/* Vercel's column logic, measured: auto layout, every data column exactly as
+   wide as its content (max-content), and the Run column absorbing the rest —
+   which is how they fit more columns in the same width. width:100% +
+   max-width:0 on the title cell is what lets it ellipsize under auto layout. */
+table{width:100%;border-collapse:collapse;table-layout:auto}
+th,td{white-space:nowrap}
+th:first-child,td.title-cell{width:100%;max-width:0}
+td.title-cell{overflow:hidden;text-overflow:ellipsis}
+th:last-child,td.rowchev{width:36px;padding:0 8px}
 /* Measured on vercel.com/…/observability/agent-runs: headers #a1a1a1 at
    weight 500; body rows put the Run title at #ededed and every other cell at
    #a1a1a1; the tbody sits on #0a0a0a and hover paints the CELLS #1a1a1a. */
@@ -222,7 +243,7 @@ td.num{text-align:right;padding:0 16px}
 /* Trigger reads as secondary on Vercel — only the Run title is white. */
 .trigger-badge{display:inline-flex;align-items:center;gap:8px;color:var(--dim);font-size:14px}
 .trigger-badge svg{color:var(--dim)}
-.rowchev{color:var(--dim2);width:36px;padding:0 12px 0 0;text-align:right}
+.rowchev{color:#878787;width:36px;padding:0 8px;text-align:center}
 .rowchev svg{display:inline-block;vertical-align:middle}
 
 /* ---- run detail ---- */
