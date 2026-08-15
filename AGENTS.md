@@ -26,8 +26,11 @@ approximate an icon that doesn't exist in that set.**
 - Match Vercel's dashboard, measured not guessed: when styling something new,
   open the real page (vercel.com dashboard) and read computed styles from the
   DOM before writing CSS.
-- Geist Sans/Geist Mono only (via the `geist` package). Tables are 14px
-  GeistSans `#ededed` everywhere — no monospace in tables, headers `#a1a1a1`.
+- Geist Sans/Geist Mono only (via the `geist` package). Tables, measured on
+  the real Agent Runs page: 14px GeistSans throughout, no monospace; headers
+  `#a1a1a1` at weight 500 (42px tall); body rows 43px with ONLY the Run title
+  `#ededed` — every other cell is `#a1a1a1`; tbody sits on `#0a0a0a`; hover
+  paints the CELLS `#1a1a1a` while the `tr` stays transparent.
 - Monochrome by default; color only for state (green live, red failed, amber
   running) and chart series (blue input, purple output, gray cached).
 - Pure `#000` ground, hairline `#1f1f1f` borders, radii 6/8/12 only.

@@ -197,23 +197,31 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
 /* Fixed layout keeps the Run column at full remaining width even when every
    title is short — columns never drift with content. */
 table{width:100%;min-width:1150px;border-collapse:collapse;table-layout:fixed}
+/* Measured on vercel.com/…/observability/agent-runs: headers #a1a1a1 at
+   weight 500; body rows put the Run title at #ededed and every other cell at
+   #a1a1a1; the tbody sits on #0a0a0a and hover paints the CELLS #1a1a1a. */
 th{
-  text-align:left;font-size:14px;color:var(--dim);font-weight:400;
+  text-align:left;font-size:14px;color:var(--dim);font-weight:500;
   height:42px;padding:0 0 0 16px;border-bottom:1px solid var(--line);background:var(--bg);
 }
 th.num{text-align:right;padding:0 16px}
 td{
   height:43px;padding:0 0 0 16px;border-bottom:1px solid var(--line);
-  vertical-align:middle;font-size:14px;line-height:20px;color:var(--fg);
+  vertical-align:middle;font-size:14px;line-height:20px;color:var(--dim);
 }
+/* The Run title is the only white cell — everything else is secondary. */
+td.title-cell{color:var(--fg)}
+tbody{background:var(--panel)}
 tbody tr:last-child td{border-bottom:none}
 tbody tr{cursor:pointer}
-tbody tr:hover{background:var(--panel)}
+/* Vercel hovers the cells, not the row (the tr stays transparent). */
+tbody tr:hover td{background:var(--hover)}
 td.num{text-align:right;padding:0 16px}
 .title-cell{max-width:560px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* No pill on the live dashboard — just icon + text. */
-.trigger-badge{display:inline-flex;align-items:center;gap:8px;color:var(--fg);font-size:14px}
-.trigger-badge svg{color:var(--fg)}
+/* Trigger reads as secondary on Vercel — only the Run title is white. */
+.trigger-badge{display:inline-flex;align-items:center;gap:8px;color:var(--dim);font-size:14px}
+.trigger-badge svg{color:var(--dim)}
 .rowchev{color:var(--dim2);width:36px;padding:0 12px 0 0;text-align:right}
 .rowchev svg{display:inline-block;vertical-align:middle}
 
