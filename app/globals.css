@@ -765,10 +765,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .set-link:last-child{border-bottom:none}
 .set-link-name{color:var(--fg);flex:none}
 .set-link-path{
-  flex:1;min-width:0;font-size:11px;color:var(--dim2);
+  flex:0 1 auto;min-width:0;max-width:260px;font-size:11px;color:var(--dim2);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .set-unlink{color:var(--dim2);font-size:12px;padding:2px 6px;border-radius:var(--r-sm)}
+.set-unlink:disabled{pointer-events:none}
+.set-link-act{flex:none;display:inline-flex;margin-left:auto}
 .set-running{flex:none;font-size:11.5px;color:var(--dim2);cursor:default}
 .set-unlink:hover{color:var(--bad);background:var(--hover)}
 .set-empty{font-size:12.5px;color:var(--dim2);padding:10px 0}
