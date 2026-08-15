@@ -430,7 +430,7 @@ export default function OcChat({ project, onIdle }) {
       if (e.key === "Enter") { e.preventDefault(); items[Math.min(palIndex, items.length - 1)].run(); return; }
       if (e.key === "Escape") { setInput(""); return; }
     }
-    if (e.key === "Enter") send();
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   };
 
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error}</div>;
@@ -573,16 +573,29 @@ export default function OcChat({ project, onIdle }) {
             ))}
           </div>
         )}
-        <div className="oc-input">
-          <Input
+        <div className="oc-card">
+          <textarea
             ref={inputRef}
+            rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = Math.min(e.target.scrollHeight, 140) + "px";
+            }}
             onKeyDown={onKey}
-            placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}… ("/" for commands)`}
+            placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
+            className="oc-ta"
             autoFocus
           />
-          <Button variant="outline" size="icon" title="Send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></Button>
+          <div className="oc-card-row">
+            <button
+              className="oc-plus"
+              title={'Commands ("/")'}
+              onClick={() => { setInput("/"); inputRef.current?.focus(); }}
+            ><Plus /></button>
+            <button className="oc-send" title="Send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></button>
+          </div>
         </div>
         <div className="chat-model oc-model-row">
           {boot.models.length > 0 && (

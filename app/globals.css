@@ -464,8 +464,28 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .msg-tool{font-size:12px;color:var(--dim);padding:2px 4px;font-family:var(--mono)}
 /* ---- custom opencode client ---- */
 .oc-body{flex:1;min-height:0;display:flex;flex-direction:column}
-.oc-input{display:flex;gap:8px;padding:12px 12px 6px}
-.oc-input input{font-size:13.5px}
+.oc-card{
+  margin:10px 12px 6px;border:1px solid var(--line);border-radius:22px;
+  background:#141414;padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;
+}
+.oc-card:focus-within{border-color:var(--line2)}
+.oc-ta{
+  background:transparent;border:none;outline:none;resize:none;width:100%;
+  color:var(--fg);font:14px/1.5 var(--sans);max-height:140px;
+}
+.oc-ta::placeholder{color:var(--dim2)}
+.oc-card-row{display:flex;align-items:center;justify-content:space-between}
+.oc-plus{
+  width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);
+  color:var(--dim);display:inline-flex;align-items:center;justify-content:center;font-size:15px;
+}
+.oc-plus:hover{color:var(--fg);border-color:#4a4a4a}
+.oc-send{
+  width:34px;height:34px;border-radius:50%;background:var(--acc);color:#fff;
+  display:inline-flex;align-items:center;justify-content:center;font-size:15px;
+}
+.oc-send:hover:not(:disabled){background:#0062d1}
+.oc-send:disabled{opacity:.35;cursor:default}
 .oc-model-row{display:flex;align-items:center;gap:8px}
 .oc-session-trigger{max-width:280px;font-size:12.5px}
 .oc-model-trigger{max-width:240px;font-size:12px;color:var(--dim)}
@@ -484,7 +504,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-perm-actions{display:flex;gap:8px}
 .oc-deny{color:var(--bad)}
 .oc-palette{
-  margin:0 12px;border:1px solid var(--line2);border-radius:var(--r);
+  margin:0 14px;border:1px solid var(--line2);border-radius:var(--r);
   background:#0a0a0a;overflow:hidden;box-shadow:0 -8px 30px rgba(0,0,0,.5);
 }
 .oc-palette button{

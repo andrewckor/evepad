@@ -41,7 +41,7 @@ export async function GET(request) {
         try { controller.enqueue(enc.encode(JSON.stringify(ev) + "\n")); }
         catch { hub.subs.delete(listener); }
       };
-      controller.enqueue(enc.encode(JSON.stringify({ type: "hello", hub: { state: hub.state, events: hub.events, subs: hub.subs.size, pending: hub.pending.size } }) + "\n"));
+      controller.enqueue(enc.encode(JSON.stringify({ type: "hello", hub: { state: hub.state, events: hub.events, subs: hub.subs.size, pending: hub.pending.size, types: hub.types } }) + "\n"));
       // Replay asks that are still unanswered — a reload must not lose them.
       for (const pe of hub.pending.values()) push(pe);
       listener = push;

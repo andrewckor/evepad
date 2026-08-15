@@ -3,7 +3,7 @@
 // the event stream, errors as session.error events.
 
 import { resolveProject } from "../../../../lib/projects.js";
-import { ocClient, DEFAULTS } from "../../../../lib/opencode.js";
+import { ocClient, eventHub, DEFAULTS } from "../../../../lib/opencode.js";
 
 export async function POST(request) {
   const { project: name, action, sessionId, text, command, args, provider, model, agent, permissionId, response } =
@@ -30,6 +30,9 @@ export async function POST(request) {
         return Response.json({ id: created.data.id, title: created.data.title });
       }
       case "prompt":
+        // Re-attach the event hub to the instance this run wakes — otherwise
+        // a post-idle run streams into a bus nobody is subscribed to.
+        await (await eventHub(dir)).resubscribe();
         swallow(client.session.prompt({
           path, query,
           body: {
@@ -41,6 +44,7 @@ export async function POST(request) {
         }));
         return Response.json({ ok: true });
       case "command":
+        await (await eventHub(dir)).resubscribe();
         swallow(client.session.command({
           path, query,
           body: { command, arguments: args ?? "", model: model ? `${provider || DEFAULTS.provider}/${model}` : undefined },
