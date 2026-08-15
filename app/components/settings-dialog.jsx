@@ -83,14 +83,16 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
                   is gone, and it's back after one poll. So the button is
                   disabled while it runs. The title lives on the wrapper: a
                   disabled button swallows pointer events, tooltip included. */}
-              <span title={p.live ? "Stop the server before forgetting" : `Forget ${p.localPath}`}>
+              <span title={p.live
+                ? "Stop the server before removing"
+                : `Remove ${tilde(p.localPath)} from this list — the folder stays on your Mac`}>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="set-unlink"
                   disabled={p.live}
                   onClick={() => unlink(p)}
-                >Forget</Button>
+                >Remove</Button>
               </span>
             </div>
           )) : (
