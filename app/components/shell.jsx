@@ -122,7 +122,11 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
           <motion.div layout="position" transition={SPRING} className="crumb-title">
             {isDetail ? <Link href={listHref()}>Agent Runs</Link> : <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>}
           </motion.div>
-          <AnimatePresence>
+          {/* popLayout pulls the exiting subtitle out of flow immediately, so
+              the title measures its new position on that same render and
+              animates down. Plain exit unmounts only AFTER its animation, and
+              the title had no render left to animate with — it jumped. */}
+          <AnimatePresence mode="popLayout">
             {isDetail && (
               <motion.div
                 layout="position"
