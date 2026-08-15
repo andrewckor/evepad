@@ -33,13 +33,16 @@ const TOOL_ICONS = {
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
-// opencode-style loader: a 2x3 dot matrix stepping like the TUI logo blocks.
-function DotLoader() {
-  return (
-    <span className="dotload" aria-label="working">
-      <i /><i /><i /><i /><i /><i />
-    </span>
-  );
+// Terminal-style block spinner — the rotating corner cubes TUIs use.
+// Self-contained interval so only this span re-renders per frame.
+const TERM_FRAMES = ["\u2596", "\u2598", "\u259D", "\u2597"]; // quadrant blocks
+function TermLoader() {
+  const [i, setI] = React.useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setI((n) => (n + 1) % TERM_FRAMES.length), 140);
+    return () => clearInterval(iv);
+  }, []);
+  return <span className="termload mono" aria-label="working">{TERM_FRAMES[i]}</span>;
 }
 
 const MsgRow = React.memo(function MsgRow({ m }) {
@@ -65,7 +68,7 @@ const MsgRow = React.memo(function MsgRow({ m }) {
               <Marker key={p.id} className={"oc-" + (st ?? "pending")}>
                 <MarkerIcon>
                   {st === "error" ? <CrossCircle />
-                    : ["pending", "running"].includes(st) ? <DotLoader />
+                    : ["pending", "running"].includes(st) ? <TermLoader />
                     : (TOOL_ICONS[p.tool] ?? <Wrench />)}
                 </MarkerIcon>
                 <MarkerContent className="mono">
@@ -565,7 +568,7 @@ export default function OcChat({ project, onIdle }) {
   };
 
   if (error && !boot) return <div className="bad" style={{ padding: 16, fontSize: 13 }}>{error}</div>;
-  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><DotLoader /> <span className="oc-shimmer">connecting to opencode…</span></div>;
+  if (!boot) return <div className="dim mono" style={{ padding: 16, display: "flex", gap: 8, alignItems: "center" }}><TermLoader /> <span className="oc-shimmer">connecting to opencode…</span></div>;
 
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
 
@@ -636,20 +639,15 @@ export default function OcChat({ project, onIdle }) {
                     </div>
                   </MessageScrollerItem>
                 ))}
-                {busy && !visiblePerms.length && (
-                  <MessageScrollerItem messageId="working">
-                    <Marker>
-                      <MarkerIcon><DotLoader /></MarkerIcon>
-                      <MarkerContent className="mono oc-shimmer">working…</MarkerContent>
-                    </Marker>
-                  </MessageScrollerItem>
-                )}
                 {error && boot && <div className="bad" style={{ fontSize: 13 }}>{error}</div>}
               </MessageScrollerContent>
             </MessageScrollerViewport>
             <MessageScrollerButton />
           </MessageScroller>
         </MessageScrollerProvider>
+        <div className={"oc-working" + (busy && !visiblePerms.length ? " on" : "")} aria-hidden={!busy}>
+          <TermLoader /> <span className="oc-shimmer mono">working…</span>
+        </div>
       </div>
 
       <div className="chat-composer">
