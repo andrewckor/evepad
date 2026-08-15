@@ -10,13 +10,18 @@
 import { useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { ReactFlow, Background, Controls } from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import dynamic from "next/dynamic";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash } from "vercel-geist-icons";
 import OcChat from "../components/oc-chat.jsx";
 import { AsciiLoader } from "../components/ascii-loader.jsx";
+
+// The graph canvas loads after the route paints — see components/agent-graph.
+const AgentGraph = dynamic(() => import("../components/agent-graph.jsx"), {
+  ssr: false,
+  loading: () => <ManifestLoader label="Loading graph…" sub="Preparing the canvas" />,
+});
 
 const fetcher = async (url) => {
   const r = await fetch(url);
@@ -211,14 +216,14 @@ function SpinnerRing() {
   );
 }
 
-function ManifestLoader() {
+function ManifestLoader({ label = "Compiling manifest…", sub = "Reading tools, schedules and channels" }) {
   return (
     <div className="graph-load">
       <div className="manifest-pill">
         <SpinnerRing />
         <span className="manifest-text">
-          <b>Compiling manifest…</b>
-          <i className="manifest-sub">Reading tools, schedules and channels</i>
+          <b>{label}</b>
+          <i className="manifest-sub">{sub}</i>
         </span>
       </div>
     </div>
@@ -277,20 +282,7 @@ function Build() {
         {info?.eveVersion && (
           <span className="eve-ver mono" title="Installed eve framework version">eve v{info.eveVersion}</span>
         )}
-        {info && (
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            fitView
-            proOptions={{ hideAttribution: true }}
-            nodesDraggable
-            nodesConnectable={false}
-            colorMode="dark"
-          >
-            <Background color="#1f1f1f" gap={22} />
-            <Controls showInteractive={false} />
-          </ReactFlow>
-        )}
+        {info && <AgentGraph nodes={nodes} edges={edges} />}
       </div>
     </div>
   );

@@ -24,6 +24,14 @@ const TerminalPanel = dynamic(() => import("../terminal-panel.jsx"), { ssr: fals
 
 // Hovering the button is the cheapest moment to fetch the terminal's chunks —
 // xterm is the heaviest thing the cockpit lazy-loads (bundle-preload).
+let buildWarmed = false;
+const warmBuild = () => {
+  if (buildWarmed) return;
+  buildWarmed = true;
+  import("../components/agent-graph.jsx");
+  import("../components/oc-chat.jsx");
+};
+
 let termWarmed = false;
 const warmTerminal = () => {
   if (termWarmed) return;
@@ -98,6 +106,8 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
         {!isHome && termProject && !isBuild && (
           <Link
             className="chatbtn"
+            onMouseEnter={warmBuild}
+            onFocus={warmBuild}
             href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
             title={`Build ${termProject.name} — generate tools with AI Gateway`}
           >
@@ -106,9 +116,9 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
         )}
         <div className="spacer" />
         <div className="crumbstack">
-          <motion.div layout transition={SPRING} className="crumb-title">
+          <div className="crumb-title">
             {isDetail ? <Link href={listHref()}>Agent Runs</Link> : <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>}
-          </motion.div>
+          </div>
           <AnimatePresence>
             {isDetail && (
               <motion.div
