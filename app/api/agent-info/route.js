@@ -4,7 +4,7 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveProject } from "../../../lib/projects.js";
 
@@ -31,10 +31,28 @@ export async function GET(request) {
         .sort();
     } catch { return []; }
   };
+  // Schedules read live too, with their cron pulled from the source — eve info
+  // reports only names.
+  const liveSchedules = () => {
+    try {
+      return readdirSync(join(project.localPath, "agent", "schedules"))
+        .filter((f) => /\.(ts|js)$/.test(f))
+        .map((f) => {
+          const name = f.replace(/\.(ts|js)$/, "");
+          let cron = null;
+          try {
+            cron = readFileSync(join(project.localPath, "agent", "schedules", f), "utf8")
+              .match(/cron:\s*['"\`]([^'"\`]+)['"\`]/)?.[1] ?? null;
+          } catch {}
+          return { name, cron };
+        })
+        .sort((a, b) => a.name.localeCompare(b.name));
+    } catch { return []; }
+  };
 
   const hit = cache.get(project.name);
   if (!fresh && hit && Date.now() - hit.at < TTL * 6) {
-    return Response.json({ ...hit.data, tools: liveTools() });
+    return Response.json({ ...hit.data, tools: liveTools(), schedules: liveSchedules() });
   }
 
   try {
@@ -58,7 +76,7 @@ export async function GET(request) {
       tools: liveTools(),
       skills: info.skills ?? [],
       subagents: info.subagents ?? [],
-      schedules: info.schedules ?? [],
+      schedules: liveSchedules(),
       channels: [...byChannel.values()],
       diagnostics: info.diagnostics ?? null,
     };

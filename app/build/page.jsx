@@ -40,6 +40,28 @@ const EveDots = () => (
   </svg>
 );
 
+// Plain-English cron for the schedule rows ("daily 13:00 UTC", "hourly :10").
+// Covers the shapes agents actually use; anything exotic shows raw.
+function humanCron(cron) {
+  if (!cron) return null;
+  const p = cron.trim().split(/\s+/);
+  if (p.length !== 5) return cron;
+  const [min, hour, dom, mon, dow] = p;
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const pad = (n) => String(n).padStart(2, "0");
+  if (min.startsWith("*/") && hour === "*") return `every ${min.slice(2)} min`;
+  if (min === "*" && hour === "*") return "every minute";
+  if (/^\d+$/.test(min) && hour === "*") return `hourly at :${pad(min)}`;
+  if (/^\d+$/.test(min) && hour.startsWith("*/")) return `every ${hour.slice(2)}h at :${pad(min)}`;
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour)) {
+    const t = `${pad(hour)}:${pad(min)} UTC`;
+    if (dom === "*" && dow === "*") return `daily ${t}`;
+    if (dom === "*" && /^\d+$/.test(dow)) return `${DAYS[Number(dow) % 7]} ${t}`;
+    if (/^\d+$/.test(dom) && dow === "*") return `monthly on the ${dom} at ${t}`;
+  }
+  return cron;
+}
+
 // Vercel's agent-graph layout. Tools live inside one box node; static edges
 // (no animation — they carry no traffic), dashed when a category is empty.
 function toGraph(info, actions) {
@@ -55,9 +77,10 @@ function toGraph(info, actions) {
   const channels = info.channels ?? [];
 
   const boxH = 42 + Math.max(tools.length, 1) * 34;
-  const srcBottom = 40 + boxH; // one shared baseline for every top source
+  const schedH = 42 + Math.max(schedules.length, 1) * 44; // two-line rows
+  const srcBottom = 40 + Math.max(boxH, schedules.length ? schedH : 0); // shared baseline
   nodes.push({
-    id: "box:tools", position: { x: -115, y: 40 }, style: { width: 230 },
+    id: "box:tools", position: { x: -115, y: srcBottom - boxH }, style: { width: 230 },
     data: {
       label: (
         <div className="toolbox">
@@ -79,11 +102,39 @@ function toGraph(info, actions) {
   });
   E("e:box:tools", "box:tools", "agent", { dashed: !tools.length });
 
-  // Side pills sit so their BOTTOM aligns with the Tools box bottom — every
-  // edge then leaves from the same height and the merge is symmetric, not
-  // a staircase around the box.
+  // Schedules render like Tools — a box listing each schedule with its
+  // human-readable cadence. Falls back to the empty pill when none exist.
+  if (schedules.length) {
+    nodes.push({
+      id: "box:schedules", position: { x: -290 - 110, y: srcBottom - schedH }, style: { width: 220 },
+      data: {
+        label: (
+          <div className="toolbox">
+            <div className="box-title">{schedules.length} Schedule{schedules.length === 1 ? "" : "s"}</div>
+            {schedules.map((sc) => (
+              <div key={sc.name} className="box-item sched nodrag">
+                <button className="box-name" onClick={() => actions.explainSchedule(sc.name)} title={`Ask Build what ${sc.name} does`}>
+                  {sc.name}
+                  <i className="sched-when">{humanCron(sc.cron) ?? "—"}</i>
+                </button>
+                <span className="box-actions">
+                  <Button variant="ghost" size="icon-sm" title={`Edit agent/schedules/${sc.name}.ts`} onClick={() => actions.editSchedule(sc.name)}><Pencil /></Button>
+                  <Button variant="ghost" size="icon-sm" className="del" title={`Delete ${sc.name}`} onClick={() => actions.removeSchedule(sc.name)}><Trash /></Button>
+                </span>
+              </div>
+            ))}
+          </div>
+        ),
+      },
+      className: "gbox", sourcePosition: "bottom", targetPosition: "top",
+    });
+    E("e:box:schedules", "box:schedules", "agent");
+  }
+
+  // Side pills sit so their BOTTOM aligns with the box bottoms — every edge
+  // leaves from the same height and the merge is symmetric.
   const cats = [
-    { id: "cat:schedules", label: `${schedules.length} Schedule${schedules.length === 1 ? "" : "s"}`, x: -290, w: 132, empty: !schedules.length },
+    ...(schedules.length ? [] : [{ id: "cat:schedules", label: "0 Schedules", x: -290, w: 132, empty: true }]),
     { id: "cat:connections", label: `${connections.length} Connections`, x: 290, w: 150, empty: !connections.length },
   ];
   for (const c of cats) {
@@ -157,10 +208,18 @@ function Build() {
   actionsRef.current.edit = (t) => oc(`Edit agent/tools/${t}.ts: `, false);
   actionsRef.current.remove = (t) =>
     oc(`Delete the tool agent/tools/${t}.ts and remove any references to it (check agent/instructions.md and update it if it mentions ${t}).`);
+  actionsRef.current.explainSchedule = (n) =>
+    oc(`What does the schedule agent/schedules/${n}.ts do and when does it run? Answer briefly in local time and UTC.`);
+  actionsRef.current.editSchedule = (n) => oc(`Edit agent/schedules/${n}.ts: `, false);
+  actionsRef.current.removeSchedule = (n) =>
+    oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`);
   const actions = useMemo(() => ({
     explain: (t) => actionsRef.current.explain(t),
     edit: (t) => actionsRef.current.edit(t),
     remove: (t) => actionsRef.current.remove(t),
+    explainSchedule: (n) => actionsRef.current.explainSchedule(n),
+    editSchedule: (n) => actionsRef.current.editSchedule(n),
+    removeSchedule: (n) => actionsRef.current.removeSchedule(n),
   }), []);
 
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);

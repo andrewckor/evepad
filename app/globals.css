@@ -462,6 +462,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   padding:8px 13px;margin-right:40px;white-space:pre-wrap;font-size:13.5px;
 }
 .msg-tool{font-size:12px;color:var(--dim);padding:2px 4px;font-family:var(--mono)}
+.box-item.sched{height:44px}
+.box-item.sched .box-name{display:flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1.25}
+.sched-when{font-style:normal;color:var(--dim2);font-size:10.5px;font-family:var(--mono)}
+
 /* ---- custom opencode client ---- */
 .oc-body{flex:1;min-height:0;display:flex;flex-direction:column}
 .oc-card{
