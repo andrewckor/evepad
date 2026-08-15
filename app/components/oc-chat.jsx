@@ -24,7 +24,16 @@ import Thinking from "./thinking.jsx";
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Plus, SlashForward, Stop } from "vercel-geist-icons";
+import { ArrowUp, Plus, SlashForward } from "vercel-geist-icons";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+
+// Base UI tooltips take a `render` element, not asChild.
+const Tip = ({ label, children }) => (
+  <Tooltip>
+    <TooltipTrigger render={children} />
+    <TooltipContent>{label}</TooltipContent>
+  </Tooltip>
+);
 
 
 // Streamdown's own code block never highlighted here (it lazy-loads shiki,
@@ -690,14 +699,6 @@ export default function OcChat({ project, onIdle }) {
           }}
         ><Plus /></Button>
         <div className="spacer" />
-        {busy && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="oc-abort"
-            onClick={() => sessionId && act({ action: "abort", sessionId }).catch(() => {})}
-          ><Stop /> Stop</Button>
-        )}
       </div>
 
       <div className="oc-body" ref={bodyRef}>
@@ -816,12 +817,28 @@ export default function OcChat({ project, onIdle }) {
             autoFocus
           />
           <div className="oc-card-row">
-            <button
-              className="oc-plus"
-              title="Commands — same as typing /"
-              onClick={() => { setInput("/"); inputRef.current?.focus({ preventScroll: true }); }}
-            ><SlashForward /></button>
-            <button className="oc-send" title="Send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></button>
+            <TooltipProvider delay={300}>
+              <Tip label="Commands — same as typing /">
+                <button
+                  className="oc-plus"
+                  onClick={() => { setInput("/"); inputRef.current?.focus({ preventScroll: true }); }}
+                ><SlashForward /></button>
+              </Tip>
+              {/* One button, two jobs — the same place you send from is the
+                  place you stop from, as every other AI chat does it. */}
+              {busy ? (
+                <Tip label="Stop">
+                  <button
+                    className="oc-send stop"
+                    onClick={() => sessionId && act({ action: "abort", sessionId }).catch(() => {})}
+                  ><span className="oc-stopsq" /></button>
+                </Tip>
+              ) : (
+                <Tip label="Send">
+                  <button className="oc-send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></button>
+                </Tip>
+              )}
+            </TooltipProvider>
           </div>
         </div>
         <div className="chat-model oc-model-row">

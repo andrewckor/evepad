@@ -768,13 +768,17 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   display:inline-flex;align-items:center;justify-content:center;font-size:15px;
 }
 .oc-send:hover:not(:disabled){background:#0062d1}
+/* Geist's Stop is a traffic stop-sign octagon, not the media square every
+   chat uses to halt a stream — wrong concept, and it read as an alert inside
+   the blue circle. A square is a geometric primitive, not a lookalike of
+   Geist artwork, so this stays CSS. */
+.oc-stopsq{width:10px;height:10px;border-radius:2px;background:currentColor}
 .oc-send:disabled{opacity:.35;cursor:default}
 .oc-model-row{display:flex;align-items:center;gap:8px}
 .oc-session-trigger{max-width:280px;font-size:12.5px}
 .oc-modelname{font-size:12px;color:var(--dim2)}
 .oc-tool-ic{display:inline-flex;margin-right:2px;vertical-align:-2px;font-size:12px}
 .oc-head{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
-.oc-abort{color:var(--bad)}
 .oc-completed{color:var(--dim)}
 .oc-notice{
   display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--bad);
@@ -870,7 +874,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-perm-title{
   font-size:12.5px;line-height:1.5;color:var(--dim);word-break:break-all;
 }
-.oc-perm-title b{color:var(--warn);font-weight:500}
+.oc-perm-title b{color:var(--fg);font-weight:600}
 .oc-perm-actions{display:flex;gap:6px}
 .oc-perm-actions button{
   height:28px;padding:0 10px;border:1px solid var(--line2);border-radius:var(--r-sm);
@@ -900,7 +904,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 [data-slot="bubble"].oc-bubble>[data-slot="bubble-content"]{
   background:#1c1c1c;color:var(--fg);
 }
-.chat-model{padding:0 12px 10px;display:flex;gap:6px;align-items:center;flex-direction:row-reverse;justify-content:flex-end}
+/* 12 card margin + 1 border + 14 padding — the model name lines up with
+   the placeholder rather than with the panel edge. */
+.chat-model{padding:0 12px 10px 27px;display:flex;gap:6px;align-items:center;flex-direction:row-reverse;justify-content:flex-end}
 
 .chat-model select{
   appearance:none;-webkit-appearance:none;
