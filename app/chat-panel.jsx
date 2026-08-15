@@ -7,7 +7,7 @@
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
-import { SidebarRight, PlusCircle, ArrowRight, ArrowDown } from "vercel-geist-icons";
+import { SidebarRight, PlusCircle, ChevronRight, ChevronDown } from "vercel-geist-icons";
 import { Streamdown } from "streamdown";
 import {
   MessageScrollerProvider, MessageScroller, MessageScrollerViewport,
@@ -144,8 +144,7 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
       <div className={"term-resize " + dock} onPointerDown={startDrag} title="Drag to resize" />
       <div className="term-head">
         <span className="dot on" />
-        <b>Chat</b>
-        <span className="dim">{project.name}</span>
+        <b>Chat with: {project.name}</b>
         {sessionId && (
           <a className="dim2 mono" href={`/run/${sessionId}?environment=local&project=${encodeURIComponent(project.name)}`} title="Open this session's run detail">
             {sessionId.slice(0, 14)}…
@@ -164,7 +163,7 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
             <SidebarRight style={dock === "right" ? { transform: "rotate(90deg)" } : undefined} />
           </button>
           <button className="closebtn" onClick={onClose} title="Close panel">
-            {dock === "right" ? <ArrowRight /> : <ArrowDown />}
+            {dock === "right" ? <ChevronRight /> : <ChevronDown />}
           </button>
         </div>
       </div>

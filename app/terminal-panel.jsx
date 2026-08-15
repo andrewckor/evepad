@@ -5,7 +5,7 @@
 // commands all work. xterm.js renders; a pty on the cockpit server hosts.
 
 import { useEffect, useRef, useState } from "react";
-import { SidebarRight, ArrowRight, ArrowDown } from "vercel-geist-icons";
+import { SidebarRight, ChevronRight, ChevronDown } from "vercel-geist-icons";
 import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
 
@@ -134,7 +134,7 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
           {/* Close points the way the panel leaves: right when docked right,
               down when docked to the bottom. */}
           <button className="closebtn" onClick={onClose} title="Close panel">
-            {dock === "right" ? <ArrowRight /> : <ArrowDown />}
+            {dock === "right" ? <ChevronRight /> : <ChevronDown />}
           </button>
         </div>
       </div>
