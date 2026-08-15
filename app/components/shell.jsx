@@ -22,6 +22,17 @@ import { I } from "./icons.jsx";
 
 const TerminalPanel = dynamic(() => import("../terminal-panel.jsx"), { ssr: false });
 
+// Hovering the button is the cheapest moment to fetch the terminal's chunks —
+// xterm is the heaviest thing the cockpit lazy-loads (bundle-preload).
+let termWarmed = false;
+const warmTerminal = () => {
+  if (termWarmed) return;
+  termWarmed = true;
+  import("../terminal-panel.jsx");
+  import("@xterm/xterm");
+  import("@xterm/addon-fit");
+};
+
 const fetcher = (url) => fetch(url).then((r) => r.json());
 const DEFAULT_PERIOD = "12h";
 
@@ -121,7 +132,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
           </button>
         )}
         {!isHome && termProject && (
-          <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))} title={`Open a terminal running eve dev for ${termProject.name}`}>
+          <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onMouseEnter={warmTerminal} onFocus={warmTerminal} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))} title={`Open a terminal running eve dev for ${termProject.name}`}>
             {I.terminal} Terminal
           </button>
         )}

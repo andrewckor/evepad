@@ -11,7 +11,10 @@ import { SPRING } from "./components/motion.js";
 
 export default function TerminalPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onClose }) {
   const mount = useRef(null);
-  const [status, setStatus] = useState("starting…");
+  // The old flat "starting…" lied for the common case — an already-running
+  // server is an ATTACH. Seed from what we already know about the project.
+  const [status, setStatus] = useState(() =>
+    project.live && project.localPort ? `attaching to :${project.localPort}…` : "starting server…");
   // Geometry is owned by the shell (it pads the frame so the panel pushes content).
   const startDrag = (e) => {
     e.preventDefault();
@@ -36,19 +39,24 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
     let xterm, fit, abort;
 
     (async () => {
-      // xterm touches `window` at import time — load it client-side only.
-      const [{ Terminal }, { FitAddon }] = await Promise.all([
-        import("@xterm/xterm"),
-        import("@xterm/addon-fit"),
-      ]);
-      await import("@xterm/xterm/css/xterm.css");
-      if (disposed) return;
-
-      const start = await fetch("/api/term", {
+      // Fire the pty request FIRST and await it later: it used to sit behind
+      // the xterm bundle, so the server didn't even hear about us until the
+      // chunk had loaded (async-parallel / async-defer-await).
+      const startReq = fetch("/api/term", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ project: project.name, action: "start" }),
       });
+
+      // xterm touches `window` at import time — load it client-side only.
+      const [{ Terminal }, { FitAddon }] = await Promise.all([
+        import("@xterm/xterm"),
+        import("@xterm/addon-fit"),
+        import("@xterm/xterm/css/xterm.css"),
+      ]);
+      if (disposed) return;
+
+      const start = await startReq;
       const info = await start.json();
       if (!start.ok) { setStatus(info.error ?? "failed to start"); return; }
       setStatus(info.mode === "attach" ? `attached to :${info.port}` : `serving on :${info.port}`);
