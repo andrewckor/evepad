@@ -25,10 +25,12 @@ function EveMark() {
   );
 }
 function Logo({ p }) {
-  const [ok, setOk] = useState(false);
-  const src = p.productionUrl ? `${p.productionUrl}/favicon.ico` : null;
-  // Same recipe as Vercel's dashboard: the API has no logo image, only
-  // framework (+ optional custom avatar) — art is chosen client-side.
+  // Priority mirrors Vercel's own dashboard: stored project avatar (their
+  // deploy-detected favicon), then the live favicon, then framework art.
+  const sources = [p.avatarUrl, p.productionUrl ? `${p.productionUrl}/favicon.ico` : null].filter(Boolean);
+  const [idx, setIdx] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const src = sources[idx] ?? null;
   const mark = p.framework === "eve"
     ? <EveMark />
     : <span className="mono" style={{ fontSize: 13 }}>{p.name.slice(0, 1).toUpperCase()}</span>;
@@ -36,11 +38,12 @@ function Logo({ p }) {
     <span className="agentlogo">
       {src && (
         <img
-          src={src} alt="" style={ok ? {} : { display: "none" }}
-          onLoad={() => setOk(true)} onError={() => setOk(false)}
+          src={src} alt="" style={loaded ? {} : { display: "none" }}
+          onLoad={() => setLoaded(true)}
+          onError={() => { setLoaded(false); setIdx((i) => i + 1); }}
         />
       )}
-      {!ok && mark}
+      {!loaded && mark}
     </span>
   );
 }
