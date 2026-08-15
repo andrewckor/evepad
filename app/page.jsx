@@ -25,9 +25,9 @@ function EveMark() {
   );
 }
 function Logo({ p }) {
-  // Priority mirrors Vercel's own dashboard: stored project avatar (their
-  // deploy-detected favicon), then the live favicon, then framework art.
-  const sources = [p.avatarUrl, p.productionUrl ? `${p.productionUrl}/favicon.ico` : null].filter(Boolean);
+  // Priority: Vercel's own dashboard icon service (favicon-or-framework-logo,
+  // official art), then stored avatar, then live favicon, then our mark.
+  const sources = [p.iconUrl, p.avatarUrl, p.productionUrl ? `${p.productionUrl}/favicon.ico` : null].filter(Boolean);
   const [idx, setIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const src = sources[idx] ?? null;
