@@ -674,6 +674,7 @@ export default function OcChat({ project, onIdle }) {
   return (
     <>
       <div className="oc-head">
+        <TooltipProvider delay={300}>
         <Select value={sessionId ?? ""} onValueChange={(v) => v && setSessionId(v)}>
           <SelectTrigger size="sm" className="oc-session-trigger" title="Session">
             <SelectValue placeholder="new session">
@@ -686,10 +687,11 @@ export default function OcChat({ project, onIdle }) {
             ))}
           </SelectContent>
         </Select>
+        <Tip label="Start a new chat">
         <Button
           variant="outline"
           size="icon-sm"
-          title="New session"
+          className="oc-newchat"
           onClick={async () => {
             try {
               const created = await act({ action: "new" });
@@ -698,6 +700,8 @@ export default function OcChat({ project, onIdle }) {
             } catch (e) { setError({ kind: "error", text: e.message }); }
           }}
         ><Plus /></Button>
+        </Tip>
+        </TooltipProvider>
         <div className="spacer" />
       </div>
 
