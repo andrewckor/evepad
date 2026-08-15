@@ -23,7 +23,7 @@ import { AsciiLoader } from "./ascii-loader.jsx";
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Plus, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CrossCircle } from "vercel-geist-icons";
+import { ArrowUp, Plus, SlashForward, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CrossCircle } from "vercel-geist-icons";
 
 // Geist icon per opencode tool — nearest concept, never invented (AGENTS.md).
 const TOOL_ICONS = {
@@ -782,9 +782,9 @@ export default function OcChat({ project, onIdle }) {
           <div className="oc-card-row">
             <button
               className="oc-plus"
-              title={'Commands ("/")'}
+              title="Commands — same as typing /"
               onClick={() => { setInput("/"); inputRef.current?.focus({ preventScroll: true }); }}
-            ><Plus /></button>
+            ><SlashForward /></button>
             <button className="oc-send" title="Send" onClick={() => send()} disabled={!input.trim()}><ArrowUp /></button>
           </div>
         </div>
