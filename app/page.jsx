@@ -168,19 +168,19 @@ function Home() {
               <b>{p.name}</b>
               <div className="spacer" />
               {busy[p.name] ? (
-                <Tip label="Working on it — starting or stopping the dev server"><span className="devbtn busy">{I.loader}</span></Tip>
+                <Tip label="Working…"><span className="devbtn busy">{I.loader}</span></Tip>
               ) : p.live ? (
-                <Tip label={`Stop the local eve dev server on :${p.localPort}`}><span className="devbtn stop" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span></Tip>
+                <Tip label="Stop local server"><span className="devbtn stop" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span></Tip>
               ) : p.localPath ? (
-                <Tip label={`Start eve dev for ${p.name} — installs deps and pulls creds if needed`}><span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>{I.play}</span></Tip>
+                <Tip label="Start local server"><span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>{I.play}</span></Tip>
               ) : (
-                <Tip label={`Locate ${p.name}\u2019s checkout folder — enables start, Build and local runs`}><span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span></Tip>
+                <Tip label="Link local project"><span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span></Tip>
               )}
             </div>
             <div className="agentmeta">
               {p.live ? (
                 <>
-                  <Badge variant="green-subtle" size="sm" dot title={`eve dev serving on 127.0.0.1:${p.localPort}`}>Running <span className="mono">:{p.localPort}</span></Badge>
+                  <Badge variant="green-subtle" size="sm" dot title="Local server running">Running <span className="mono">:{p.localPort}</span></Badge>
                   {p.model && <span className="cardfact mono dim2" title="Agent model"><Sparkles /> {p.model}</span>}
                 </>
               ) : (
@@ -190,8 +190,8 @@ function Home() {
                       only even when .vercel/project.json exists. */}
                   <Badge variant="gray-subtle" size="sm" title={
                     p.localPath
-                      ? (p.productionUrl ? "Checkout on this machine, deployed to Vercel production" : "Checkout on this machine, never deployed")
-                      : "Vercel project with no checkout on this machine \u2014 use the folder button to connect one"
+                      ? (p.productionUrl ? "Local checkout, deployed" : "Local checkout, not deployed")
+                      : "No local checkout"
                   }>
                     {p.localPath ? (p.productionUrl ? "Linked" : "Local only") : "Remote only"}
                   </Badge>
@@ -206,7 +206,7 @@ function Home() {
                   href={p.productionUrl}
                   target="_blank"
                   rel="noreferrer"
-                  title={`Open ${p.productionUrl} in a new tab`}
+                  title="Open deployment"
                   onClick={(e) => e.stopPropagation() /* don't also open the card's runs view */}
                   style={{ overflow: "hidden", textOverflow: "ellipsis" }}
                 >
