@@ -660,17 +660,18 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    static text without looking like it's blinking out. */
 @keyframes shimmer-text{from{background-position:200% 0}to{background-position:-200% 0}}
 .loadstate{display:inline-flex;width:fit-content;align-items:center;gap:10px}
-.loadstate-label{
-  font-size:13px;font-weight:500;color:transparent;
+.shimmer-text,.loadstate-label{
+  color:transparent;
   background-image:linear-gradient(90deg,var(--dim2) 35%,var(--fg) 50%,var(--dim2) 65%);
   background-size:200% 100%;-webkit-background-clip:text;background-clip:text;
   animation:shimmer-text 1.4s linear infinite;
 }
+.loadstate-label{font-size:13px;font-weight:500}
 .loadstate-time{font-size:12px;color:var(--dim2);font-variant-numeric:tabular-nums}
 /* Reduced motion: the grid holds its dim state, the timer keeps ticking. */
 @media (prefers-reduced-motion:reduce){
-  .pixgrid>span,.loadstate-label{animation:none!important}
-  .loadstate-label{color:var(--dim);background-image:none}
+  .pixgrid>span,.shimmer-text,.loadstate-label{animation:none!important}
+  .shimmer-text,.loadstate-label{color:var(--dim);background-image:none}
 }
 /* editor boot: dead-centre in the panel, loader over label */
 .oc-boot{
@@ -780,16 +781,69 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-ago{margin-left:8px;color:var(--dim2);font-size:11px;font-family:var(--mono)}
 .oc-expandable{cursor:pointer}
 .oc-expandable:hover .mono{color:var(--fg)}
-.oc-thought{font-size:11.5px;color:var(--dim2);font-style:italic;padding:1px 0}
-.oc-thought:hover{color:var(--dim)}
-.oc-thought-body{
-  font-size:12px;color:var(--dim);border-left:2px solid var(--line2);
-  padding:4px 10px;margin:2px 0 4px 4px;white-space:pre-wrap;
+/* THINKING (beautifului.dev): one header over a rail-lined trace. */
+.th{display:flex;flex-direction:column;margin:2px 0}
+.th-head{
+  display:flex;align-items:center;gap:8px;width:fit-content;
+  margin-left:-6px;padding:4px 6px;border-radius:var(--r-sm);
+  transition:background .1s;
 }
-.oc-tool-out{
+.th-head:hover{background:var(--hover)}
+.th-spark{display:inline-flex;font-size:15px;color:var(--dim2);transition:color .2s}
+.th-spark.on{color:var(--dim)}
+.th-title{font-size:13px;font-weight:500;color:var(--dim);white-space:nowrap}
+.th-chev{
+  display:inline-flex;font-size:14px;color:var(--dim2);
+  transition:transform .3s cubic-bezier(.23,1,.32,1);
+}
+.th-chev.open{transform:rotate(180deg)}
+/* grid-rows 0fr -> 1fr animates a collapse without measuring anything. */
+.th-wrap{
+  display:grid;grid-template-rows:0fr;opacity:0;
+  transition:grid-template-rows .4s cubic-bezier(.23,1,.32,1),opacity .4s cubic-bezier(.23,1,.32,1);
+}
+.th-wrap[data-open="1"]{grid-template-rows:1fr;opacity:1}
+.th-clip{overflow:hidden}
+.th-trace{
+  position:relative;margin:2px 0 0 5px;padding:4px 0 4px 16px;
+  display:flex;flex-direction:column;gap:4px;
+}
+/* The rail — one hairline the whole trace hangs off. */
+/* Rail starts above the first row so it reads as hanging off the header,
+   not as a box drawn around the list. */
+.th-trace::before{
+  content:"";position:absolute;left:3px;top:-8px;bottom:2px;width:1px;background:var(--line);
+}
+.th-row{
+  display:flex;align-items:center;gap:8px;width:100%;min-height:28px;
+  padding:2px 6px;border-radius:var(--r-sm);text-align:left;
+  transition:background .15s;
+  animation:fade-up 320ms cubic-bezier(.23,1,.32,1) both;
+}
+@keyframes fade-up{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.th-row:not(.static):hover{background:var(--hover)}
+.th-row.sel{background:var(--panel2)}
+.th-ic{display:inline-flex;flex:none;font-size:14px;color:var(--dim)}
+.th-ic.s-error{color:var(--bad)}
+.th-name{font-size:12.5px;font-weight:500;color:var(--fg);flex:none}
+.th-sub{
+  font-size:11.5px;color:var(--dim2);min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* Reasoning collapses to one line and opens to the full text — the trace
+   stays scannable, and the thought is still one click away. */
+/* Reasoning is prose, so it wraps to two lines and clamps rather than
+   truncating mid-sentence at one; click opens the whole thought. */
+.th-reason{align-items:flex-start}
+.th-reason .th-text{
+  font-size:12.5px;line-height:1.55;color:var(--dim);min-width:0;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.th-reason.open .th-text{display:block;white-space:pre-wrap}
+.th-out{
   font-family:var(--mono);font-size:11px;color:var(--dim);
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
-  padding:8px 10px;margin:2px 0 6px;max-height:240px;overflow:auto;white-space:pre-wrap;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:8px 10px;margin:2px 0 4px 28px;max-height:240px;overflow:auto;white-space:pre-wrap;
 }
 .oc-error{color:var(--bad)}
 .oc-running,.oc-pending{color:var(--warn)}

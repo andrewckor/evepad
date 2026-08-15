@@ -19,19 +19,13 @@ import {
 } from "@/components/ui/message-scroller";
 import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
-import { Marker, MarkerIcon, MarkerContent } from "@/components/ui/marker";
-import LoadingState, { PixelGrid } from "./loading-state.jsx";
+import LoadingState from "./loading-state.jsx";
+import Thinking from "./thinking.jsx";
 import {
   Select, SelectTrigger, SelectContent, SelectItem, SelectValue,
 } from "@/components/ui/select";
-import { ArrowUp, Plus, SlashForward, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, Stop, CrossCircle } from "vercel-geist-icons";
+import { ArrowUp, Plus, SlashForward, Stop } from "vercel-geist-icons";
 
-// Geist icon per opencode tool — nearest concept, never invented (AGENTS.md).
-const TOOL_ICONS = {
-  bash: <Terminal />, edit: <Pencil />, write: <Pencil />,
-  read: <MagnifyingGlass />, glob: <MagnifyingGlass />, grep: <MagnifyingGlass />, list: <MagnifyingGlass />,
-  webfetch: <Globe />,
-};
 
 // Streamdown's own code block never highlighted here (it lazy-loads shiki,
 // which isn't installed) and its fallback body is sans-serif with
@@ -57,79 +51,48 @@ const MD_COMPONENTS = { code: MdCode };
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
-const MsgRow = React.memo(function MsgRow({ m }) {
-  // Expanded thought/tool-output rows; local to the row, survives memo skips.
-  const [openParts, setOpenParts] = React.useState(() => new Set());
-  const toggle = (id) => setOpenParts((prev) => {
-    const next = new Set(prev);
-    next.has(id) ? next.delete(id) : next.add(id);
-    return next;
-  });
+const MsgRow = React.memo(function MsgRow({ m, live }) {
   const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const isUser = m.info.role === "user";
+
+  // Consecutive reasoning/tool parts collapse into one Thinking trace, so a
+  // run of twelve tool calls reads as one thing the agent did rather than as
+  // twelve loose rows. Text parts break the run — interleaved answers keep
+  // their place in the transcript.
+  const groups = [];
+  for (const p of parts) {
+    const trace = p.type === "reasoning" || p.type === "tool";
+    const tail = groups[groups.length - 1];
+    if (trace && tail?.type === "trace") tail.parts.push(p);
+    else if (trace) groups.push({ type: "trace", parts: [p], key: p.id });
+    else groups.push({ type: "text", part: p, key: p.id });
+  }
+
   return (
     <Message align={isUser ? "end" : "start"}>
       <MessageContent>
-        {parts.map((p) => {
-          if (p.type === "text") {
-            if (!p.text?.trim()) return null;
+        {groups.map((g, gi) => {
+          if (g.type === "text") {
+            const p = g.part;
+            if (p.type !== "text" || !p.text?.trim()) return null;
             return isUser ? (
-              <Bubble key={p.id} variant="secondary" align="end" className="oc-bubble">
+              <Bubble key={g.key} variant="secondary" align="end" className="oc-bubble">
                 <BubbleContent>{p.text}</BubbleContent>
               </Bubble>
             ) : (
-              <Streamdown key={p.id} className="chat-md" components={MD_COMPONENTS}>{p.text}</Streamdown>
+              <Streamdown key={g.key} className="chat-md" components={MD_COMPONENTS}>{p.text}</Streamdown>
             );
           }
-          if (p.type === "reasoning") {
-            // Native-opencode style: a dim collapsed "thought" row; click for
-            // the full reasoning text.
-            if (!p.text?.trim()) return null;
-            const ms = p.time?.end && p.time?.start ? p.time.end - p.time.start : null;
-            const dur = ms == null ? "" : ms < 1000 ? ` ${ms}ms` : ` ${(ms / 1000).toFixed(1)}s`;
-            const open = openParts.has(p.id);
-            return (
-              <div key={p.id}>
-                <button className="oc-thought mono" onClick={() => toggle(p.id)}>
-                  ✱ thought{dur}
-                </button>
-                {open && <div className="oc-thought-body">{p.text}</div>}
-              </div>
-            );
-          }
-          if (p.type === "tool") {
-            const st = p.state?.status;
-            const output = p.state?.output;
-            const open = openParts.has(p.id);
-            const expandable = st === "completed" && output;
-            return (
-              <div key={p.id}>
-                <Marker
-                  className={"oc-" + (st ?? "pending") + (expandable ? " oc-expandable" : "")}
-                  onClick={expandable ? () => toggle(p.id) : undefined}
-                  role={expandable ? "button" : undefined}
-                >
-                  <MarkerIcon>
-                    {st === "error" ? <CrossCircle />
-                      : ["pending", "running"].includes(st) ? <PixelGrid />
-                      : (TOOL_ICONS[p.tool] ?? <Wrench />)}
-                  </MarkerIcon>
-                  <MarkerContent className="mono">
-                    {p.tool} <span className="dim2">{partLabel(p)}</span>
-                  </MarkerContent>
-                </Marker>
-                {open && (
-                  <pre className="oc-tool-out">{String(output).slice(0, 4000)}</pre>
-                )}
-              </div>
-            );
-          }
-          return null;
+          // A trace is working while any of its tools is, or while it is the
+          // tail of the message the model is still streaming into.
+          const busy = g.parts.some((p) => ["pending", "running"].includes(p.state?.status))
+            || (live && gi === groups.length - 1);
+          return <Thinking key={g.key} parts={g.parts} busy={busy} />;
         })}
       </MessageContent>
     </Message>
   );
-}, (prev, next) => prev.m === next.m && prev.rev === next.rev);
+}, (prev, next) => prev.m === next.m && prev.rev === next.rev && prev.live === next.live);
 
 const fetchJson = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -147,14 +110,6 @@ const ago = (t) => {
   return `${Math.round(s / 86400)}d`;
 };
 
-function partLabel(part) {
-  const input = part.state?.input ?? {};
-  const file = input.filePath ?? input.path;
-  if (file) return String(file).split("/").slice(-2).join("/");
-  if (input.command) return String(input.command).slice(0, 64);
-  if (input.pattern) return String(input.pattern).slice(0, 64);
-  return "";
-}
 
 export default function OcChat({ project, onIdle }) {
   // Transcript lives in a ref (Map of messageID -> {info, parts: Map}) and is
@@ -757,9 +712,11 @@ export default function OcChat({ project, onIdle }) {
                       <span className="mono"> /models</span>, <span className="mono">/compact</span>…).</div>
                   </div>
                 )}
-                {msgs.map((m) => (
+                {msgs.map((m, i) => (
                   <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)}>
-                    <MsgRow m={m} rev={m.rev ?? 0} />
+                    {/* only the trailing message can still be streaming — a
+                        blanket `busy` would set every trace shimmering. */}
+                    <MsgRow m={m} rev={m.rev ?? 0} live={busy && i === msgs.length - 1} />
                   </MessageScrollerItem>
                 ))}
                 {visiblePerms.map((perm) => (
