@@ -184,7 +184,16 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
    #ededed h43, 0 16px padding. No monospace anywhere in the table. */
 /* Rounded hairline card around the table; scrolls horizontally inside itself
    when the terminal sidebar squeezes the content area. */
-.tablecard{border:1px solid var(--line);border-radius:var(--r-lg);overflow-x:auto;overflow-y:hidden}
+.tablecard{border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+/* Horizontal scroll region, same treatment as the project switcher: no
+   visible bar, edges faded so content dissolves instead of clipping. The
+   footer lives outside it, so pagination never scrolls with the columns. */
+.tablescroll{
+  overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;
+  -webkit-mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
+  mask-image:linear-gradient(to right,transparent 0,#000 18px,#000 calc(100% - 18px),transparent 100%);
+}
+.tablescroll::-webkit-scrollbar{display:none;width:0;height:0}
 /* Fixed layout keeps the Run column at full remaining width even when every
    title is short — columns never drift with content. */
 table{width:100%;min-width:1150px;border-collapse:collapse;table-layout:fixed}

@@ -333,6 +333,8 @@ function Dashboard() {
         </div>
 
         <div className="tablecard">
+          {/* Only the table scrolls sideways — the footer must not ride along. */}
+          <div className="tablescroll">
           <table>
             {/* Fixed layout: Run always takes the remaining space regardless of
                 content length; numeric columns never drift. */}
@@ -374,6 +376,7 @@ function Dashboard() {
               ))}
             </tbody>
           </table>
+          </div>
           {sessions.length > 0 && (
             <div className="tfoot">
               <Select
