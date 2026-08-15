@@ -162,6 +162,9 @@ export default function OcChat({ project, onIdle }) {
   const sessionRef = useRef(null);
   sessionRef.current = sessionId;
   const [busy, setBusy] = useState(false);
+  // Bumped whenever a run begins, so the elapsed timer restarts with it.
+  const [runKey, setRunKey] = useState(0);
+  useEffect(() => { if (busy) setRunKey((k) => k + 1); }, [busy]);
   const [perms, setPerms] = useState([]); // pending permission asks
   const [diff, setDiff] = useState([]);   // [{file, additions, deletions}] for this session
   const [diffOpen, setDiffOpen] = useState(false);
@@ -722,7 +725,9 @@ export default function OcChat({ project, onIdle }) {
                 {visiblePerms.map((perm) => (
                   <MessageScrollerItem key={perm.id} messageId={perm.id}>
                     <div className="oc-perm">
-                      <div className="oc-perm-title mono">{perm.permission ?? perm.type}: {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}</div>
+                      <div className="oc-perm-title mono">
+                        <b>{perm.permission ?? perm.type}</b> {perm.metadata?.command ?? (perm.patterns ?? []).join(", ") ?? perm.title}
+                      </div>
                       <div className="oc-perm-actions">
                         <Button variant="outline" size="sm" onClick={() => respond(perm, "once")}>Allow once</Button>
                         <Button variant="outline" size="sm" onClick={() => respond(perm, "always")}>Always</Button>
@@ -745,7 +750,10 @@ export default function OcChat({ project, onIdle }) {
 
         <div className="oc-status">
         <span className={"oc-status-inner" + (busy && !visiblePerms.length ? " on" : "")}>
-          <LoadingState label="Working" />
+          {/* keyed on the run: the strip stays mounted for its fade, so
+              without this the timer would count from page load, not from
+              the moment work started. */}
+          <LoadingState key={runKey} label="Working" />
         </span>
         <span className="spacer" />
         {diff.length > 0 && (

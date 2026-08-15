@@ -51,6 +51,12 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 a{color:inherit;text-decoration:none}
+/* Unlayered on purpose: it outranks Tailwind's utilities (layered CSS always
+   loses to unlayered), so shadcn Buttons arrive bare and every button in this
+   app is dressed by the component CSS below. Moving it into @layer base to
+   "fix" that hands shadcn's utilities back the header and composer buttons,
+   which are styled here — so the reset stays, and buttons get explicit
+   styling. */
 button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
 .mono{font-family:var(--mono);font-size:12px}
 .dim{color:var(--dim)}
@@ -848,12 +854,25 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-error{color:var(--bad)}
 .oc-running,.oc-pending{color:var(--warn)}
 .oc-spin{width:11px;height:11px;display:inline-block;vertical-align:-1px}
+/* Approval reads as part of the trace, not as an alarm: same card surface
+   and metrics as a Thinking row, with amber carried by the label alone. */
 .oc-perm{
-  border:1px solid rgba(245,166,35,.45);border-radius:var(--r);
-  padding:10px 12px;display:flex;flex-direction:column;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:10px 12px;margin:4px 0;display:flex;flex-direction:column;gap:10px;
+  animation:fade-up 320ms cubic-bezier(.23,1,.32,1) both;
 }
-.oc-perm-title{font-size:12.5px;color:var(--warn);word-break:break-all}
-.oc-perm-actions{display:flex;gap:8px}
+.oc-perm-title{
+  font-size:12.5px;line-height:1.5;color:var(--dim);word-break:break-all;
+}
+.oc-perm-title b{color:var(--warn);font-weight:500}
+.oc-perm-actions{display:flex;gap:6px}
+.oc-perm-actions button{
+  height:28px;padding:0 10px;border:1px solid var(--line2);border-radius:var(--r-sm);
+  font-size:12.5px;font-weight:500;color:var(--dim);transition:color .1s,background .1s,border-color .1s;
+}
+.oc-perm-actions button:hover{color:var(--fg);background:var(--hover)}
+.oc-perm-actions .oc-deny{border-color:transparent;color:var(--dim2)}
+.oc-perm-actions .oc-deny:hover{color:var(--bad);background:transparent}
 .oc-deny{color:var(--bad)}
 .chat-composer{position:relative}
 .oc-palette{
