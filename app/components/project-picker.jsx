@@ -7,6 +7,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { I } from "./icons.jsx";
+import { ChevronUpSmall, ChevronDownSmall } from "vercel-geist-icons";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -64,9 +65,16 @@ export default function ProjectPicker({ value, onChange }) {
   return (
     <div className="picker">
       <button onClick={() => setOpen((o) => !o)}>
-        <span className={"dot" + (current?.live ? " on" : "")} />
-        <span>{current?.name ?? "select project"}</span>
-        <span className="chev">{I.chevDown}</span>
+        {value ? (
+          <>
+            <span className={"dot" + (current?.live ? " on" : "")} />
+            <span>{current?.name ?? value}</span>
+          </>
+        ) : (
+          <span>All Projects</span>
+        )}
+        {/* Vercel's switcher glyph: the two small chevrons stacked. */}
+        <span className="chev chev-ud"><ChevronUpSmall /><ChevronDownSmall /></span>
       </button>
       {open && (
         <div className="menu" onMouseLeave={() => setOpen(false)}>

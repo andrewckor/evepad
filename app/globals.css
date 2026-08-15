@@ -101,6 +101,9 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
   line-height:1;
 }
 .picker>button .chev,.picker>button .dim2{display:inline-flex;align-items:center;color:var(--dim)}
+.chev-ud{flex-direction:column;line-height:0}
+.chev-ud svg{width:11px;height:11px}
+.chev-ud svg:first-child{margin-bottom:-3px}
 .picker>button:hover{background:var(--hover);border-color:var(--line2)}
 @keyframes menupop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
 .menu{
