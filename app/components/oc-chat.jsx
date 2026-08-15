@@ -74,7 +74,7 @@ const MsgRow = React.memo(function MsgRow({ m }) {
           if (p.type === "text") {
             if (!p.text?.trim()) return null;
             return isUser ? (
-              <Bubble key={p.id} variant="default" align="end">
+              <Bubble key={p.id} variant="secondary" align="end" className="oc-bubble">
                 <BubbleContent>{p.text}</BubbleContent>
               </Bubble>
             ) : (
