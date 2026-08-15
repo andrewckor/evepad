@@ -221,7 +221,11 @@ function toGraph(info, actions) {
       id: `ch:${i}`, position: { x: x - 23, y: yAgent + 200 }, style: { width: 46 },
       data: {
         label: (
-          <div className="circle-label" title={`${c.name} (${c.kind})`}>
+          <div
+            className="circle-label"
+            title={`Ask Build about ${c.name} (${c.kind})`}
+            onClick={() => actions.explainChannel(c)}
+          >
             <span className="circle">
               {isSlack ? <SlackIcon />
                 : isApi ? <span className="api-badge">API</span>
@@ -355,6 +359,12 @@ function Build() {
   actionsRef.current.explainConnection = (n) =>
     oc(`What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${connectionPath(n)}. Answer briefly.`);
   actionsRef.current.editConnection = (n) => oc(`Edit ${connectionPath(n)}: `, false);
+  actionsRef.current.explainChannel = (ch) =>
+    oc(
+      `What is the ${ch.name} channel? It's ${ch.kind} with ${ch.routes} route${ch.routes === 1 ? "" : "s"} — ` +
+      `what does it expose, who calls it, and where is it defined? Answer briefly.`,
+      false,
+    );
   actionsRef.current.removeSchedule = (n) =>
     oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`);
   const actions = useMemo(() => ({
@@ -366,6 +376,7 @@ function Build() {
     removeSchedule: (n) => actionsRef.current.removeSchedule(n),
     explainConnection: (n) => actionsRef.current.explainConnection(n),
     editConnection: (n) => actionsRef.current.editConnection(n),
+    explainChannel: (ch) => actionsRef.current.explainChannel(ch),
   }), []);
 
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);
