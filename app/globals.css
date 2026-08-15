@@ -496,9 +496,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   background:var(--panel2);border:1px solid var(--line2);
 }
 .circle-label i{font-style:normal;font-size:10.5px;color:var(--dim2);max-width:84px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* The unknown-kind mark reads at the API badge's optical size, not the 1em
-   default, which sat noticeably smaller than the badges beside it. */
-.circle svg{font-size:19px}
+/* The unknown-kind mark matches the API badge in both size and colour: the
+   1em default sat smaller, and currentColor inherited React Flow's near-white
+   node text (#f8f8f8) while the badge is --dim. */
+.circle svg{font-size:19px;color:var(--dim)}
 .tool-circle{color:var(--blue);font-family:var(--mono);font-size:12px;text-transform:uppercase}
 .api-badge{
   border:1.5px solid var(--dim);border-radius:5px;padding:1px 4px;
