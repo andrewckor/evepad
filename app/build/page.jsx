@@ -83,7 +83,12 @@ function toGraph(info, actions) {
 
   const boxH = 42 + Math.max(tools.length, 1) * 34;
   const schedH = 42 + Math.max(schedules.length, 1) * 44; // two-line rows
-  const srcBottom = 40 + Math.max(boxH, schedules.length ? schedH : 0); // shared baseline
+  const connH = 42 + Math.max(connections.length, 1) * 34;
+  const srcBottom = 40 + Math.max(
+    boxH,
+    schedules.length ? schedH : 0,
+    connections.length ? connH : 0,
+  ); // shared baseline
   nodes.push({
     id: "box:tools", position: { x: -115, y: srcBottom - boxH }, style: { width: 230 },
     data: {
@@ -138,9 +143,31 @@ function toGraph(info, actions) {
 
   // Side pills sit so their BOTTOM aligns with the box bottoms — every edge
   // leaves from the same height and the merge is symmetric.
+  // Connections list their names, same as Tools and Schedules — a count alone
+  // tells you nothing about what the agent is wired to.
+  if (connections.length) {
+    nodes.push({
+      id: "box:connections", position: { x: 290 - 110, y: srcBottom - connH }, style: { width: 220 },
+      data: {
+        label: (
+          <div className="toolbox">
+            <div className="box-title">{connections.length} Connection{connections.length === 1 ? "" : "s"}</div>
+            {connections.map((c) => (
+              <div key={c} className="box-item nodrag">
+                <button className="box-name" onClick={() => actions.explainConnection(c)} title={`Ask Build about ${c}`}>{c}</button>
+              </div>
+            ))}
+          </div>
+        ),
+      },
+      className: "gbox", sourcePosition: "bottom", targetPosition: "top",
+    });
+    E("e:box:connections", "box:connections", "agent");
+  }
+
   const cats = [
     ...(schedules.length ? [] : [{ id: "cat:schedules", label: "0 Schedules", x: -290, w: 132, empty: true }]),
-    { id: "cat:connections", label: `${connections.length} Connections`, x: 290, w: 150, empty: !connections.length },
+    ...(connections.length ? [] : [{ id: "cat:connections", label: "0 Connections", x: 290, w: 150, empty: true }]),
   ];
   for (const c of cats) {
     nodes.push({
@@ -312,6 +339,11 @@ function Build() {
   actionsRef.current.explainSchedule = (n) =>
     oc(`What does the schedule agent/schedules/${n}.ts do and when does it run? Answer briefly in local time and UTC.`);
   actionsRef.current.editSchedule = (n) => oc(`Edit agent/schedules/${n}.ts: `, false);
+  actionsRef.current.explainConnection = (n) => {
+    const [ext, name] = n.includes("__") ? n.split("__") : [null, n];
+    const where = ext ? `agent/extensions/${ext}/connections/${name}.ts` : `agent/connections/${name}.ts`;
+    oc(`What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${where}. Answer briefly.`);
+  };
   actionsRef.current.removeSchedule = (n) =>
     oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`);
   const actions = useMemo(() => ({
@@ -321,6 +353,7 @@ function Build() {
     explainSchedule: (n) => actionsRef.current.explainSchedule(n),
     editSchedule: (n) => actionsRef.current.editSchedule(n),
     removeSchedule: (n) => actionsRef.current.removeSchedule(n),
+    explainConnection: (n) => actionsRef.current.explainConnection(n),
   }), []);
 
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);

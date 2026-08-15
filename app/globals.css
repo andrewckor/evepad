@@ -455,6 +455,19 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .agent-label b{color:#000;font-size:15px;font-weight:600;max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agent-logo{display:inline-flex}
 .react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
+/* React Flow lights the whole rectangular node on hover/select, which drew a
+   glowing box around the circle AND its caption. The node stays invisible;
+   only the circle reacts. */
+.react-flow__node.react-flow__node-default.gcircle:hover,
+.react-flow__node.react-flow__node-default.gcircle.selected,
+.react-flow__node.react-flow__node-default.gcircle.selectable:hover{
+  box-shadow:none;border:none;background:transparent;
+}
+.gcircle .circle{transition:border-color .15s,box-shadow .15s,background .15s}
+.gcircle:hover .circle{
+  border-color:#4a4a4a;background:var(--hover);
+  box-shadow:0 0 0 4px rgba(255,255,255,.05);
+}
 .react-flow__node.gbox{
   width:auto;height:auto;box-shadow:none;padding:0;overflow:hidden;
   border:1px solid var(--line2);border-radius:12px;background:var(--panel);
