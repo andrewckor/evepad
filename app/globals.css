@@ -704,7 +704,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    move anything. Only opacity animates. */
 .oc-status{
   position:absolute;left:0;right:0;bottom:0;height:26px;
-  display:flex;align-items:center;padding:0 16px;pointer-events:none;
+  display:flex;align-items:center;padding:0 24px;pointer-events:none;
 }
 .oc-status>*{pointer-events:auto}
 .oc-status-inner{
@@ -746,7 +746,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   mask-image:linear-gradient(to bottom,transparent 0,#000 24px);
 }
 .oc-card{
-  margin:10px 12px 6px;border:1px solid var(--line);border-radius:22px;
+  margin:10px 16px 6px;border:1px solid var(--line);border-radius:22px;
   background:#141414;padding:14px 14px 10px;display:flex;flex-direction:column;gap:10px;
 }
 .oc-card:focus-within{border-color:var(--line2)}
@@ -944,7 +944,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 /* 12 card margin + 1 border + 14 padding — the model name lines up with
    the placeholder rather than with the panel edge. */
-.chat-model{padding:0 12px 10px 27px;display:flex;gap:6px;align-items:center;flex-direction:row-reverse;justify-content:flex-end}
+.chat-model{padding:0 16px 10px 31px;display:flex;gap:6px;align-items:center;flex-direction:row-reverse;justify-content:flex-end}
 
 .chat-model select{
   appearance:none;-webkit-appearance:none;
