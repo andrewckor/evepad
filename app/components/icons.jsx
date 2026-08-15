@@ -4,6 +4,7 @@ import {
   ArrowLeft, ChevronDownSmall, ChevronRight, MagnifyingGlass, Calendar,
   Clock, ClockDashed, Globe, Lightning, Terminal, Message,
   Wrench, Coins, Copy, External,
+  Plus, Play, StopCircle, FolderClosed, LoaderCircle,
 } from "vercel-geist-icons";
 
 export const I = {
@@ -22,6 +23,11 @@ export const I = {
   coins: <Coins />,
   copy: <Copy />,
   external: <External />,
+  plus: <Plus />,
+  play: <Play />,
+  stop: <StopCircle />,
+  folder: <FolderClosed />,
+  loader: <LoaderCircle />,
 };
 
 export const triggerIcon = (t) =>

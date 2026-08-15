@@ -40,7 +40,7 @@ function NewAgentCard({ onCreated }) {
   if (!open) {
     return (
       <button className="agentcard new" onClick={() => setOpen(true)}>
-        <span className="newplus">+</span>
+        <span className="newplus">{I.plus}</span>
         <b>New Agent</b>
         <span className="dim2">Scaffold an eve agent, create its Vercel project, and boot it — one step.</span>
       </button>
@@ -115,13 +115,13 @@ function Home() {
               <b>{p.name}</b>
               <div className="spacer" />
               {busy[p.name] ? (
-                <span className="devbtn busy">…</span>
+                <span className="devbtn busy">{I.loader}</span>
               ) : p.live ? (
-                <span className="devbtn stop" title="Stop local server" onClick={(e) => devAction(e, p, "stop")}>■</span>
+                <span className="devbtn stop" title="Stop local server" onClick={(e) => devAction(e, p, "stop")}>{I.stop}</span>
               ) : p.localPath ? (
-                <span className="devbtn play" title="Start eve dev" onClick={(e) => devAction(e, p, "start")}>▶</span>
+                <span className="devbtn play" title="Start eve dev" onClick={(e) => devAction(e, p, "start")}>{I.play}</span>
               ) : (
-                <span className="devbtn locate" title="Connect a local checkout" onClick={(e) => devAction(e, p, "locate")}>📁</span>
+                <span className="devbtn locate" title="Connect a local checkout" onClick={(e) => devAction(e, p, "locate")}>{I.folder}</span>
               )}
             </div>
             <div className="agentmeta">
