@@ -75,9 +75,56 @@ export async function GET(request) {
     } catch { return []; }
   };
 
+  // Connections, live from disk like tools and schedules — `eve info --json`
+  // doesn't report them at all, which is why the graph always said 0.
+  //
+  // They come from two places, and Vercel counts both:
+  //   agent/connections/<name>.ts                     -> "<name>"
+  //   agent/extensions/<ext>/connections/<name>.ts    -> "<ext>__<name>"
+  // An extension's connections usually ship inside its npm package; a local
+  // file of the same name SHADOWS the packaged one rather than adding to it
+  // (shoppy does exactly this to add providedArguments to kernel's browser),
+  // so the two sources are unioned by name, not summed.
+  const dirNames = (dir) => {
+    try {
+      return readdirSync(dir)
+        .filter((f) => /\.(ts|js|mjs)$/.test(f) && !/\.d\.ts$/.test(f))
+        .map((f) => f.replace(/\.(ts|js|mjs)$/, ""));
+    } catch { return []; }
+  };
+  const liveConnections = () => {
+    const out = new Set(dirNames(join(project.localPath, "agent", "connections")));
+    let exts = [];
+    try {
+      exts = readdirSync(join(project.localPath, "agent", "extensions"), { withFileTypes: true })
+        .filter((d) => d.isDirectory())
+        .map((d) => d.name);
+    } catch {}
+    for (const ext of exts) {
+      const base = join(project.localPath, "agent", "extensions", ext);
+      const names = new Set(dirNames(join(base, "connections")));
+      // The package the extension wraps, from its own import line.
+      let pkg = null;
+      for (const f of ["extension.ts", "extension.js"]) {
+        try {
+          pkg = readFileSync(join(base, f), "utf8").match(/from\s+["']([^"'.][^"']*)["']/)?.[1];
+          if (pkg) break;
+        } catch {}
+      }
+      if (pkg) {
+        for (const sub of ["dist/extension/connections", "extension/connections"]) {
+          const found = dirNames(join(project.localPath, "node_modules", pkg, sub));
+          if (found.length) { found.forEach((n) => names.add(n)); break; }
+        }
+      }
+      for (const n of names) out.add(`${ext}__${n}`);
+    }
+    return [...out].sort();
+  };
+
   const hit = cache.get(project.name);
   if (!fresh && hit && Date.now() - hit.at < TTL * 6) {
-    return Response.json({ ...hit.data, tools: liveTools(), schedules: liveSchedules() });
+    return Response.json({ ...hit.data, tools: liveTools(), schedules: liveSchedules(), connections: liveConnections() });
   }
 
   // Never hold the connection for a cold `eve info` compile (seconds): start
@@ -91,7 +138,7 @@ export async function GET(request) {
         .finally(() => compiling.delete(project.name));
       compiling.set(project.name, p);
     }
-    return Response.json({ compiling: true, tools: liveTools(), schedules: liveSchedules() }, { status: 202 });
+    return Response.json({ compiling: true, tools: liveTools(), schedules: liveSchedules(), connections: liveConnections() }, { status: 202 });
   }
 
   try {
@@ -116,6 +163,7 @@ export async function GET(request) {
       skills: info.skills ?? [],
       subagents: info.subagents ?? [],
       schedules: liveSchedules(),
+      connections: liveConnections(),
       channels: [...byChannel.values()],
       diagnostics: info.diagnostics ?? null,
       eveVersion: eveVersionAt(project.localPath),

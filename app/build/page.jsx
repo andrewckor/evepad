@@ -13,7 +13,7 @@ import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { Copy, Pencil, Trash, FolderPlus } from "vercel-geist-icons";
+import { Copy, Pencil, Trash, FolderPlus, Question } from "vercel-geist-icons";
 import OcChat from "../components/oc-chat.jsx";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
@@ -176,12 +176,20 @@ function toGraph(info, actions) {
   channels.forEach((c, i) => {
     const x = (i - (channels.length - 1) / 2) * 96;
     const isSlack = /slack/i.test(c.name) || /slack/i.test(c.kind);
+    // Vercel splits these by kind: an http channel is an API surface, anything
+    // else it can't place reads as unknown. photon (chat-sdk) is the case
+    // that showed the difference — we badged it API, their dashboard doesn't.
+    const isApi = c.kind === "http";
     nodes.push({
       id: `ch:${i}`, position: { x: x - 23, y: yAgent + 200 }, style: { width: 46 },
       data: {
         label: (
           <div className="circle-label" title={`${c.name} (${c.kind})`}>
-            <span className="circle">{isSlack ? <SlackIcon /> : <span className="api-badge">API</span>}</span>
+            <span className="circle">
+              {isSlack ? <SlackIcon />
+                : isApi ? <span className="api-badge">API</span>
+                : <Question />}
+            </span>
             <i>{c.name}</i>
           </div>
         ),
