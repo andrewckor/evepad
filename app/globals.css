@@ -510,6 +510,11 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .pk-list::-webkit-scrollbar{display:none;width:0;height:0}
 .pk-row{display:flex;align-items:center;gap:9px;min-height:36px;padding-right:6px}
+/* CommandItem always appends its own CheckIcon with ml-auto — invisible at
+   opacity-0, but it still reserved 16px and shoved the row's controls left,
+   which read as dead space on the right. We show selection on the trigger,
+   so hide it (direct child only: the action button's glyph is nested). */
+.pk-row > svg{display:none}
 .pk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
 .pk-check{width:14px;height:14px;flex:none;color:var(--fg)}
 .pk-port{font-family:var(--mono);font-size:10.5px;height:18px;padding:0 7px;flex:none}
