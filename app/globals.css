@@ -567,7 +567,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 @keyframes cb-blink{50%{opacity:0}}
 .chat-md ul,.chat-md ol{margin:4px 0;padding-left:18px}
-.chat-empty{display:flex;flex-direction:column;gap:6px;padding:16px 14px;font-size:13.5px}
+/* The transcript already pads; this padded again and sat inset from every
+   message under it. */
+.chat-empty{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
 .chatbtn[data-on="1"]{background:var(--panel2);color:var(--fg);border-color:var(--line2)}
 .term-head a:hover{color:var(--blue)}
 .chat-body{flex:1;overflow-y:auto;padding:10px 0}
@@ -691,14 +693,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .nocheckout .mono{color:var(--fg)}
 /* Explicit, like every button here — shadcn's utilities lose to the reset. */
 .nocheckout button{
-  display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 12px;
-  border:1px solid var(--line2);border-radius:var(--r-sm);
-  font-size:13px;font-weight:500;color:var(--fg);
-  transition:background .1s,border-color .1s;
+  display:inline-flex;align-items:center;height:36px;padding:0 16px;
+  border-radius:var(--r-sm);background:var(--fg);color:#000;
+  font-size:14px;font-weight:500;transition:background .1s;
 }
-.nocheckout button:hover:not(:disabled){background:var(--hover);border-color:#4a4a4a}
+.nocheckout button:hover:not(:disabled){background:#fff}
 .nocheckout button:disabled{opacity:.5;cursor:default}
-.nocheckout button svg{font-size:14px}
 
 /* Connecting: the chrome is real, so the only thing to dim is the composer. */
 .oc-ta:disabled{cursor:default}
@@ -841,7 +841,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-completed{color:var(--dim)}
 .oc-notice{
   display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--bad);
-  border:1px solid rgba(255,97,102,.35);border-radius:var(--r);padding:6px 10px;margin:4px 0;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:8px 12px;margin:4px 0;
+  animation:fade-up 320ms cubic-bezier(.23,1,.32,1) both;
 }
 .oc-notice.quiet{color:var(--dim2);border-color:var(--line);font-family:var(--mono);font-size:11.5px}
 .oc-notice span{flex:1;word-break:break-word}
@@ -903,6 +905,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    stays scannable, and the thought is still one click away. */
 /* Reasoning is prose, so it wraps to two lines and clamps rather than
    truncating mid-sentence at one; click opens the whole thought. */
+/* A fetched source underlines on hover, the way a link should. */
+.th-src .th-name{text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px;transition:text-decoration-color .15s}
+.th-src:hover .th-name{text-decoration-color:var(--dim2)}
 .th-reason{align-items:flex-start}
 .th-reason .th-text{
   font-size:12.5px;line-height:1.55;color:var(--dim);min-width:0;
@@ -921,7 +926,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    and metrics as a Thinking row, with amber carried by the label alone. */
 /* Docked over the transcript, same geometry as the slash palette. */
 .oc-perm-dock{
-  position:absolute;left:14px;right:14px;bottom:calc(100% - 6px);z-index:30;
+  position:absolute;left:16px;right:16px;bottom:calc(100% - 6px);z-index:30;
   display:flex;flex-direction:column;gap:6px;
 }
 .oc-perm{
@@ -945,7 +950,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-deny{color:var(--bad)}
 .chat-composer{position:relative}
 .oc-palette{
-  position:absolute;left:14px;right:14px;bottom:calc(100% - 6px);z-index:30;
+  position:absolute;left:16px;right:16px;bottom:calc(100% - 6px);z-index:30;
   border:1px solid var(--line2);border-radius:var(--r);
   background:#0a0a0a;overflow:hidden;box-shadow:0 -12px 40px rgba(0,0,0,.65);
 }

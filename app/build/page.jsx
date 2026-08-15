@@ -260,8 +260,8 @@ function NoCheckout({ project, onLinked }) {
         on this machine yet. Point it at the folder to chat with it, edit its
         tools and watch the graph update.
       </p>
-      <Button variant="outline" size="sm" onClick={link} disabled={busy}>
-        <FolderPlus /> {busy ? "Choose a folder…" : "Link local project"}
+      <Button onClick={link} disabled={busy}>
+        {busy ? "Choose a folder…" : "Link local project"}
       </Button>
     </div>
   );

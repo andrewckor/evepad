@@ -22,12 +22,6 @@ const TOOL_ICONS = {
   list: <MagnifyingGlass />, webfetch: <Globe />,
 };
 
-const Check = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 6L9 17l-5-5" />
-  </svg>
-);
-
 function toolLabel(part) {
   const input = part.state?.input ?? {};
   const file = input.filePath ?? input.path;
@@ -101,6 +95,34 @@ export default function Thinking({ parts, busy }) {
               const st = p.state?.status;
               const label = toolLabel(p);
               const expandable = st === "completed" && p.state?.output;
+              // A fetched page is a source, so it reads like one: host in
+              // front, page title behind, and the row opens the real thing.
+              const url = p.tool === "webfetch" ? p.state?.input?.url : null;
+              if (url) {
+                let host = url, rest = "";
+                try {
+                  const u = new URL(url);
+                  host = u.hostname.replace(/^www\./, "");
+                  // Only the part that isn't already in the host — a bare
+                  // domain shouldn't print itself twice.
+                  rest = (u.pathname === "/" ? "" : u.pathname) + u.search;
+                } catch {}
+                return (
+                  <a
+                    key={p.id}
+                    className="th-row th-src"
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <span className={"th-ic s-" + (st ?? "pending")}>
+                      {["pending", "running"].includes(st) ? <PixelGrid /> : <Globe />}
+                    </span>
+                    <span className="th-name">{host}</span>
+                    {rest && <span className="th-sub">{rest}</span>}
+                  </a>
+                );
+              }
               return (
                 <div key={p.id} className="th-item">
                   <button
