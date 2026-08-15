@@ -870,11 +870,16 @@ export default function OcChat({ project, onIdle }) {
         <div className="chat-model oc-model-row">
           {/* Read-only: /models is the switcher, so a picker here would be a
               second way to do one thing. */}
-          {selModel && (
-            <span className="oc-modelname" title="Active model — change it with /models">
-              {selModel.name}{selModel.free ? " · free" : ""}
-            </span>
-          )}
+          {/* Always rendered, faded until the model is known — the row's
+              height is reserved, so the composer doesn't jump when it
+              arrives. */}
+          <span
+            className="oc-modelname"
+            style={{ opacity: selModel ? 1 : 0 }}
+            title="Active model — change it with /models"
+          >
+            {selModel ? `${selModel.name}${selModel.free ? " · free" : ""}` : "\u00a0"}
+          </span>
           {agentName && <span className="oc-agent mono" title="Active agent (set via /agents)">{agentName}</span>}
         </div>
       </div>
