@@ -738,6 +738,21 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .acc-item:hover{background:var(--hover);color:var(--fg)}
 .acc-item svg{font-size:14px}
+.acc-confirm{padding:8px;display:flex;flex-direction:column;gap:8px}
+.acc-confirm span{font-size:12.5px;line-height:1.5;color:var(--dim)}
+.acc-confirm-row{display:flex;gap:6px}
+.acc-danger{
+  height:28px;padding:0 10px;border-radius:var(--r-sm);
+  border:1px solid rgba(255,97,102,.35);color:var(--bad);
+  font-size:12.5px;font-weight:500;transition:background .1s;
+}
+.acc-danger:hover:not(:disabled){background:rgba(255,97,102,.1)}
+.acc-danger:disabled{opacity:.6;cursor:default}
+.acc-cancel{
+  height:28px;padding:0 10px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);color:var(--dim);font-size:12.5px;font-weight:500;
+}
+.acc-cancel:hover{color:var(--fg);background:var(--hover)}
 
 /* ---- settings dialog ---- */
 /* Geist modal, measured on vercel.com/geist/modal: the backdrop is solid

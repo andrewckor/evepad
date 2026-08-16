@@ -64,6 +64,21 @@ export async function POST(request) {
     return Response.json({ ok: true });
   }
 
+  if (action === "logout") {
+    // `vercel logout` clears the CLI's credentials for the whole machine, not
+    // just this app — the cockpit has no session of its own to end.
+    try { g.__login?.child?.kill(); } catch {}
+    g.__login = null;
+    const code = await new Promise((resolve) => {
+      const child = spawn("vercel", ["logout"], { stdio: "ignore" });
+      child.on("error", () => resolve(-1));
+      child.on("exit", (c) => resolve(c ?? -1));
+    });
+    return code === 0
+      ? Response.json({ ok: true })
+      : Response.json({ error: "vercel logout failed" }, { status: 502 });
+  }
+
   if (action !== "login") return Response.json({ error: "unknown action" }, { status: 400 });
 
   const live = g.__login;

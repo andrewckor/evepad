@@ -10,8 +10,8 @@
 // already holds, and the two would drift.
 
 import { useState } from "react";
-import useSWR from "swr";
-import { SettingsGear, CheckCircleFill } from "vercel-geist-icons";
+import useSWR, { mutate as mutateGlobal } from "swr";
+import { SettingsGear, CheckCircleFill, Logout } from "vercel-geist-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import SettingsDialog from "./settings-dialog.jsx";
 
@@ -32,9 +32,33 @@ function Avatar({ src, name, size = 20 }) {
 export default function AccountMenu() {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(false);
+  // Two-step, because this signs the Vercel CLI out of the whole machine —
+  // the cockpit has no session of its own to end, so a stray click would log
+  // you out of your terminal too.
+  const [confirmOut, setConfirmOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
   // Identity changes about never; the route caches for a minute and this
   // refreshes on focus, which covers a `vercel switch` in another window.
-  const { data } = useSWR("/api/account", fetcher, { revalidateOnFocus: true });
+  const { data, mutate } = useSWR("/api/account", fetcher, { revalidateOnFocus: true });
+
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } finally {
+      setSigningOut(false);
+      setConfirmOut(false);
+      setOpen(false);
+      // Everything downstream keys off the account, so one revalidation flips
+      // the whole app to its signed-out first run.
+      mutate();
+      mutateGlobal("/api/projects");
+    }
+  };
 
   const scope = data?.scope;
   // Before the first response there is no answer yet — "Not signed in" would
@@ -81,6 +105,23 @@ export default function AccountMenu() {
           <button className="acc-item" onClick={() => { setOpen(false); setSettings(true); }}>
             <SettingsGear /> Settings
           </button>
+          {data?.loggedIn && (
+            confirmOut ? (
+              <div className="acc-confirm">
+                <span>Sign the Vercel CLI out on this Mac?</span>
+                <div className="acc-confirm-row">
+                  <button className="acc-danger" onClick={signOut} disabled={signingOut}>
+                    {signingOut ? "Signing out…" : "Sign out"}
+                  </button>
+                  <button className="acc-cancel" onClick={() => setConfirmOut(false)}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <button className="acc-item" onClick={() => setConfirmOut(true)}>
+                <Logout /> Sign out
+              </button>
+            )
+          )}
         </PopoverContent>
       </Popover>
       <SettingsDialog open={settings} onOpenChange={setSettings} account={data} />
