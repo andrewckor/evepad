@@ -69,21 +69,12 @@ export default function AccountMenu() {
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger className="acc-trigger" title={data?.loggedIn ? `${label} — Vercel account` : "Vercel account"}>
-          <Avatar src={scope?.avatarUrl} name={label} />
-          <span className="acc-name">{label}</span>
+          <Avatar src={scope?.avatarUrl} name={label} size={22} />
         </PopoverTrigger>
         <PopoverContent align="start" className="acc-pop">
           {data?.loggedIn ? (
             <>
-              <div className="acc-head">
-                <Avatar src={data.user.avatarUrl} name={data.user.name} size={32} />
-                <span className="acc-head-text">
-                  <b>{data.user.name}</b>
-                  <i>{data.user.email}</i>
-                </span>
-              </div>
-              <div className="acc-sep" />
-              <div className="acc-label">Scope</div>
+              <div className="acc-label">Team</div>
               {/* Every team the token can reach, with the active one marked.
                   Switching is `vercel switch` — shown, not offered. */}
               {[scope, ...(data.teams ?? []).filter((t) => t.id !== scope?.id)].filter(Boolean).map((t) => (
@@ -94,6 +85,16 @@ export default function AccountMenu() {
                 </div>
               ))}
               <div className="acc-hint mono">vercel switch — to change scope</div>
+              <div className="acc-sep" />
+              {/* Who you are is the footnote here: the scope is what decides
+                  which agents you're looking at. */}
+              <div className="acc-head">
+                <Avatar src={data.user.avatarUrl} name={data.user.name} size={32} />
+                <span className="acc-head-text">
+                  <b>{data.user.name}</b>
+                  <i>{data.user.email}</i>
+                </span>
+              </div>
             </>
           ) : (
             <div className="acc-out">
