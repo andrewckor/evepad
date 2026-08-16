@@ -5,7 +5,8 @@
 // local checkouts are owned by the CLI and the registry, so they're shown with
 // the command that changes them rather than faked into editable fields.
 
-import useSWR from "swr";
+import { useState } from "react";
+import useSWR, { mutate as mutateGlobal } from "swr";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -30,7 +31,32 @@ function Row({ label, children, hint }) {
   );
 }
 
-export default function SettingsDialog({ open, onOpenChange, account }) {
+export default function SettingsDialog({ open, onOpenChange, account, onSignedOut }) {
+  // Two-step, because this signs the Vercel CLI out of the whole machine —
+  // the cockpit has no session of its own to end, so a stray click would sign
+  // you out of your terminal too.
+  const [confirmOut, setConfirmOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "logout" }),
+      });
+    } finally {
+      setSigningOut(false);
+      setConfirmOut(false);
+      onOpenChange(false);
+      // Every screen keys off the account, so one revalidation flips the whole
+      // app to its signed-out first run.
+      onSignedOut?.();
+      mutateGlobal("/api/projects");
+    }
+  };
+
   // Only fetched while the dialog is open — settings shouldn't cost a poll on
   // every page for a panel nobody has opened.
   const { data: projects, mutate } = useSWR(open ? "/api/projects" : null, fetcher);
@@ -111,6 +137,27 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
             <div className="set-empty">No agent has a folder on this Mac yet — open Build on one and choose its folder.</div>
           )}
         </div>
+
+        {account?.loggedIn && (
+          <div className="set-signout">
+            {confirmOut ? (
+              <>
+                <span className="set-signout-q">Sign the Vercel CLI out on this Mac?</span>
+                <span className="set-signout-row">
+                  <Button variant="ghost" size="sm" className="set-danger" onClick={signOut} disabled={signingOut}>
+                    {signingOut ? "Signing out…" : "Sign out"}
+                  </Button>
+                  <Button variant="ghost" size="sm" className="set-cancel" onClick={() => setConfirmOut(false)}>Cancel</Button>
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="set-signout-who">Signed in as {account.user.email}</span>
+                <Button variant="ghost" size="sm" className="set-cancel" onClick={() => setConfirmOut(true)}>Sign out</Button>
+              </>
+            )}
+          </div>
+        )}
         </div>
         </TooltipProvider>
       </DialogContent>

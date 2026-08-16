@@ -728,8 +728,16 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .acc-scope{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-sm);font-size:13px;color:var(--dim)}
 .acc-scope.on{color:var(--fg)}
 .acc-scope-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.acc-check{display:inline-flex;font-size:13px;color:var(--ok)}
-.acc-hint{padding:4px 8px 6px;font-size:11px;color:var(--dim2)}
+.acc-check{display:inline-flex;font-size:14px;color:var(--fg)}
+/* One row: identity on the left, the gear that opens Settings on the right. */
+.acc-me{
+  display:flex;align-items:center;gap:10px;width:100%;padding:8px;
+  border-radius:var(--r-sm);text-align:left;transition:background .1s;
+}
+.acc-me:hover{background:var(--hover)}
+.acc-me .acc-head-text{flex:1;min-width:0}
+.acc-me-gear{display:inline-flex;flex:none;font-size:15px;color:var(--dim2)}
+.acc-me:hover .acc-me-gear{color:var(--fg)}
 .acc-out{padding:8px}
 .acc-out b{font-size:13px;font-weight:500;color:var(--fg)}
 .acc-out p{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--dim)}
@@ -740,21 +748,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .acc-item:hover{background:var(--hover);color:var(--fg)}
 .acc-item svg{font-size:14px}
-.acc-confirm{padding:8px;display:flex;flex-direction:column;gap:8px}
-.acc-confirm span{font-size:12.5px;line-height:1.5;color:var(--dim)}
-.acc-confirm-row{display:flex;gap:6px}
-.acc-danger{
-  height:28px;padding:0 10px;border-radius:var(--r-sm);
-  border:1px solid rgba(255,97,102,.35);color:var(--bad);
-  font-size:12.5px;font-weight:500;transition:background .1s;
-}
-.acc-danger:hover:not(:disabled){background:rgba(255,97,102,.1)}
-.acc-danger:disabled{opacity:.6;cursor:default}
-.acc-cancel{
-  height:28px;padding:0 10px;border-radius:var(--r-sm);
-  border:1px solid var(--line2);color:var(--dim);font-size:12.5px;font-weight:500;
-}
-.acc-cancel:hover{color:var(--fg);background:var(--hover)}
 
 /* ---- settings dialog ---- */
 /* Geist modal, measured on vercel.com/geist/modal: the backdrop is solid
@@ -812,6 +805,22 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .set-running{flex:none;font-size:11.5px;color:var(--dim2);cursor:default}
 .set-unlink:hover{color:var(--bad);background:var(--hover)}
 .set-empty{font-size:12.5px;color:var(--dim2);padding:10px 0}
+.set-signout{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:20px;padding-top:14px;border-top:1px solid var(--line);
+}
+.set-signout-q,.set-signout-who{font-size:12.5px;color:var(--dim)}
+.set-signout-row{display:flex;gap:6px;flex:none}
+.set-danger{
+  height:28px;padding:0 10px;border-radius:var(--r-sm);
+  border:1px solid rgba(255,97,102,.35);color:var(--bad);font-size:12.5px;font-weight:500;
+}
+.set-danger:hover:not(:disabled){background:rgba(255,97,102,.1)}
+.set-cancel{
+  height:28px;padding:0 10px;border-radius:var(--r-sm);
+  border:1px solid var(--line2);color:var(--dim);font-size:12.5px;font-weight:500;
+}
+.set-cancel:hover{color:var(--fg);background:var(--hover)}
 
 /* ---- first run ---- */
 .wc{
