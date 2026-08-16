@@ -9,6 +9,18 @@ import { SidebarRight, ChevronRight, ChevronDown } from "vercel-geist-icons";
 import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
 
+// Reads the live tokens so the terminal matches whatever the rest of the app
+// is wearing, instead of a second copy of the palette drifting out of step.
+function xtermTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (n, fallback) => cs.getPropertyValue(n).trim() || fallback;
+  return {
+    background: v("--panel", "#0a0a0a"),
+    foreground: v("--fg", "#ededed"),
+    cursor: v("--acc", "#0072f5"),
+  };
+}
+
 export default function TerminalPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onClose }) {
   const mount = useRef(null);
   // The old flat "starting…" lied for the common case — an already-running
@@ -37,6 +49,7 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
   useEffect(() => {
     let disposed = false;
     let xterm, fit, abort;
+    let themeSync;
 
     (async () => {
       // Fire the pty request FIRST and await it later: it used to sit behind
@@ -64,10 +77,15 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
       xterm = new Terminal({
         fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
         fontSize: 12.5,
-        theme: { background: "#0a0a0a", foreground: "#ededed", cursor: "#0072f5" },
+        // xterm paints to a canvas, so it can't read CSS variables — the
+        // theme has to be handed to it, and re-handed when it changes.
+        theme: xtermTheme(),
         cursorBlink: true,
         scrollback: 4000,
       });
+      themeSync = new MutationObserver(() => { xterm.options.theme = xtermTheme(); });
+      themeSync.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
       fit = new FitAddon();
       xterm.loadAddon(fit);
       xterm.open(mount.current);
@@ -107,6 +125,7 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
     })().catch(() => {}); // teardown aborts the stream mid-await — expected
 
     return () => {
+      themeSync?.disconnect();
       disposed = true;
       abort?.abort();
       xterm?.dispose();

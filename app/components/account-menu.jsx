@@ -14,6 +14,7 @@ import useSWR from "swr";
 import { SettingsGear, Check } from "vercel-geist-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import SettingsDialog from "./settings-dialog.jsx";
+import ThemeSwitcher from "./theme-switcher.jsx";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -63,6 +64,11 @@ export default function AccountMenu() {
               <div className="acc-sep" />
               {/* One row, like Vercel's: who you are, and the gear that opens
                   everything about it. */}
+              <div className="acc-row">
+                <span className="acc-row-label">Theme</span>
+                <ThemeSwitcher />
+              </div>
+              <div className="acc-sep" />
               <button className="acc-me" onClick={() => { setOpen(false); setSettings(true); }}>
                 <span className="acc-head-text">
                   <b>{data.user.name}</b>
@@ -76,6 +82,11 @@ export default function AccountMenu() {
               <div className="acc-out">
                 <b>Not signed in to Vercel</b>
                 <p>{data?.hint ?? data?.error ?? "Run `vercel login` to see your deployed agents."}</p>
+              </div>
+              <div className="acc-sep" />
+              <div className="acc-row">
+                <span className="acc-row-label">Theme</span>
+                <ThemeSwitcher />
               </div>
               <div className="acc-sep" />
               <button className="acc-item" onClick={() => { setOpen(false); setSettings(true); }}>
