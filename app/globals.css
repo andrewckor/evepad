@@ -80,7 +80,9 @@ tbody tr:hover .rowchev span{background:rgba(255,255,255,.14)}
 /* ---- top bar ---- */
 .topbar{
   display:flex;align-items:center;gap:10px;
-  padding:0 24px;height:56px;border-bottom:1px solid var(--line);
+  /* Tight to the window edge: the bar's controls are their own hit targets
+     with their own padding, so the extra 12px only pushed them inward. */
+  padding:0 12px;height:56px;border-bottom:1px solid var(--line);
   position:sticky;top:0;background:var(--bg);z-index:10;
 }
 .crumb{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:14px}
@@ -167,7 +169,7 @@ tbody tr:hover .rowchev span{background:rgba(255,255,255,.14)}
 .chatbtn:hover{border-color:var(--line2);background:var(--hover);color:var(--fg)}
 
 /* ---- dashboard ---- */
-.wrap{padding:24px;max-width:1400px;margin:0 auto}
+.wrap{padding:24px 16px;max-width:1400px;margin:0 auto}
 
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 @media (max-width:900px){.charts{grid-template-columns:1fr}}
