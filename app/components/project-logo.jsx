@@ -17,8 +17,20 @@ function EveMark() {
   );
 }
 
+// A project with no deployments has no favicon for the icon service to
+// detect, so Vercel's dashboard falls back to the FRAMEWORK logo — served
+// from its own CDN. Same here: the eve mark carries its own black tile, so
+// one asset is right in both themes (it's exactly what deployed eve
+// favicons look like anyway).
+const EVE_FRAMEWORK_LOGO = "https://api-frameworks.vercel.sh/framework-logos/eve.svg";
+
 export default function ProjectLogo({ p, size = 32 }) {
-  const sources = [p.iconUrl, p.avatarUrl, p.productionUrl ? `${p.productionUrl}/favicon.ico` : null].filter(Boolean);
+  const sources = [
+    p.iconUrl,
+    p.avatarUrl,
+    p.productionUrl ? `${p.productionUrl}/favicon.ico` : null,
+    p.framework === "eve" ? EVE_FRAMEWORK_LOGO : null,
+  ].filter(Boolean);
   const [idx, setIdx] = useState(0);
   const [loaded, setLoaded] = useState(false);
   const src = sources[idx] ?? null;

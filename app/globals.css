@@ -1301,6 +1301,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    bottom (slide from bottom, resize top edge) */
 @keyframes termslide{from{transform:translateX(100%)}to{transform:translateX(0)}}
 @keyframes termslideup{from{transform:translateY(100%)}to{transform:translateY(0)}}
+/* The side chat has nothing under its composer (Build has the model row
+   there), so the card's asymmetric 10/16/6 margins read as lopsided air —
+   here it takes an even 12px ring. */
+.termside .chat-composer .oc-card{margin:12px}
 .termside{
   position:fixed;z-index:90;display:flex;flex-direction:column;
   background:var(--bg);
