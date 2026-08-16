@@ -7,7 +7,7 @@
 
 import useSWR from "swr";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -54,7 +54,6 @@ export default function SettingsDialog({ open, onOpenChange, account }) {
         <div className="set-body">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>How this cockpit is wired up.</DialogDescription>
         </DialogHeader>
 
         <div className="set-section">
