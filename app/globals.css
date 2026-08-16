@@ -5,6 +5,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Layer order, declared rather than inherited. Tailwind ships
+   theme/base/components/utilities; our stylesheet is a fifth layer AFTER
+   them, so this file wins over shadcn's utilities by ORDER instead of by
+   being unlayered — which is what it relied on before, and what silently
+   stripped every shadcn Button when the bare-button reset outranked their
+   utilities. Consequence to know: a Tailwind class in JSX cannot override a
+   rule in here; restyle through this file (or pass the class to a shadcn
+   component, whose cn() merges it). */
+@layer theme, base, components, utilities, app;
+
 /* Light, measured from vercel.com with its own switcher set to light:
    background-100 #fff, background-200 #fafafa, gray-100 #f2f2f2,
    gray-200 #ebebeb, gray-700 #8f8f8f, gray-900 #4d4d4d, gray-1000 #171717.
@@ -21,7 +31,9 @@
   --line3:#c9c9c9;
   --fg:#171717;
   --dim:#666;
-  --dim2:#8f8f8f;
+  /* Geist gray-800 (46%), not gray-700 (#8f8f8f): at 11-12px on white the
+     lighter one measures 3.2:1, under the 4.5 needed for small text. */
+  --dim2:#757575;
   --chip:#fafafa;
   --btn:#171717;
   --btn-fg:#fff;
@@ -34,15 +46,21 @@
   --shadow-panel:-8px 0 32px rgba(0,0,0,.08);
   --shadow-panel-up:0 -8px 28px rgba(0,0,0,.08);
   --term-bg:#f7f7f7;
+  --chart-cached:#a1a1a1;
+  /* The dark-mode green measures 1.94:1 on the pale tint; Geist uses the
+     darker end of the ramp for light-mode status text. */
+  --badge-green:oklch(0.485 0.145 148.29);
   --agent-pill:#e6e6e6;
   --agent-pill-fg:#171717;
-  /* State colours darken slightly so they hold contrast on white. */
+  /* State colours as TEXT need the darker end of each ramp — the mid values
+     that glow on black sit at 3.5-4.1:1 on white. Measured: every one below
+     clears 4.5. Fills keep their own brightness (see .gbadge). */
   --blue:#0072f5;
-  --ok:#0f9d58;
-  --green:#0f9d58;
-  --bad:#e5484d;
-  --warn:#b06f00;
-  --purple:#8b5cf6;
+  --ok:#0a7f45;
+  --green:#0a7f45;
+  --bad:#d1373c;
+  --warn:#8f5a00;
+  --purple:#7c3aed;
 
   --background:#fff; --foreground:#171717;
   --card:#fafafa; --card-foreground:#171717;
@@ -98,6 +116,8 @@
   --shadow-panel-up:0 -14px 40px rgba(0,0,0,.55);
   /* xterm paints its own canvas; the TUI takes whatever ground we hand it. */
   --term-bg:#0a0a0a;
+  --chart-cached:#666;
+  --badge-green:oklch(0.731 0.2158 148.29);
   --agent-pill:#fff;
   --agent-pill-fg:#000;
   --sans:var(--font-geist-sans),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -119,21 +139,24 @@
   --sidebar-primary-foreground:#fff; --sidebar-accent:#1a1a1a;
   --sidebar-accent-foreground:#ededed; --sidebar-border:#1f1f1f; --sidebar-ring:#0072f5;
 }
-*{box-sizing:border-box}
-html,body{margin:0;padding:0}
-body{
-  background:var(--bg);color:var(--fg);
-  font:14px/1.55 var(--sans);
-  -webkit-font-smoothing:antialiased;
+/* The reset belongs in @layer base now. Unlayered, it outranked every layer
+   including our own app layer — `button{font:inherit}` was quietly beating
+   .oc-session-trigger's font-size, because element rules in no layer beat
+   class rules in a layer. In base it sits below both Tailwind's utilities and
+   our components, which is the order that was intended all along. */
+@layer base {
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--fg);
+    font:14px/1.55 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
 }
-a{color:inherit;text-decoration:none}
-/* Unlayered on purpose: it outranks Tailwind's utilities (layered CSS always
-   loses to unlayered), so shadcn Buttons arrive bare and every button in this
-   app is dressed by the component CSS below. Moving it into @layer base to
-   "fix" that hands shadcn's utilities back the header and composer buttons,
-   which are styled here — so the reset stays, and buttons get explicit
-   styling. */
-button{font:inherit;color:inherit;background:none;border:none;cursor:pointer;padding:0}
+
+@layer app {
 .mono{font-family:var(--mono);font-size:12px}
 .dim{color:var(--dim)}
 .dim2{color:var(--dim2)}
@@ -245,8 +268,11 @@ tbody tr:hover .rowchev span{background:var(--ring)}
   flex:1;display:flex;align-items:center;gap:9px;height:38px;padding:0 12px;
   border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);color:var(--dim2);
 }
-.search input{
-  flex:1;background:none;border:none;outline:none;color:var(--fg);font:inherit;font-size:14px;
+/* shadcn Input inside our search shell: the shell owns the frame, the input
+   is just the field, so its own border/height/ring are stood down. */
+.search input,.search .search-input{
+  flex:1;background:none;border:none;outline:none;box-shadow:none;
+  height:auto;padding:0;color:var(--fg);font:inherit;font-size:14px;
 }
 .search input::placeholder{color:var(--dim2)}
 .search:focus-within{border-color:var(--line2)}
@@ -476,16 +502,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .buildpage{display:grid;grid-template-columns:520px 1fr;height:calc(100dvh - 56px)}
 .buildcol{border-right:1px solid var(--line);padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
 .buildcol.chatmode{padding:0;overflow:hidden}
-.buildchat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
-.bmsg.user{align-self:flex-end;max-width:88%}
-.bmsg-user{background:var(--acc);color:var(--on-accent);border-radius:14px 14px 4px 14px;padding:8px 13px;font-size:13.5px;white-space:pre-wrap}
-.bmsg.assistant{max-width:100%}
-.write-chip{
-  display:flex;align-items:center;gap:8px;justify-content:space-between;
-  border:1px solid rgba(69,222,157,.35);border-radius:8px;padding:4px 6px 4px 12px;margin-top:8px;
-  font-size:12px;color:var(--ok);
-}
-.write-chip.deleted{border-color:rgba(255,97,102,.4);color:var(--bad)}
 /* Container queries, not media queries: the graph pane's width is set by the
    terminal/chat sheet, not the viewport — a 1600px window can still leave it
    25px wide, which is what turned these overlays into clipped slivers. */
@@ -498,42 +514,19 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   border-radius:999px;padding:2px 10px;background:color-mix(in srgb,var(--bg) 60%,transparent);
   backdrop-filter:blur(2px);
 }
-.buildflow .react-flow{background:var(--bg)}
 /* React Flow nodes carry our classes directly; style at node specificity so
    the library's default node chrome (white box, 150px width) never wins. */
-.react-flow__node.gpill{
-  display:flex;align-items:center;justify-content:center;width:auto;height:auto;box-shadow:none;
-  border:1px solid var(--line2);border-radius:999px;background:var(--bg);
-  padding:9px 20px;font-size:14.5px;color:var(--fg);white-space:nowrap;cursor:pointer;
-}
-.react-flow__node.gpill:hover{border-color:var(--line3)}
-.react-flow__node.gpill.empty{color:var(--dim)}
 .gpill em{font-style:normal;color:var(--dim2);font-size:11px}
-.react-flow__node.gagent{
-  width:auto;height:auto;box-shadow:none;border:none;
-  background:var(--agent-pill);border-radius:999px;padding:10px 22px;cursor:default;
-}
 .agent-label{display:flex;align-items:center;justify-content:center;gap:9px}
 .agent-label b{color:var(--agent-pill-fg);font-size:15px;font-weight:600;max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agent-logo{display:inline-flex;color:var(--agent-pill-fg)}
-.react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
 /* React Flow lights the whole rectangular node on hover/select, which drew a
    glowing box around the circle AND its caption. The node stays invisible;
    only the circle reacts. */
-.react-flow__node.react-flow__node-default.gcircle:hover,
-.react-flow__node.react-flow__node-default.gcircle.selected,
-.react-flow__node.react-flow__node-default.gcircle.selectable:hover{
-  box-shadow:none;border:none;background:transparent;
-}
 .gcircle .circle{transition:border-color .15s,box-shadow .15s,background .15s}
 .gcircle:hover .circle{
   border-color:var(--line3);background:var(--hover);
   box-shadow:0 0 0 4px var(--ring-soft);
-}
-.react-flow__node.gbox{
-  width:auto;height:auto;box-shadow:none;padding:0;overflow:hidden;
-  border:1px solid var(--line2);border-radius:12px;background:var(--panel);
-  min-width:190px;cursor:default;
 }
 .toolbox{display:flex;flex-direction:column;text-align:left}
 .box-title{padding:9px 15px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--fg)}
@@ -562,36 +555,13 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    1em default sat smaller, and currentColor inherited React Flow's near-white
    node text (var(--fg)) while the badge is --dim. */
 .circle svg{font-size:19px;color:var(--dim)}
-.tool-circle{color:var(--blue);font-family:var(--mono);font-size:12px;text-transform:uppercase}
 .api-badge{
   border:1.5px solid var(--dim);border-radius:5px;padding:1px 4px;
   font-size:9px;font-weight:700;color:var(--dim);letter-spacing:.03em;
 }
-.react-flow__edge-path{stroke:var(--line2)!important}
 .gedge.dashed .react-flow__edge-path{stroke-dasharray:5}
-.react-flow__handle{opacity:0}
-.react-flow__controls{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.react-flow__controls-button{background:var(--panel);border-bottom:1px solid var(--line);fill:var(--dim)}
-.react-flow__controls-button:hover{background:var(--hover)}
 
 /* build panel */
-.build-body{flex:1;min-height:0;overflow-y:auto;padding:14px 16px}
-.build-idle{display:flex;flex-direction:column;gap:12px;font-size:13.5px}
-.build-prompt{
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
-  color:var(--fg);padding:10px 12px;font:inherit;font-size:13.5px;outline:none;resize:vertical;
-}
-.build-prompt:focus{border-color:var(--line2)}
-.build-review{display:flex;flex-direction:column;gap:10px}
-.build-summary{display:flex;align-items:center;gap:9px;font-size:13px}
-.filechip{padding:1px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--dim);font-size:11.5px}
-.filechip.new{color:var(--ok);border-color:rgba(69,222,157,.4)}
-.build-code{
-  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
-  padding:12px;margin:0;max-height:46vh;overflow:auto;
-  font-family:var(--mono);font-size:12px;line-height:1.55;white-space:pre;
-}
-.build-result{border-top:1px solid var(--line);padding-top:12px;font-size:13.5px}
 
 /* chat panel (docked in the shared termside chrome) */
 .chat-body{flex:1;min-height:0;display:flex;flex-direction:column}
@@ -655,14 +625,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .term-head a:hover{color:var(--blue)}
 .chat-body{flex:1;overflow-y:auto;padding:10px 0}
 .msg{padding:4px 14px}
-.msg.user .msg-text{
-  background:var(--acc);color:var(--on-accent);border-radius:16px 16px 4px 16px;
-  padding:8px 13px;margin-left:60px;white-space:pre-wrap;font-size:13.5px;
-}
-.msg.assistant .msg-text{
-  background:var(--panel2);border:1px solid var(--line);border-radius:16px 16px 16px 4px;
-  padding:8px 13px;margin-right:40px;white-space:pre-wrap;font-size:13.5px;
-}
 .box-item.sched{height:44px}
 .box-item.sched .box-name{display:flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1.25}
 .sched-when{font-style:normal;color:var(--dim2);font-size:10.5px;font-family:var(--mono)}
@@ -690,8 +652,8 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .pk-search [data-slot="command-input-wrapper"]{flex:1;border-bottom:none}
 .pk-search [data-slot="command-input-wrapper"]{padding:0}
 .pk-search [data-slot="input-group"]{
-  background:transparent!important;border:none!important;border-radius:0!important;
-  box-shadow:none!important;height:40px!important;
+  background:transparent;border:none;border-radius:0;
+  box-shadow:none;height:40px;
 }
 .pk-search [data-slot="command-input"]{font-size:13.5px;color:var(--fg)}
 .pk-search [data-slot="command-input"]::placeholder{color:var(--dim2)}
@@ -717,7 +679,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    so hide it (direct child only: the action button's glyph is nested). */
 .pk-row > svg{display:none}
 .pk-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
-.pk-check{width:14px;height:14px;flex:none;color:var(--fg)}
 .pk-port{font-family:var(--mono);font-size:10.5px;height:18px;padding:0 7px;flex:none}
 .pk-row .dot{width:7px;height:7px}
 .pk-row .devbtn{width:24px;height:24px;font-size:12px;margin-left:2px}
@@ -734,7 +695,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .gbadge.amber{background:oklch(0.8187 0.1969 76.46);color:#000}
 .gbadge.red{background:oklch(0.5801 0.227 25.12);color:var(--on-accent)}
 .gbadge.blue{background:oklch(0.5151 0.2307 257.85);color:var(--on-accent)}
-.gbadge.green-subtle{color:oklch(0.731 0.2158 148.29);background:color-mix(in oklab, oklch(0.731 0.2158 148.29) 14%, transparent)}
+.gbadge.green-subtle{color:var(--badge-green);background:color-mix(in oklab, var(--badge-green) 14%, transparent)}
 .gbadge.gray-subtle{color:var(--dim);background:var(--panel2)}
 .gbadge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 .gbadge .mono{font-size:inherit;color:inherit;opacity:.75}
@@ -765,7 +726,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .loadstate-time{font-size:12px;color:var(--dim2);font-variant-numeric:tabular-nums}
 /* Reduced motion: the grid holds its dim state, the timer keeps ticking. */
 @media (prefers-reduced-motion:reduce){
-  .pixgrid>span,.shimmer-text,.loadstate-label{animation:none!important}
+  .pixgrid>span,.shimmer-text,.loadstate-label{animation:none}
   .shimmer-text,.loadstate-label{color:var(--dim);background-image:none}
 }
 /* ---- account (top-bar scope slot) ---- */
@@ -777,7 +738,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   transition:background .1s,color .1s;
 }
 .acc-trigger:hover{background:var(--hover);color:var(--fg)}
-.acc-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* The breadcrumb slash Vercel uses between scope and project. */
 .topsep{flex:none;width:1px;height:18px;background:var(--line2);transform:rotate(18deg);margin:0 2px}
 .acc-avatar{
@@ -907,7 +867,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .set-unlink{color:var(--dim2);font-size:12px;padding:2px 6px;border-radius:var(--r-sm)}
 .set-unlink:disabled{pointer-events:none}
 .set-link-act{flex:none;display:inline-flex;margin-left:auto}
-.set-running{flex:none;font-size:11.5px;color:var(--dim2);cursor:default}
 .set-unlink:hover{color:var(--bad);background:var(--hover)}
 .set-empty{font-size:12.5px;color:var(--dim2);padding:10px 0}
 .set-signout{
@@ -970,13 +929,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .wc-found-text b{font-size:13.5px;font-weight:500;color:var(--fg)}
 .wc-found-text i{font-style:normal;font-size:12px;color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wc-actions a{text-decoration:none}
-.wc-link-btn{
-  display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 16px;
-  border-radius:var(--r-sm);background:var(--btn);color:var(--btn-fg);
-  font-size:14px;font-weight:500;transition:background .1s;
-}
-.wc-link-btn:hover{background:var(--btn-hover)}
-.wc-link-btn svg{font-size:14px}
 .wc-skip{
   margin-top:10px;font-size:12.5px;color:var(--dim2);
   border-bottom:1px solid transparent;transition:color .1s,border-color .1s;
@@ -1123,7 +1075,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-model-row{display:flex;align-items:center;gap:8px}
 .oc-session-trigger{max-width:280px;font-size:12.5px}
 .oc-modelname{font-size:12px;color:var(--dim2);transition:opacity .2s}
-.oc-tool-ic{display:inline-flex;margin-right:2px;vertical-align:-2px;font-size:12px}
 .oc-head{display:flex;align-items:center;gap:2px;padding:8px 10px;border-bottom:1px solid var(--line)}
 /* The scroller items carry content-visibility:auto, which brings paint
    containment — so the Thinking header's hover pill, which reaches 6px left
@@ -1134,22 +1085,22 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 /* Session tab and new-chat button: same quiet hover pill as a Thinking
    header, so the two controls above the transcript match the one inside it. */
 .oc-session-trigger,.oc-newchat{
-  border:none!important;background:transparent!important;box-shadow:none!important;
-  border-radius:var(--r-sm)!important;color:var(--dim)!important;
-  height:28px!important;transition:background .1s,color .1s;
+  border:none;background:transparent;box-shadow:none;
+  border-radius:var(--r-sm);color:var(--dim);
+  height:28px;transition:background .1s,color .1s;
 }
 .oc-session-trigger{
   display:inline-flex;align-items:center;gap:5px;
-  padding:0 6px!important;font-size:13px!important;max-width:280px;
+  padding:0 6px;font-size:13px;max-width:280px;
 }
 .oc-session-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oc-session-chev{display:inline-flex;font-size:12px;color:var(--dim2);flex:none}
-.oc-session-trigger:hover,.oc-newchat:hover{background:var(--hover)!important;color:var(--fg)!important}
+.oc-session-trigger:hover,.oc-newchat:hover{background:var(--hover);color:var(--fg)}
 /* Square box matching the tab's height; the glyph itself sits smaller. */
-.oc-newchat{width:28px!important;padding:0!important}
+.oc-newchat{width:28px;padding:0}
 /* shadcn sizes button icons with a size-4 utility, so the glyph needs its
    own override — the box stays 28 to match the tab, the plus reads smaller. */
-.oc-newchat svg{width:13px!important;height:13px!important}
+.oc-newchat svg{width:13px;height:13px}
 /* Session menu: roomier than a select — long titles get a full row, and the
    timestamp sits on the right instead of fighting the title for space. */
 .oc-sesspop{width:320px;padding:4px}
@@ -1165,7 +1116,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-sess-row.on{color:var(--fg)}
 .oc-sess-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oc-sess-row .oc-ago{margin-left:0;flex:none}
-.oc-completed{color:var(--dim)}
 .oc-notice{
   display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--bad);
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
@@ -1177,8 +1127,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-notice-x{color:var(--dim2);font-size:14px;line-height:1}
 .oc-notice-x:hover{color:var(--fg)}
 .oc-ago{margin-left:8px;color:var(--dim2);font-size:11px;font-family:var(--mono)}
-.oc-expandable{cursor:pointer}
-.oc-expandable:hover .mono{color:var(--fg)}
 /* THINKING (beautifului.dev): one header over a rail-lined trace. */
 .th{display:flex;flex-direction:column;margin:2px 0}
 .th-head{
@@ -1254,9 +1202,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
   padding:8px 10px;margin:2px 0 4px 28px;max-height:240px;overflow:auto;white-space:pre-wrap;
 }
-.oc-error{color:var(--bad)}
-.oc-running,.oc-pending{color:var(--warn)}
-.oc-spin{width:11px;height:11px;display:inline-block;vertical-align:-1px}
 /* Approval reads as part of the trace, not as an alarm: same card surface
    and metrics as a Thinking row, with amber carried by the label alone. */
 /* Docked over the transcript, same geometry as the slash palette. */
@@ -1472,3 +1417,37 @@ tbody tr[data-href], tbody tr,
   cursor: pointer;
 }
 button:disabled { cursor: default; }
+
+}
+
+/* React Flow ships an UNLAYERED stylesheet (imported in agent-graph.jsx),
+   and unlayered CSS beats every layer — so its overrides stay unlayered
+   too, next to the thing they override. */
+.buildflow .react-flow{background:var(--bg)}
+.react-flow__node.gpill{
+  display:flex;align-items:center;justify-content:center;width:auto;height:auto;box-shadow:none;
+  border:1px solid var(--line2);border-radius:999px;background:var(--bg);
+  padding:9px 20px;font-size:14.5px;color:var(--fg);white-space:nowrap;cursor:pointer;
+}
+.react-flow__node.gpill:hover{border-color:var(--line3)}
+.react-flow__node.gpill.empty{color:var(--dim)}
+.react-flow__node.gagent{
+  width:auto;height:auto;box-shadow:none;border:none;
+  background:var(--agent-pill);border-radius:999px;padding:10px 22px;cursor:default;
+}
+.react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
+.react-flow__node.react-flow__node-default.gcircle:hover,
+.react-flow__node.react-flow__node-default.gcircle.selected,
+.react-flow__node.react-flow__node-default.gcircle.selectable:hover{
+  box-shadow:none;border:none;background:transparent;
+}
+.react-flow__node.gbox{
+  width:auto;height:auto;box-shadow:none;padding:0;overflow:hidden;
+  border:1px solid var(--line2);border-radius:12px;background:var(--panel);
+  min-width:190px;cursor:default;
+}
+.react-flow__edge-path{stroke:var(--line2)!important}
+.react-flow__handle{opacity:0}
+.react-flow__controls{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.react-flow__controls-button{background:var(--panel);border-bottom:1px solid var(--line);fill:var(--dim)}
+.react-flow__controls-button:hover{background:var(--hover)}

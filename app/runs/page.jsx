@@ -6,6 +6,7 @@ import useSWR, { preload } from "swr";
 import { I, triggerIcon } from "@/app/components/icons.jsx";
 import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
 
@@ -151,7 +152,7 @@ function StackedBars({ data }) {
         const hc = (d.cached / total) * h, ho = (d.output / total) * h, hi = h - hc - ho;
         let y = H - 2;
         const segs = [];
-        for (const [hh, color] of [[hc, "#666"], [hi, "var(--blue)"], [ho, "var(--purple)"]]) {
+        for (const [hh, color] of [[hc, "var(--chart-cached)"], [hi, "var(--blue)"], [ho, "var(--purple)"]]) {
           if (hh > 0.5) { segs.push(<rect key={color} x={x} y={y - hh} width="4" height={hh} fill={color} rx="1" />); }
           y -= hh;
         }
@@ -302,7 +303,7 @@ function Dashboard() {
                 <span className="legend">
                   <span><i style={{ background: "var(--blue)" }} />Input <b>{kt(totals.input)}</b></span>
                   <span><i style={{ background: "var(--purple)" }} />Output <b>{kt(totals.output)}</b></span>
-                  <span><i style={{ background: "#666" }} />Cached <b>{kt(totals.cached)}</b></span>
+                  <span><i style={{ background: "var(--chart-cached)" }} />Cached <b>{kt(totals.cached)}</b></span>
                 </span>
               </div>
               <StackedBars data={b} />
@@ -314,7 +315,12 @@ function Dashboard() {
         <div className="filters">
           <div className="search">
             {I.search}
-            <input placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input
+              placeholder="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="search-input"
+            />
           </div>
           <Dropdown align="end" label={trigger === "all" ? "All Triggers" : trigLabel(trigger)}>
             {(close) => (

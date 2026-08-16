@@ -56,6 +56,25 @@ The app has light and dark themes, resolved to an explicit
 - When adding any new component, check it in BOTH modes before calling it
   done — the switcher is in the account menu.
 
+## CSS layers — where a rule goes
+
+`globals.css` declares the order explicitly:
+
+    @layer theme, base, components, utilities, app;
+
+- `@layer base` — the reset (`*`, `html/body`, `a`, `button`). Element rules
+  only. It must NOT be unlayered: unlayered element rules beat class rules in
+  any layer, which is how `button{font:inherit}` silently won over
+  `.oc-session-trigger{font-size:13px}`.
+- `@layer app` — everything of ours. Wins over Tailwind/shadcn utilities by
+  ORDER, so `!important` is never needed to restyle a shadcn component. There
+  is exactly one `!important` left in the file and it fights React Flow's
+  UNLAYERED stylesheet (imported in agent-graph.jsx) — unlayered beats every
+  layer, so its overrides live unlayered next to it.
+- Consequence: a Tailwind class in JSX cannot override a rule in `globals.css`.
+  Restyle through the stylesheet, or pass the class to a shadcn component
+  whose `cn()` merges it.
+
 ## Reusable pieces — don't grow a second one
 
 One dropdown: `app/components/dropdown.jsx` (trigger + panel on the shadcn
