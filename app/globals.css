@@ -796,6 +796,39 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .set-unlink:hover{color:var(--bad);background:var(--hover)}
 .set-empty{font-size:12.5px;color:var(--dim2);padding:10px 0}
 
+/* ---- first run ---- */
+.wc{
+  max-width:440px;margin:56px auto 0;display:flex;flex-direction:column;
+  align-items:center;text-align:center;gap:12px;
+}
+.wc-title{font-size:18px;font-weight:600;color:var(--fg)}
+.wc-body{margin:0;font-size:13.5px;line-height:1.6;color:var(--dim)}
+.wc-cmd{
+  display:flex;align-items:center;gap:10px;width:100%;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
+  padding:10px 12px;margin-top:2px;
+}
+.wc-cmd-ic{display:inline-flex;font-size:14px;color:var(--dim2);flex:none}
+.wc-cmd code{flex:1;text-align:left;font-size:13px;color:var(--fg)}
+.wc-cmd-copy{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:26px;height:26px;border-radius:var(--r-sm);color:var(--dim2);font-size:13px;
+  transition:color .1s,background .1s;
+}
+.wc-cmd-copy:hover{color:var(--fg);background:var(--hover)}
+.wc-cmd-copy.done{color:var(--ok)}
+.wc-actions{margin-top:6px}
+.wc-actions button{
+  display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 16px;
+  border-radius:var(--r-sm);background:var(--fg);color:#000;
+  font-size:14px;font-weight:500;transition:background .1s;
+}
+.wc-actions button:hover{background:#fff}
+.wc-actions button svg{font-size:14px}
+.wc-foot{margin:2px 0 0;font-size:12px;line-height:1.6;color:var(--dim2)}
+.wc-err{color:var(--bad);font-size:12px;word-break:break-word}
+.wc-newcard{max-width:440px;margin:16px auto 0}
+
 /* No-checkout empty state: one centred column, the icon large and quiet, and
    the action that resolves it right there. */
 .nocheckout{

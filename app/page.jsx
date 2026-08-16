@@ -5,13 +5,14 @@
 // server) behind one dialog.
 
 import { useState, Suspense } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { I } from "./components/icons.jsx";
 import { Badge } from "./components/badge.jsx";
 import ProjectLogo from "./components/project-logo.jsx";
 import { Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import Welcome from "./components/welcome.jsx";
 
 // Icon-only controls get real tooltips (instant, styled), not the browser's
 // sluggish native title.
@@ -34,8 +35,8 @@ const ago = (ts) => {
   return Math.floor(s / 86400) + "d ago";
 };
 
-function NewAgentCard({ onCreated }) {
-  const [open, setOpen] = useState(false);
+function NewAgentCard({ onCreated, startOpen = false }) {
+  const [open, setOpen] = useState(startOpen);
   const [name, setName] = useState("");
   const [phase, setPhase] = useState(null); // null | "creating" | error string
   const valid = /^[a-z][a-z0-9-]{1,40}$/.test(name);
@@ -93,9 +94,26 @@ function NewAgentCard({ onCreated }) {
 
 function Home() {
   const router = useRouter();
+  const q = useSearchParams();
   const { data, mutate } = useSWR("/api/projects", fetcher, { refreshInterval: 5000, keepPreviousData: true });
+  const { data: account, mutate: recheck } = useSWR("/api/account", fetcher);
   const projects = data?.projects ?? [];
   const [busy, setBusy] = useState({});
+  const [newOpen, setNewOpen] = useState(0);
+
+  // First run resolves to exactly one of these. Never a stored flag: it would
+  // lie after `vercel logout`, or on a second machine.
+  //
+  // ?firstrun=signed-out|empty|error forces a state in development. These
+  // screens are unreachable on a working machine, and the alternative — moving
+  // the CLI's auth.json aside to see one — is a bad thing to leave lying
+  // around if anything crashes mid-check.
+  const forced = process.env.NODE_ENV !== "production" ? q.get("firstrun") : null;
+  const firstRun = forced || (!projects.length && data && account && (
+    !account.loggedIn ? "signed-out"
+    : data.error ? "error"
+    : "empty"
+  ));
 
   const devAction = async (e, p, action) => {
     e.stopPropagation();
@@ -116,6 +134,31 @@ function Home() {
 
   const open = (p) => router.push(`/runs?project=${encodeURIComponent(p.name)}`);
 
+  const created = (name) => router.push(`/runs?project=${encodeURIComponent(name)}&environment=local`);
+
+  // Nothing to show and a reason why: the whole page becomes that reason,
+  // rather than a grid of one card next to a spinner that never stops.
+  if (firstRun) {
+    return (
+      <div className="wrap">
+        <div className="home-head"><h1>Agents</h1></div>
+        <Welcome
+          state={firstRun}
+          error={data?.error ?? "projects API 500"}
+          onRetry={() => { recheck(); mutate(); }}
+          onNew={() => setNewOpen((n) => n + 1)}
+        />
+        {/* Mounted so "Create your first agent" has something to open, but out
+            of the way until it does. */}
+        {newOpen > 0 && (
+          <div className="wc-newcard">
+            <NewAgentCard key={newOpen} startOpen onCreated={created} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="wrap">
       <div className="home-head">
@@ -128,7 +171,7 @@ function Home() {
       </div>
       <TooltipProvider delay={150}>
       <div className="agentgrid">
-        <NewAgentCard onCreated={(name) => router.push(`/runs?project=${encodeURIComponent(name)}&environment=local`)} />
+        <NewAgentCard onCreated={created} />
         {projects.map((p) => (
           <div key={p.name} className="agentcard" onClick={() => open(p)} role="button" tabIndex={0}>
             <div className="agentrow">
@@ -185,7 +228,7 @@ function Home() {
         ))}
       </div>
       </TooltipProvider>
-      {!projects.length && <div className="empty">Looking for agents…</div>}
+      {!projects.length && !firstRun && <div className="empty">Looking for agents…</div>}
     </div>
   );
 }
