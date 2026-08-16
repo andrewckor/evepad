@@ -28,6 +28,12 @@
   --btn-hover:#000;
   --ring:rgba(0,0,0,.12);
   --ring-soft:rgba(0,0,0,.04);
+  --shadow-menu:0 0 0 1px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.12);
+  --shadow-lift:0 0 0 1px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.1);
+  --shadow-dock:0 0 0 1px rgba(0,0,0,.06),0 -8px 28px rgba(0,0,0,.1);
+  --shadow-panel:-8px 0 32px rgba(0,0,0,.08);
+  --shadow-panel-up:0 -8px 28px rgba(0,0,0,.08);
+  --term-bg:#f7f7f7;
   /* State colours darken slightly so they hold contrast on white. */
   --blue:#0072f5;
   --ok:#0f9d58;
@@ -80,6 +86,16 @@
   --chip:#141414;        /* the composer card */
   --ring:rgba(255,255,255,.14);
   --ring-soft:rgba(255,255,255,.05);
+  /* Shadows are theme state too: what reads as depth on black is a smear of
+     ink on white, so light mode swaps the whole set for soft Geist-style
+     shadows instead of scaling these down. */
+  --shadow-menu:0 16px 40px rgba(0,0,0,.7);
+  --shadow-lift:0 8px 30px rgba(0,0,0,.5);
+  --shadow-dock:0 -12px 40px rgba(0,0,0,.65);
+  --shadow-panel:-18px 0 48px rgba(0,0,0,.6);
+  --shadow-panel-up:0 -14px 40px rgba(0,0,0,.55);
+  /* xterm paints its own canvas; the TUI takes whatever ground we hand it. */
+  --term-bg:#0a0a0a;
   --sans:var(--font-geist-sans),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --mono:var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,monospace;
   --r-sm:6px; --r:8px; --r-lg:12px;
@@ -130,8 +146,8 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
 .rowchev svg{width:11px;height:11px}
 tbody tr:hover .rowchev{color:var(--fg)}
 .rowchev span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;transition:background .12s}
-tbody tr:hover .rowchev span{background:rgba(255,255,255,.14)}
-.picker>button svg,.chatbtn svg,.copybtn svg,.sec-chev svg{width:14px;height:14px;flex:none}
+tbody tr:hover .rowchev span{background:var(--ring)}
+.chatbtn svg,.copybtn svg,.sec-chev svg{width:14px;height:14px;flex:none}
 
 /* ---- top bar ---- */
 .topbar{
@@ -168,31 +184,9 @@ tbody tr:hover .rowchev span{background:rgba(255,255,255,.14)}
 .seg button[data-on="1"]{background:var(--panel2);color:var(--fg)}
 .seg button+button{border-left:1px solid var(--line)}
 
-.picker{position:relative}
-.picker>button{
-  display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;
-  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);font-size:14px;
-  line-height:1;
-}
-.picker>button .chev,.picker>button .dim2{display:inline-flex;align-items:center;color:var(--dim)}
 .chev-ud{flex-direction:column;line-height:0}
 .chev-ud svg{width:11px;height:11px}
 .chev-ud svg:first-child{margin-bottom:-3px}
-.picker>button:hover{background:var(--hover);border-color:var(--line2)}
-@keyframes menupop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
-.menu{
-  position:absolute;top:calc(100% + 6px);left:0;z-index:50;max-height:400px;overflow-y:auto;
-  animation:menupop .12s ease-out;
-  background:var(--bg);border:1px solid var(--line2);border-radius:var(--r-lg);padding:6px;
-  box-shadow:0 16px 40px rgba(0,0,0,.7);
-}
-.menu.right{left:auto;right:0;min-width:200px}
-.menu button{display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:var(--r-sm);font-size:14px;text-align:left}
-.menu button:hover{background:var(--hover)}
-.menu .pname{max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.menu button[data-on="1"]{background:var(--panel2)}
-.menu .sub{margin-left:auto;font-size:12px;color:var(--dim2);font-family:var(--mono)}
-.menu .hd{padding:8px 10px 4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim2);font-weight:500}
 
 .cbx{
   width:16px;height:16px;flex:none;border:1px solid var(--line2);border-radius:4px;
@@ -492,7 +486,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .eve-ver{
   position:absolute;top:12px;right:14px;z-index:5;
   font-size:11.5px;color:var(--dim2);border:1px solid var(--line);
-  border-radius:999px;padding:2px 10px;background:rgba(0,0,0,.6);
+  /* Translucent scrim over the graph, in the theme's own ground — the black
+     version survived as a dark pill on the light canvas. */
+  border-radius:999px;padding:2px 10px;background:color-mix(in srgb,var(--bg) 60%,transparent);
+  backdrop-filter:blur(2px);
 }
 .buildflow .react-flow{background:var(--bg)}
 /* React Flow nodes carry our classes directly; style at node specificity so
@@ -524,7 +521,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .gcircle .circle{transition:border-color .15s,box-shadow .15s,background .15s}
 .gcircle:hover .circle{
   border-color:var(--line3);background:var(--hover);
-  box-shadow:0 0 0 4px rgba(255,255,255,.05);
+  box-shadow:0 0 0 4px var(--ring-soft);
 }
 .react-flow__node.gbox{
   width:auto;height:auto;box-shadow:none;padding:0;overflow:hidden;
@@ -809,17 +806,40 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 
 /* Theme switcher, measured on vercel.com/geist/theme-switcher: 96x32 pill,
    three 32px targets, 16px icons; inactive #8f8f8f, active filled and ringed. */
-.thsw{display:inline-flex;align-items:center;height:32px;border-radius:999px;box-shadow:0 0 0 1px var(--line2)}
+/* Geist's small switcher: 24px targets, 14px icons. */
+.thsw{display:inline-flex;align-items:center;height:24px;border-radius:999px;box-shadow:0 0 0 1px var(--line2)}
 .thsw-opt{
-  width:32px;height:32px;border-radius:999px;display:inline-flex;
-  align-items:center;justify-content:center;font-size:16px;color:var(--dim2);
+  width:24px;height:24px;border-radius:999px;display:inline-flex;
+  align-items:center;justify-content:center;font-size:14px;color:var(--dim2);
   transition:color .1s,background .1s;
 }
 .thsw-opt:hover{color:var(--fg)}
 .thsw-opt.on{background:var(--panel);color:var(--fg);box-shadow:0 0 0 1px var(--line2)}
-/* Row that hosts a control instead of an action. */
-.acc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 8px}
+/* Row that hosts a control instead of an action; same 8px inset as the
+   action rows so the label column lines up. */
+.acc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px}
 .acc-row-label{font-size:13px;color:var(--dim)}
+
+/* Shared dropdown (components/dropdown.jsx). One trigger look, one panel
+   look — the panel surface is the shadcn Popover, so it matches the account
+   menu and project switcher by construction. */
+.dd-trigger{
+  display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r);
+  font-size:14px;color:var(--fg);transition:border-color .1s,background .1s;
+}
+.dd-trigger:hover{border-color:var(--line2);background:var(--panel)}
+.dd-chev{display:inline-flex;font-size:13px;color:var(--dim2)}
+.dd-pop{min-width:180px;padding:4px}
+.dd-item{
+  display:flex;align-items:center;gap:9px;width:100%;padding:7px 9px;
+  border-radius:var(--r-sm);font-size:13.5px;color:var(--dim);text-align:left;
+  transition:background .1s,color .1s;
+}
+.dd-item:hover{background:var(--hover);color:var(--fg)}
+.dd-item.on{color:var(--fg)}
+.dd-item-label{flex:1;min-width:0;display:inline-flex;align-items:center;gap:8px}
+.dd-check{display:inline-flex;font-size:13px;color:var(--fg);flex:none}
 
 /* ---- settings dialog ---- */
 /* Geist modal, measured on vercel.com/geist/modal: the backdrop is solid
@@ -835,7 +855,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   width:540px;max-width:calc(100% - 2rem);overflow:hidden;
   background:var(--panel);border-radius:12px;padding:0;border:none;
   box-shadow:
-    rgba(255,255,255,.14) 0 0 0 1px,
+    var(--ring) 0 0 0 1px,
     rgba(0,0,0,.06) 0 32px 72px -12px,
     rgba(0,0,0,.08) 0 8px 32px -12px,
     rgba(0,0,0,.12) 0 8px 24px -12px;
@@ -981,7 +1001,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   display:inline-flex;align-items:center;gap:14px;
   background:#171717;color:var(--fg);
   border:1px solid var(--line2);border-radius:999px;padding:14px 30px 14px 22px;
-  box-shadow:0 8px 30px rgba(0,0,0,.5);
+  box-shadow:var(--shadow-lift);
   animation:pillin 420ms cubic-bezier(.23,1,.32,1) both;
 }
 .manifest-text{display:flex;flex-direction:column;gap:1px;line-height:1.25}
@@ -1009,7 +1029,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   position:absolute;right:0;bottom:calc(100% + 8px);z-index:40;min-width:230px;
   display:flex;flex-direction:column;gap:4px;padding:8px 10px;
   background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);
-  box-shadow:0 -8px 30px rgba(0,0,0,.5);
+  box-shadow:var(--shadow-lift);
 }
 .oc-diff-row{display:flex;gap:8px;font-size:11.5px;align-items:baseline}
 .oc-diff-file{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dim)}
@@ -1216,7 +1236,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-perm{
   background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);
   padding:10px 12px;display:flex;flex-direction:column;gap:10px;
-  box-shadow:0 -12px 40px rgba(0,0,0,.65);
+  box-shadow:var(--shadow-dock);
   animation:fade-up 320ms cubic-bezier(.23,1,.32,1) both;
 }
 .oc-perm-title{
@@ -1236,7 +1256,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-palette{
   position:absolute;left:16px;right:16px;bottom:calc(100% + 4px);z-index:30;
   border:1px solid var(--line2);border-radius:var(--r);
-  background:var(--panel);overflow:hidden;box-shadow:0 -12px 40px rgba(0,0,0,.65);
+  background:var(--panel);overflow:hidden;box-shadow:var(--shadow-dock);
 }
 .oc-palette button{
   display:flex;align-items:baseline;gap:10px;width:100%;
@@ -1287,12 +1307,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .termside.right{
   top:0;right:0;bottom:0;
   border-left:1px solid var(--line2);
-  box-shadow:-18px 0 48px rgba(0,0,0,.6);
+  box-shadow:var(--shadow-panel);
 }
 .termside.bottom{
   left:0;right:0;bottom:0;
   border-top:1px solid var(--line2);
-  box-shadow:0 -14px 40px rgba(0,0,0,.55);
+  box-shadow:var(--shadow-panel-up);
 }
 .term-resize{position:absolute;z-index:1}
 .term-resize.right{left:-3px;top:0;bottom:0;width:7px;cursor:col-resize}

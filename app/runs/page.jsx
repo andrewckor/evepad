@@ -7,6 +7,7 @@ import { I, triggerIcon } from "@/app/components/icons.jsx";
 import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
 
 const ENVS = ["local", "preview", "production"];
 
@@ -49,24 +50,12 @@ const trigLabel = (t) => (t?.startsWith("channel:") ? t.slice(8) : cap(t));
 const envShort = (e) => (e === "production" ? "prod" : e);
 
 function PeriodPicker({ value, onChange }) {
-  const [open, setOpen] = useState(false);
   return (
-    <div className="picker">
-      <button onClick={() => setOpen((o) => !o)}>
-        <span className="dim2">{I.calendar}</span>
-        <span>{periodLabel(value)}</span>
-        <span className="chev">{I.chevDown}</span>
-      </button>
-      {open && (
-        <div className="menu right" onMouseLeave={() => setOpen(false)}>
-          {PERIODS.map(([k, label]) => (
-            <button key={k} data-on={k === value ? "1" : "0"} onClick={() => { onChange(k); setOpen(false); }}>
-              <span>{label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Dropdown align="end" label={<><span className="dim2">{I.calendar}</span>{periodLabel(value)}</>}>
+      {(close) => PERIODS.map(([k, label]) => (
+        <DropdownItem key={k} on={k === value} onSelect={() => { onChange(k); close(); }}>{label}</DropdownItem>
+      ))}
+    </Dropdown>
   );
 }
 
@@ -78,7 +67,6 @@ const ENV_KEY = "eve-cockpit:env2";
 // Multi-select environments, Vercel-style: checkboxes + Select All. Value is a
 // comma list in the URL ("local,production").
 function EnvPicker({ value, onChange }) {
-  const [open, setOpen] = useState(false);
   const selected = value.split(",").map((e) => e.trim()).filter(Boolean);
   const all = selected.length === ENVS.length;
   // "All Environments" when everything is on; otherwise the explicit list
@@ -92,27 +80,16 @@ function EnvPicker({ value, onChange }) {
   };
 
   return (
-    <div className="picker">
-      <button onClick={() => setOpen((o) => !o)}>
-        <span>{label}</span>
-        <span className="chev">{I.chevDown}</span>
-      </button>
-      {open && (
-        <div className="menu" onMouseLeave={() => setOpen(false)}>
-          <button onClick={() => onChange(all ? "local" : ENVS.join(","))}>
-            {all ? "Deselect All" : "Select All"}
-          </button>
-          {ENVS.map((o) => (
-            <button key={o} onClick={() => toggle(o)}>
-              <span className={"cbx" + (selected.includes(o) ? " on" : "")}>
-                {selected.includes(o) && <svg viewBox="0 0 16 16" width="10" height="10"><path fill="none" stroke="currentColor" strokeWidth="2.2" d="M3 8.5l3.2 3L13 4.5"/></svg>}
-              </span>
-              {cap(o)}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <Dropdown label={label}>
+      <DropdownItem onSelect={() => onChange(all ? "local" : ENVS.join(","))}>
+        {all ? "Deselect All" : "Select All"}
+      </DropdownItem>
+      {ENVS.map((o) => (
+        <DropdownCheckItem key={o} checked={selected.includes(o)} onToggle={() => toggle(o)}>
+          {cap(o)}
+        </DropdownCheckItem>
+      ))}
+    </Dropdown>
   );
 }
 
@@ -217,7 +194,6 @@ function Dashboard() {
     const saved = Number(sessionStorage.getItem("runsPageSize"));
     if ([10, 20, 30, 40, 50].includes(saved)) setPageSize(saved);
   }, []);
-  const [trigOpen, setTrigOpen] = useState(false);
 
   const setParams = (patch) => {
     const next = new URLSearchParams(q.toString());
@@ -340,20 +316,16 @@ function Dashboard() {
             {I.search}
             <input placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <div className="picker">
-            <button onClick={() => setTrigOpen((o) => !o)}>
-              <span>{trigger === "all" ? "All Triggers" : trigLabel(trigger)}</span>
-              <span className="chev">{I.chevDown}</span>
-            </button>
-            {trigOpen && (
-              <div className="menu right" onMouseLeave={() => setTrigOpen(false)}>
-                <button data-on={trigger === "all" ? "1" : "0"} onClick={() => { setTrigger("all"); setTrigOpen(false); }}>All Triggers</button>
+          <Dropdown align="end" label={trigger === "all" ? "All Triggers" : trigLabel(trigger)}>
+            {(close) => (
+              <>
+                <DropdownItem on={trigger === "all"} onSelect={() => { setTrigger("all"); close(); }}>All Triggers</DropdownItem>
                 {triggers.map((t) => (
-                  <button key={t} data-on={trigger === t ? "1" : "0"} onClick={() => { setTrigger(t); setTrigOpen(false); }}>{trigLabel(t)}</button>
+                  <DropdownItem key={t} on={trigger === t} onSelect={() => { setTrigger(t); close(); }}>{trigLabel(t)}</DropdownItem>
                 ))}
-              </div>
+              </>
             )}
-          </div>
+          </Dropdown>
         </div>
 
         <div className="tablecard">

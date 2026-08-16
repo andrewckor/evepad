@@ -15,7 +15,7 @@ function xtermTheme() {
   const cs = getComputedStyle(document.documentElement);
   const v = (n, fallback) => cs.getPropertyValue(n).trim() || fallback;
   return {
-    background: v("--panel", "#0a0a0a"),
+    background: v("--term-bg", "#0a0a0a"),
     foreground: v("--fg", "#ededed"),
     cursor: v("--acc", "#0072f5"),
   };

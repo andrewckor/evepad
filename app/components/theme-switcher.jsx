@@ -9,11 +9,11 @@
 // rather than a resolved value, so the app follows the OS when the OS changes.
 
 import { useEffect, useState } from "react";
-import { Display, Sun, Moon } from "vercel-geist-icons";
+import { DesktopDevice, Sun, Moon } from "vercel-geist-icons";
 
 const KEY = "eve-cockpit:theme";
 const OPTIONS = [
-  ["system", "System", <Display key="s" />],
+  ["system", "System", <DesktopDevice key="s" />],
   ["light", "Light", <Sun key="l" />],
   ["dark", "Dark", <Moon key="d" />],
 ];

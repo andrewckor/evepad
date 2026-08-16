@@ -35,6 +35,37 @@ approximate an icon that doesn't exist in that set.**
   running) and chart series (blue input, purple output, gray cached).
 - Pure `#000` ground, hairline `#1f1f1f` borders, radii 6/8/12 only.
 
+## Theming — both modes, always
+
+The app has light and dark themes, resolved to an explicit
+`data-theme="light|dark"` on `<html>` before first paint (boot script in
+`app/layout.jsx`; preference in `localStorage["eve-cockpit:theme"]`).
+
+- **Never write a colour literal in a component or in globals.css rules.**
+  Use the tokens (`--bg --panel --panel2 --hover --inset --line/--line2/--line3
+  --fg --dim --dim2 --chip --btn/--btn-fg --on-accent --ring --ring-soft` and
+  the state colours). If no token fits, add one to BOTH `:root` blocks.
+- Shadows are tokens too (`--shadow-menu/-lift/-dock/-panel/-panel-up`) —
+  dark-mode shadows read as ink smears on white, so light swaps the set.
+- Literals are only correct where the colour is genuinely theme-independent:
+  mask gradients (where #000 means opaque), text on a coloured fill, the
+  modal scrim.
+- Canvas/prop-driven surfaces can't read CSS variables and must be told the
+  theme: React Flow takes `colorMode` (see agent-graph.jsx), xterm takes a
+  theme object rebuilt on `data-theme` changes (see terminal-panel.jsx).
+- When adding any new component, check it in BOTH modes before calling it
+  done — the switcher is in the account menu.
+
+## Reusable pieces — don't grow a second one
+
+One dropdown: `app/components/dropdown.jsx` (trigger + panel on the shadcn
+Popover). One tooltip: `components/ui/tooltip.jsx` (Base UI: trigger takes
+`render`, not asChild). One modal look: the Geist-measured `.set-dialog`
+chrome. One loader family: `loading-state.jsx` (pixel grid) and the 12px
+`.th-spin` ring for inline rows. Before styling a new menu, row, or panel,
+reuse these — two implementations of the same control is how the app drifted
+last time.
+
 ## Performance — top priority
 
 Speed is this project's stated #1 goal. Never put a subprocess spawn, port
