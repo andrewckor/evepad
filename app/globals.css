@@ -340,7 +340,7 @@ td.num{text-align:right;padding:0 16px}
 .float-tabs{
   position:sticky;top:10px;z-index:5;
   display:flex;gap:2px;width:fit-content;margin:0 auto 30px;
-  background:rgba(10,10,10,.72);backdrop-filter:blur(10px);
+  background:color-mix(in srgb,var(--panel) 72%,transparent);backdrop-filter:blur(10px);
   border:1px solid var(--line2);border-radius:999px;padding:3px;
 }
 .float-tabs .tab{border-radius:999px}
@@ -512,7 +512,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 }
 .agent-label{display:flex;align-items:center;justify-content:center;gap:9px}
 .agent-label b{color:var(--agent-pill-fg);font-size:15px;font-weight:600;max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.agent-logo{display:inline-flex}
+.agent-logo{display:inline-flex;color:var(--agent-pill-fg)}
 .react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
 /* React Flow lights the whole rectangular node on hover/select, which drew a
    glowing box around the circle AND its caption. The node stays invisible;

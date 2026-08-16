@@ -40,7 +40,7 @@ const SlackIcon = () => (
 const EveDots = () => (
   <svg viewBox="0 0 16 16" width="15" height="15">
     {[[3,3],[8,2.5],[13,3],[2.5,8],[8,8],[13.5,8],[3,13],[8,13.5],[13,13]].map(([x,y],i)=>(
-      <circle key={i} cx={x} cy={y} r={i%2?1.1:1.5} fill="#000"/>
+      <circle key={i} cx={x} cy={y} r={i%2?1.1:1.5} fill="currentColor"/>
     ))}
   </svg>
 );
