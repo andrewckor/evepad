@@ -153,7 +153,13 @@ function Home() {
           state={firstRun}
           error={data?.error ?? "projects API 500"}
           localCount={localCount}
-          onRetry={() => { recheck(); mutate(); }}
+          onRetry={() => {
+            // Drop ?firstrun on the way out: the dev override must never
+            // outrank a real sign-in and strand someone on this screen.
+            if (forced) router.replace("/");
+            recheck();
+            mutate();
+          }}
           onNew={() => setNewOpen((n) => n + 1)}
           onSkip={() => setSkipped(true)}
         />

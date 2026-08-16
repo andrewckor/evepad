@@ -74,13 +74,27 @@ function SignIn({ onDone }) {
 
   // Poll the credentials themselves, not the CLI's exit code: the moment
   // auth.json exists the rest of the app works, and that's the thing every
-  // other route reads.
+  // other route reads. The CLI's own state is watched too, but only to stop
+  // waiting forever when its process dies before writing anything.
   useEffect(() => {
     if (!login?.url) return;
     const t = setInterval(async () => {
       try {
-        const acc = await fetch("/api/account").then((r) => r.json());
-        if (acc.loggedIn) { clearInterval(t); onDone(); }
+        const [acc, auth] = await Promise.all([
+          fetch("/api/account").then((r) => r.json()),
+          fetch("/api/auth").then((r) => r.json()),
+        ]);
+        if (acc.loggedIn) { clearInterval(t); onDone(); return; }
+        const st = auth.login?.state;
+        if (st && !["starting", "waiting"].includes(st)) {
+          clearInterval(t);
+          setLogin(null);
+          setFailed(
+            st === "expired" ? "That code expired before it was confirmed."
+            : st === "cancelled" ? "Sign-in was cancelled."
+            : "The Vercel CLI stopped before signing in.",
+          );
+        }
       } catch {}
     }, 1200);
     return () => clearInterval(t);
