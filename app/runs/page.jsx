@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR, { preload } from "swr";
 import { I, triggerIcon } from "@/app/components/icons.jsx";
-import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
+import { ChevronLeft, ChevronRight, FolderPlus } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
@@ -66,7 +66,7 @@ const ENV_KEY = "eve-cockpit:env2";
 
 // Multi-select environments, Vercel-style: checkboxes + Select All. Value is a
 // comma list in the URL ("local,production").
-function EnvPicker({ value, onChange }) {
+function EnvPicker({ value, onChange, hasLocal = true }) {
   const selected = value.split(",").map((e) => e.trim()).filter(Boolean);
   const all = selected.length === ENVS.length;
   // "All Environments" when everything is on; otherwise the explicit list
@@ -74,6 +74,7 @@ function EnvPicker({ value, onChange }) {
   const label = all ? "All Environments" : selected.map(cap).join(" + ") || "Local";
 
   const toggle = (env) => {
+    if (env === "local" && !hasLocal) return;
     const next = selected.includes(env) ? selected.filter((e) => e !== env) : [...selected, env];
     if (next.length === 0) return; // at least one stays selected
     onChange(ENVS.filter((e) => next.includes(e)).join(","));
@@ -84,8 +85,16 @@ function EnvPicker({ value, onChange }) {
       <DropdownItem onSelect={() => onChange(all ? "local" : ENVS.join(","))}>
         {all ? "Deselect All" : "Select All"}
       </DropdownItem>
+      {/* An agent with no folder on this Mac can never have local runs, so the
+          filter says so rather than offering a view that is always empty. */}
       {ENVS.map((o) => (
-        <DropdownCheckItem key={o} checked={selected.includes(o)} onToggle={() => toggle(o)}>
+        <DropdownCheckItem
+          key={o}
+          checked={selected.includes(o)}
+          onToggle={() => toggle(o)}
+          disabled={o === "local" && !hasLocal}
+          title={o === "local" && !hasLocal ? "No folder for this agent on this Mac" : undefined}
+        >
           {cap(o)}
         </DropdownCheckItem>
       ))}
@@ -220,6 +229,31 @@ function Dashboard() {
   };
 
   const isLocal = environment.split(",").includes("local");
+  // Whether THIS agent has a folder on this Mac. The switcher already polls
+  // this list, so SWR serves it from cache rather than issuing a second call.
+  const { data: projectList, mutate: refetchProjects } = useSWR("/api/projects", fetcher);
+  const [locating, setLocating] = useState(false);
+  const chooseFolder = async () => {
+    setLocating(true);
+    try {
+      const r = await fetch("/api/dev", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ project, action: "locate" }),
+      });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error ?? "failed");
+      if (body.cancelled) return;
+      await refetchProjects();
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setLocating(false);
+    }
+  };
+  const hasLocal = Boolean(
+    (projectList?.projects ?? []).find((p) => p.name === project)?.localPath,
+  );
   const { data, isLoading } = useSWR(
     `/api/runs?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`,
     fetcher,
@@ -267,12 +301,30 @@ function Dashboard() {
     <>
       <div className="wrap">
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-          <EnvPicker value={environment} onChange={pickEnv} />
+          <EnvPicker value={environment} onChange={pickEnv} hasLocal={hasLocal} />
           <div className="spacer" />
           <PeriodPicker value={period} onChange={(v) => setParam("period", v)} />
         </div>
 
-        {data?.error && <div className="err"><b>{environment}</b> unavailable — {data.error}</div>}
+        {/* A missing local folder is a state, not a failure: nothing is broken,
+            the agent simply isn't on this Mac yet. It gets an informative note
+            with the action that resolves it. Anything else keeps the red. */}
+        {data?.error && (
+          /no checkout/i.test(data.error) && !hasLocal ? (
+            <div className="note note-action">
+              <span className="note-ic"><FolderPlus /></span>
+              <span>
+                <b>{project}</b> isn&rsquo;t on this Mac yet. Choose its folder to see
+                local runs.
+              </span>
+              <button className="note-btn" onClick={chooseFolder} disabled={locating}>
+                {locating ? "Opening…" : "Choose folder"}
+              </button>
+            </div>
+          ) : (
+            <div className="err"><b>{environment}</b> unavailable — {data.error}</div>
+          )
+        )}
 
         {/* Charts skeleton ONLY before the very first data. On later loads they
             hold their last render — redrawing them mid-fetch reads as a flash. */}

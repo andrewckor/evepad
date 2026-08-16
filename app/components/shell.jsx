@@ -45,12 +45,32 @@ const warmTerminal = () => {
 const fetcher = (url) => fetch(url).then((r) => r.json());
 const DEFAULT_PERIOD = "12h";
 
+// The environment preference lives in localStorage under the key the Runs page
+// writes (see app/runs/page.jsx). Read defensively: this runs on the server
+// during SSR, where there is no storage.
+const ENV_KEY = "eve-cockpit:env2";
+const ENV_DEFAULT = "local,preview,production";
+function readEnvPref() {
+  if (typeof window === "undefined") return ENV_DEFAULT;
+  try { return localStorage.getItem(ENV_KEY) || ENV_DEFAULT; } catch { return ENV_DEFAULT; }
+}
+
 function TopNav({ panel, setPanel, liveProject, termProject }) {
   const pathname = usePathname();
   const router = useRouter();
   const q = useSearchParams();
 
-  const environment = q.get("environment") ?? "local";
+  // No URL param means "whatever the global preference is" — NOT local. The
+  // old default silently rewrote the selection into every link the shell
+  // builds, so switching projects from a page without the param (Build, a run
+  // detail, the Agents grid) dropped an All-Environments user down to Local.
+  // Runs owns the preference; the shell only carries it.
+  //
+  // Read after mount, not during render: this component is server-rendered,
+  // and reaching for localStorage there is a hydration mismatch.
+  const [envPref, setEnvPref] = useState(ENV_DEFAULT);
+  useEffect(() => { setEnvPref(readEnvPref()); }, [pathname, q]);
+  const environment = q.get("environment") ?? envPref;
   const period = q.get("period") ?? DEFAULT_PERIOD;
   const project = q.get("project") ?? "";
 

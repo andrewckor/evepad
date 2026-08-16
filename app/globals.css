@@ -457,6 +457,18 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 .empty{color:var(--dim);padding:70px 20px;text-align:center;font-size:14px}
 .err{border:1px solid var(--bad);border-radius:var(--r);padding:12px 15px;color:var(--bad);margin-bottom:16px;font-size:13.5px}
 .note{border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;color:var(--dim);margin-bottom:16px;font-size:13.5px}
+/* Informative, with the fix attached: text left, primary action right. */
+.note-action{display:flex;align-items:center;gap:12px;line-height:1.55}
+.note-action>span:nth-child(2){flex:1;min-width:0}
+.note-ic{display:inline-flex;flex:none;font-size:16px;color:var(--dim2)}
+.note-action b{color:var(--fg);font-weight:500}
+.note-btn{
+  flex:none;height:32px;padding:0 14px;border-radius:var(--r-sm);
+  background:var(--btn);color:var(--btn-fg);font-size:13.5px;font-weight:500;
+  transition:background .1s;
+}
+.note-btn:hover:not(:disabled){background:var(--btn-hover)}
+.note-btn:disabled{opacity:.55;cursor:default}
 
 /* skeleton loaders */
 @keyframes shimmer{0%{opacity:.4}50%{opacity:.85}100%{opacity:.4}}
@@ -815,7 +827,11 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   border-radius:var(--r-sm);font-size:13px;color:var(--dim);text-align:left;
   transition:background .1s,color .1s;
 }
-.menu-row:hover{background:var(--hover);color:var(--fg)}
+.menu-row:hover:not(:disabled){background:var(--hover);color:var(--fg)}
+.menu-row:disabled{opacity:.4;cursor:default;pointer-events:none}
+/* Wrapper exists so a disabled row still has something that receives hover. */
+.menu-row-wrap{display:block;width:100%}
+.menu-row:disabled .cbx{opacity:.6}
 .menu-row.on{color:var(--fg)}
 .menu-row-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .menu-row-trail{flex:none;display:inline-flex;align-items:center;color:var(--dim2)}

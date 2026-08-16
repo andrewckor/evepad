@@ -12,6 +12,7 @@
 import { useState } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { MenuList, MenuRow } from "./menu.jsx";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { ChevronDownSmall } from "vercel-geist-icons";
 
 export function Dropdown({ label, align = "start", width, className = "", children }) {
@@ -26,9 +27,11 @@ export function Dropdown({ label, align = "start", width, className = "", childr
       <PopoverContent align={align} className="dd-pop menu-pop" style={width ? { width } : undefined}>
         {/* Every dropdown scrolls the same way: the period list is 10 items
             and would otherwise size the panel to the viewport. */}
-        <MenuList scroll max={340}>
-          {typeof children === "function" ? children(close) : children}
-        </MenuList>
+        <TooltipProvider delay={200}>
+          <MenuList scroll max={340}>
+            {typeof children === "function" ? children(close) : children}
+          </MenuList>
+        </TooltipProvider>
       </PopoverContent>
     </Popover>
   );
@@ -41,9 +44,17 @@ export function DropdownItem({ on = false, onSelect, children }) {
 }
 
 // A checkbox row, for multi-selects like the environment filter.
-export function DropdownCheckItem({ checked, onToggle, children }) {
-  return (
-    <button type="button" className="menu-row" role="checkbox" aria-checked={checked} onClick={onToggle}>
+export function DropdownCheckItem({ checked, onToggle, disabled = false, title, children }) {
+  const row = (
+    <button
+      type="button"
+      className="menu-row"
+      role="checkbox"
+      aria-checked={checked}
+      aria-disabled={disabled || undefined}
+      disabled={disabled}
+      onClick={onToggle}
+    >
       <span className={"cbx" + (checked ? " on" : "")}>
         {checked && (
           <svg viewBox="0 0 16 16" width="10" height="10">
@@ -53,5 +64,15 @@ export function DropdownCheckItem({ checked, onToggle, children }) {
       </span>
       <span className="menu-row-label">{children}</span>
     </button>
+  );
+  if (!title) return row;
+  // A disabled row is exactly when the reason matters most, and exactly when a
+  // native title won't fire — browsers suppress it on disabled controls. Our
+  // tooltip is a real element, on a wrapper that still receives the hover.
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="menu-row-wrap">{row}</span>} />
+      <TooltipContent side="right">{title}</TooltipContent>
+    </Tooltip>
   );
 }
