@@ -10,8 +10,8 @@
 // "onboarded" flag: the flag would lie the moment someone runs `vercel logout`
 // or clones the repo onto a second machine.
 
-import { useState } from "react";
-import { Terminal, Copy, Check, ArrowRight } from "vercel-geist-icons";
+import { useEffect, useState } from "react";
+import { Terminal, Copy, Check, ArrowRight, ArrowUpRight } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 
 function Command({ children }) {
@@ -41,23 +41,101 @@ function Command({ children }) {
   );
 }
 
-export default function Welcome({ state, error, onRetry, onNew }) {
+// The CLI's device flow, driven from here: we ask the server to run
+// `vercel login`, show the code it prints, and poll until credentials exist.
+// The CLI remains the only thing that ever holds a token.
+function SignIn({ onDone }) {
+  const [login, setLogin] = useState(null);
+  const [starting, setStarting] = useState(false);
+  const [failed, setFailed] = useState(null);
+
+  const begin = async () => {
+    setStarting(true);
+    setFailed(null);
+    try {
+      const r = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "login" }),
+      });
+      const body = await r.json();
+      if (body.login?.url) {
+        setLogin(body.login);
+        window.open(body.login.url, "_blank", "noopener");
+      } else {
+        setFailed(body.login?.error ?? body.error ?? "Couldn't start the Vercel CLI.");
+      }
+    } catch (e) {
+      setFailed(String(e.message ?? e));
+    } finally {
+      setStarting(false);
+    }
+  };
+
+  // Poll the credentials themselves, not the CLI's exit code: the moment
+  // auth.json exists the rest of the app works, and that's the thing every
+  // other route reads.
+  useEffect(() => {
+    if (!login?.url) return;
+    const t = setInterval(async () => {
+      try {
+        const acc = await fetch("/api/account").then((r) => r.json());
+        if (acc.loggedIn) { clearInterval(t); onDone(); }
+      } catch {}
+    }, 1200);
+    return () => clearInterval(t);
+  }, [login?.url, onDone]);
+
+  if (!login) {
+    return (
+      <>
+        <div className="wc-actions">
+          <Button onClick={begin} disabled={starting}>
+            {starting ? "Starting…" : "Sign in with Vercel"}
+          </Button>
+        </div>
+        {failed && <p className="wc-foot wc-err">{failed}</p>}
+        <p className="wc-foot">Or from a terminal:</p>
+        <Command>vercel login</Command>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <p className="wc-body">
+        Confirm this code on Vercel. This page continues by itself once you do.
+      </p>
+      <div className="wc-code mono">{login.code}</div>
+      <div className="wc-actions">
+        {/* A plain anchor, not Button render={<a/>}: Base UI's button sets
+            nativeButton and warns that a non-<button> drops its semantics. */}
+        <a className="wc-link-btn" href={login.url} target="_blank" rel="noreferrer">
+          Open Vercel <ArrowUpRight />
+        </a>
+      </div>
+      <p className="wc-foot">Waiting for confirmation…</p>
+    </>
+  );
+}
+
+export default function Welcome({ state, error, localCount = 0, onRetry, onNew, onSkip }) {
   if (state === "signed-out") {
     return (
       <div className="wc">
         <b className="wc-title">Connect your Vercel account</b>
         <p className="wc-body">
           The cockpit shows the eve agents in your Vercel scope and the runs
-          they&rsquo;ve had. Sign in with the Vercel CLI, then come back.
+          they&rsquo;ve had.
         </p>
-        <Command>vercel login</Command>
-        <div className="wc-actions">
-          <Button onClick={onRetry}>I&rsquo;ve signed in</Button>
-        </div>
-        <p className="wc-foot">
-          Already using a token? Set <span className="mono">VERCEL_TOKEN</span> in the
-          environment you started the cockpit from.
-        </p>
+        <SignIn onDone={onRetry} />
+        {/* Local dev servers work without Vercel, so don't pretend the app is
+            unusable — just don't let it look signed in either. */}
+        {localCount > 0 && (
+          <button className="wc-skip" onClick={onSkip}>
+            Skip for now — {localCount} agent{localCount === 1 ? "" : "s"} running on this Mac
+          </button>
+        )}
       </div>
     );
   }

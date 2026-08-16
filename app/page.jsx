@@ -100,6 +100,8 @@ function Home() {
   const projects = data?.projects ?? [];
   const [busy, setBusy] = useState({});
   const [newOpen, setNewOpen] = useState(0);
+  // Per-session only: a stored flag would outlive the reason for it.
+  const [skipped, setSkipped] = useState(false);
 
   // First run resolves to exactly one of these. Never a stored flag: it would
   // lie after `vercel logout`, or on a second machine.
@@ -109,11 +111,16 @@ function Home() {
   // the CLI's auth.json aside to see one — is a bad thing to leave lying
   // around if anything crashes mid-check.
   const forced = process.env.NODE_ENV !== "production" ? q.get("firstrun") : null;
-  const firstRun = forced || (!projects.length && data && account && (
-    !account.loggedIn ? "signed-out"
-    : data.error ? "error"
-    : "empty"
-  ));
+  // Signed out takes the page even when local dev servers were discovered:
+  // half a list plus a chip reading "Not signed in" leaves you guessing which
+  // agents are missing. Local-only users can skip past it — the agents behind
+  // it genuinely work without Vercel.
+  const signedOut = data && account && !account.loggedIn && !skipped;
+  const firstRun = forced || (
+    signedOut ? "signed-out"
+    : !projects.length && data && account && (data.error ? "error" : "empty")
+  );
+  const localCount = projects.filter((p) => p.source === "local" || p.live).length;
 
   const devAction = async (e, p, action) => {
     e.stopPropagation();
@@ -145,8 +152,10 @@ function Home() {
         <Welcome
           state={firstRun}
           error={data?.error ?? "projects API 500"}
+          localCount={localCount}
           onRetry={() => { recheck(); mutate(); }}
           onNew={() => setNewOpen((n) => n + 1)}
+          onSkip={() => setSkipped(true)}
         />
         {/* Mounted so "Create your first agent" has something to open, but out
             of the way until it does. */}
