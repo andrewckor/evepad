@@ -11,7 +11,7 @@
 // or clones the repo onto a second machine.
 
 import { useEffect, useState } from "react";
-import { Terminal, Copy, Check, ArrowRight, ArrowUpRight } from "vercel-geist-icons";
+import { Terminal, Copy, Check, ArrowRight, CheckCircleFill } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 
 function Command({ children }) {
@@ -41,99 +41,57 @@ function Command({ children }) {
   );
 }
 
-// The CLI's device flow, driven from here: we ask the server to run
-// `vercel login`, show the code it prints, and poll until credentials exist.
-// The CLI remains the only thing that ever holds a token.
-function SignIn({ onDone }) {
-  const [login, setLogin] = useState(null);
-  const [starting, setStarting] = useState(false);
-  const [failed, setFailed] = useState(null);
-
-  const begin = async () => {
-    setStarting(true);
-    setFailed(null);
-    try {
-      const r = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "login" }),
-      });
-      const body = await r.json();
-      if (body.login?.url) {
-        setLogin(body.login);
-        window.open(body.login.url, "_blank", "noopener");
-      } else {
-        setFailed(body.login?.error ?? body.error ?? "Couldn't start the Vercel CLI.");
-      }
-    } catch (e) {
-      setFailed(String(e.message ?? e));
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  // Poll the credentials themselves, not the CLI's exit code: the moment
-  // auth.json exists the rest of the app works, and that's the thing every
-  // other route reads. The CLI's own state is watched too, but only to stop
-  // waiting forever when its process dies before writing anything.
+// The CLI owns signing in. We watch for the credentials it writes and, the
+// moment they appear, confirm who turned up — a silent jump into the app
+// leaves you unsure which account you landed in.
+function CliSignIn({ account, onContinue, demo = false }) {
+  // Poll only while signed out; /api/account is cheap and cached, and this
+  // stops the instant credentials exist.
+  const [found, setFound] = useState(account?.loggedIn ? account : null);
   useEffect(() => {
-    if (!login?.url) return;
+    // `demo` is the dev override simulating a signed-out machine; without it
+    // the poll would find the real credentials and flip straight back.
+    if (found || demo) return;
     const t = setInterval(async () => {
       try {
-        const [acc, auth] = await Promise.all([
-          fetch("/api/account").then((r) => r.json()),
-          fetch("/api/auth").then((r) => r.json()),
-        ]);
-        if (acc.loggedIn) { clearInterval(t); onDone(); return; }
-        const st = auth.login?.state;
-        if (st && !["starting", "waiting"].includes(st)) {
-          clearInterval(t);
-          setLogin(null);
-          setFailed(
-            st === "expired" ? "That code expired before it was confirmed."
-            : st === "cancelled" ? "Sign-in was cancelled."
-            : "The Vercel CLI stopped before signing in.",
-          );
-        }
+        const acc = await fetch("/api/account").then((r) => r.json());
+        if (acc.loggedIn) setFound(acc);
       } catch {}
-    }, 1200);
+    }, 1500);
     return () => clearInterval(t);
-  }, [login?.url, onDone]);
+  }, [found, demo]);
 
-  if (!login) {
+  if (found) {
     return (
       <>
-        <div className="wc-actions">
-          <Button onClick={begin} disabled={starting}>
-            {starting ? "Starting…" : "Sign in with Vercel"}
-          </Button>
+        <div className="wc-found">
+          <span className="wc-found-ic"><CheckCircleFill /></span>
+          <span className="wc-found-text">
+            <b>{found.user.name}</b>
+            <i>{found.user.email} · {found.scope?.name}</i>
+          </span>
         </div>
-        {failed && <p className="wc-foot wc-err">{failed}</p>}
-        <p className="wc-foot">Or from a terminal:</p>
-        <Command>vercel login</Command>
+        <div className="wc-actions">
+          <Button onClick={onContinue}>Continue <ArrowRight /></Button>
+        </div>
       </>
     );
   }
 
   return (
     <>
-      <p className="wc-body">
-        Confirm this code on Vercel. This page continues by itself once you do.
+      <p className="wc-body">Sign in with the Vercel CLI:</p>
+      <Command>vercel login</Command>
+      <p className="wc-foot">
+        This page picks it up on its own — no need to come back and click
+        anything. Using a token instead? Set <span className="mono">VERCEL_TOKEN</span> where
+        you started the cockpit.
       </p>
-      <div className="wc-code mono">{login.code}</div>
-      <div className="wc-actions">
-        {/* A plain anchor, not Button render={<a/>}: Base UI's button sets
-            nativeButton and warns that a non-<button> drops its semantics. */}
-        <a className="wc-link-btn" href={login.url} target="_blank" rel="noreferrer">
-          Open Vercel <ArrowUpRight />
-        </a>
-      </div>
-      <p className="wc-foot">Waiting for confirmation…</p>
     </>
   );
 }
 
-export default function Welcome({ state, error, localCount = 0, onRetry, onNew, onSkip }) {
+export default function Welcome({ state, error, account, demo = false, localCount = 0, onRetry, onNew, onSkip }) {
   if (state === "signed-out") {
     return (
       <div className="wc">
@@ -142,7 +100,7 @@ export default function Welcome({ state, error, localCount = 0, onRetry, onNew, 
           The cockpit shows the eve agents in your Vercel scope and the runs
           they&rsquo;ve had.
         </p>
-        <SignIn onDone={onRetry} />
+        <CliSignIn account={account} onContinue={onRetry} demo={demo} />
         {/* Local dev servers work without Vercel, so don't pretend the app is
             unusable — just don't let it look signed in either. */}
         {localCount > 0 && (

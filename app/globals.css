@@ -843,12 +843,16 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .wc-foot{margin:2px 0 0;font-size:12px;line-height:1.6;color:var(--dim2)}
 .wc-err{color:var(--bad);font-size:12px;word-break:break-word}
 .wc-newcard{max-width:440px;margin:16px auto 0}
-/* The device code, big enough to read off the screen while typing it. */
-.wc-code{
-  font-size:26px;font-weight:500;letter-spacing:.14em;color:var(--fg);
+/* Who we found, once the CLI has written credentials. */
+.wc-found{
+  display:flex;align-items:center;gap:10px;width:100%;
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
-  padding:12px 18px;margin-top:2px;
+  padding:12px 14px;margin-top:2px;text-align:left;
 }
+.wc-found-ic{display:inline-flex;font-size:16px;color:var(--ok);flex:none}
+.wc-found-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.wc-found-text b{font-size:13.5px;font-weight:500;color:var(--fg)}
+.wc-found-text i{font-style:normal;font-size:12px;color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wc-actions a{text-decoration:none}
 .wc-link-btn{
   display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 16px;

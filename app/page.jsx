@@ -149,9 +149,13 @@ function Home() {
     return (
       <div className="wrap">
         <div className="home-head"><h1>Agents</h1></div>
+        {/* Forcing signed-out forces the account away too, or the screen
+            offers a confirmation for credentials it claims not to have. */}
         <Welcome
           state={firstRun}
           error={data?.error ?? "projects API 500"}
+          account={forced === "signed-out" ? null : account}
+          demo={Boolean(forced)}
           localCount={localCount}
           onRetry={() => {
             // Drop ?firstrun on the way out: the dev override must never
