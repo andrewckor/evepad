@@ -7,7 +7,6 @@ import { I, triggerIcon } from "@/app/components/icons.jsx";
 import { ChevronLeft, ChevronRight } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
 
 const ENVS = ["local", "preview", "production"];
@@ -378,22 +377,22 @@ function Dashboard() {
           </div>
           {sessions.length > 0 && (
             <div className="tfoot">
-              <Select
-                value={String(pageSize)}
-                onValueChange={(v) => {
-                  setPageSize(Number(v)); setPage(0);
-                  sessionStorage.setItem("runsPageSize", v);
-                }}
-              >
-                <SelectTrigger size="sm" className="tfoot-size" aria-label="Rows per page">
-                  <SelectValue>Show {pageSize}</SelectValue>
-                </SelectTrigger>
-                <SelectContent align="start">
-                  {[10, 20, 30, 40, 50].map((n) => (
-                    <SelectItem key={n} value={String(n)}>Show {n}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* The last shadcn Select in the app — it kept its own panel,
+                  rows and check while every other menu moved to the shared
+                  one. */}
+              <Dropdown align="start" className="tfoot-size" label={`Show ${pageSize}`}>
+                {(close) => [10, 20, 30, 40, 50].map((n) => (
+                  <DropdownItem
+                    key={n}
+                    on={n === pageSize}
+                    onSelect={() => {
+                      setPageSize(n); setPage(0);
+                      sessionStorage.setItem("runsPageSize", String(n));
+                      close();
+                    }}
+                  >Show {n}</DropdownItem>
+                ))}
+              </Dropdown>
               <div className="spacer" />
               <span className="tfoot-page">{page + 1} of {Math.max(1, Math.ceil(sessions.length / pageSize))}</span>
               <Button variant="outline" size="icon-sm" disabled={page === 0}

@@ -25,6 +25,7 @@ import { ArrowUp, Plus, SlashForward } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDownSmall } from "vercel-geist-icons";
+import { MenuList, MenuLabel } from "./menu.jsx";
 
 // Base UI tooltips take a `render` element, not asChild.
 const Tip = ({ label, children }) => (
@@ -665,20 +666,20 @@ export default function OcChat({ project, onIdle }) {
             </span>
             <span className="oc-session-chev"><ChevronDownSmall /></span>
           </PopoverTrigger>
-          <PopoverContent align="start" className="oc-sesspop">
-            <div className="oc-sess-head">Sessions</div>
-            <div className="oc-sess-list">
+          <PopoverContent align="start" className="oc-sesspop menu-pop">
+            <MenuLabel>Sessions</MenuLabel>
+            <MenuList scroll max={320}>
               {sessions.map((se) => (
                 <button
                   key={se.id}
-                  className={"oc-sess-row" + (se.id === sessionId ? " on" : "")}
+                  className={"menu-row" + (se.id === sessionId ? " on" : "")}
                   onClick={() => { setSessionId(se.id); setSessOpen(false); }}
                 >
-                  <span className="oc-sess-title">{se.title ?? se.id}</span>
-                  <span className="oc-ago">{ago(se.updated)}</span>
+                  <span className="menu-row-label">{se.title ?? se.id}</span>
+                  <span className="menu-row-trail oc-ago">{ago(se.updated)}</span>
                 </button>
               ))}
-            </div>
+            </MenuList>
           </PopoverContent>
         </Popover>
         <Tip label="Start a new chat">

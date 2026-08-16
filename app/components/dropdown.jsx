@@ -11,7 +11,8 @@
 
 import { useState } from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Check, ChevronDownSmall } from "vercel-geist-icons";
+import { MenuList, MenuRow } from "./menu.jsx";
+import { ChevronDownSmall } from "vercel-geist-icons";
 
 export function Dropdown({ label, align = "start", width, className = "", children }) {
   const [open, setOpen] = useState(false);
@@ -22,8 +23,12 @@ export function Dropdown({ label, align = "start", width, className = "", childr
         {label}
         <span className="dd-chev"><ChevronDownSmall /></span>
       </PopoverTrigger>
-      <PopoverContent align={align} className="dd-pop" style={width ? { width } : undefined}>
-        {typeof children === "function" ? children(close) : children}
+      <PopoverContent align={align} className="dd-pop menu-pop" style={width ? { width } : undefined}>
+        {/* Every dropdown scrolls the same way: the period list is 10 items
+            and would otherwise size the panel to the viewport. */}
+        <MenuList scroll max={340}>
+          {typeof children === "function" ? children(close) : children}
+        </MenuList>
       </PopoverContent>
     </Popover>
   );
@@ -32,18 +37,13 @@ export function Dropdown({ label, align = "start", width, className = "", childr
 // A selectable row. `on` marks the current choice with the plain white check —
 // the same mark the team menu uses, never a green circle.
 export function DropdownItem({ on = false, onSelect, children }) {
-  return (
-    <button type="button" className={"dd-item" + (on ? " on" : "")} onClick={onSelect}>
-      <span className="dd-item-label">{children}</span>
-      {on && <span className="dd-check"><Check /></span>}
-    </button>
-  );
+  return <MenuRow on={on} onSelect={onSelect}>{children}</MenuRow>;
 }
 
 // A checkbox row, for multi-selects like the environment filter.
 export function DropdownCheckItem({ checked, onToggle, children }) {
   return (
-    <button type="button" className="dd-item" role="checkbox" aria-checked={checked} onClick={onToggle}>
+    <button type="button" className="menu-row" role="checkbox" aria-checked={checked} onClick={onToggle}>
       <span className={"cbx" + (checked ? " on" : "")}>
         {checked && (
           <svg viewBox="0 0 16 16" width="10" height="10">
@@ -51,7 +51,7 @@ export function DropdownCheckItem({ checked, onToggle, children }) {
           </svg>
         )}
       </span>
-      <span className="dd-item-label">{children}</span>
+      <span className="menu-row-label">{children}</span>
     </button>
   );
 }

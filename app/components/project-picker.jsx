@@ -13,6 +13,7 @@ import ProjectLogo from "./project-logo.jsx";
 import { Badge } from "./badge.jsx";
 import { ChevronUpSmall, ChevronDownSmall } from "vercel-geist-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { useScrollFade } from "./menu.jsx";
 import {
   Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem,
 } from "@/components/ui/command";
@@ -22,6 +23,11 @@ const fetcher = (url) => fetch(url).then((r) => r.json());
 
 export default function ProjectPicker({ value, onChange }) {
   const [open, setOpen] = useState(false);
+  // Same fade the shared MenuList uses. cmdk's List doesn't forward refs, so
+  // the hook takes the popover container and finds the scroller itself —
+  // keyed on `open`, because the content is portalled and doesn't exist until
+  // the menu opens.
+  const fadeRef = useScrollFade(open, ".pk-list");
   const [busy, setBusy] = useState({});
   const { data, mutate } = useSWR("/api/projects", fetcher, {
     refreshInterval: 5000,
@@ -107,14 +113,14 @@ export default function ProjectPicker({ value, onChange }) {
         {/* Vercel's switcher glyph: the two small chevrons stacked. */}
         <span className="chev chev-ud"><ChevronUpSmall /><ChevronDownSmall /></span>
       </PopoverTrigger>
-      <PopoverContent align="start" className="pk-pop">
+      <PopoverContent ref={fadeRef} align="start" className="pk-pop">
         <TooltipProvider delay={200}>
           <Command>
             <div className="pk-search">
               <CommandInput placeholder="Find project…" />
               <kbd className="kbd" onClick={() => setOpen(false)}>Esc</kbd>
             </div>
-            <CommandList className="pk-list">
+            <CommandList className="pk-list menu-scroll">
               <CommandEmpty>No project found.</CommandEmpty>
               {live.length > 0 && <CommandGroup heading="Running locally">{live.map(Row)}</CommandGroup>}
               {rest.length > 0 && <CommandGroup heading="Other agents">{rest.map(Row)}</CommandGroup>}

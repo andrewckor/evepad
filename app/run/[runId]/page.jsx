@@ -42,6 +42,8 @@ const ago = (iso) => {
 const statusClass = (s) => (s === "completed" ? "ok" : s === "failed" ? "bad" : "warn");
 
 import { I } from "../../components/icons.jsx";
+import { Streamdown } from "streamdown";
+import { MD_COMPONENTS } from "../../components/markdown.jsx";
 
 const W = { link: I.wrench, clock: I.clock, dollar: I.coins, chevRight: I.chevRight, chevDown: I.chevDown, copy: I.copy, external: I.external };
 
@@ -327,7 +329,11 @@ function Detail({ runId }) {
                         <div className="spacer" />
                         <span className="dim2">{I.chevRight}</span>
                       </div>
-                      {final && <div className="turnbody">{final}</div>}
+                      {final && (
+                        <div className="turnbody">
+                          <Streamdown className="chat-md prose-md" components={MD_COMPONENTS}>{final}</Streamdown>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -353,7 +359,9 @@ function Detail({ runId }) {
 
           {selInput != null && (
             <Section title="Input" right={<Pills options={["Markdown", "Raw"]} value={inputView} onChange={setInputView} />}>
-              {inputView === "Raw" ? <Json value={selInput} /> : <div className="prose">{selInput}</div>}
+              {inputView === "Raw"
+                ? <Json value={selInput} />
+                : <Streamdown className="chat-md prose-md" components={MD_COMPONENTS}>{selInput}</Streamdown>}
             </Section>
           )}
 
@@ -365,7 +373,11 @@ function Detail({ runId }) {
                 <>
                   {calls.map((c) => <TimelineCall key={c.callId} call={c} maxMs={maxCall} />)}
                   {!calls.length && <div className="dim2 mono">no tool calls</div>}
-                  {selFinal && <div className="prose" style={{ marginTop: 10 }}>{selFinal}</div>}
+                  {selFinal && (
+                    <Streamdown className="chat-md prose-md" components={MD_COMPONENTS} style={{ marginTop: 10 }}>
+                      {selFinal}
+                    </Streamdown>
+                  )}
                 </>
               )}
             </Section>

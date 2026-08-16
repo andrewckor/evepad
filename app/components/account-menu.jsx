@@ -15,6 +15,7 @@ import { SettingsGear, Check } from "vercel-geist-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import SettingsDialog from "./settings-dialog.jsx";
 import ThemeSwitcher from "./theme-switcher.jsx";
+import { MenuLabel, MenuSeparator } from "./menu.jsx";
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
 
@@ -48,27 +49,27 @@ export default function AccountMenu() {
         <PopoverTrigger className="acc-trigger" title={data?.loggedIn ? `${label} — Vercel account` : "Vercel account"}>
           <Avatar src={scope?.avatarUrl} name={label} size={22} />
         </PopoverTrigger>
-        <PopoverContent align="start" className="acc-pop">
+        <PopoverContent align="start" className="acc-pop menu-pop">
           {data?.loggedIn ? (
             <>
-              <div className="acc-label">Team</div>
+              <MenuLabel>Team</MenuLabel>
               {/* Every team the token can reach, active one checked.
                   Switching is `vercel switch` — shown, not offered. */}
               {[scope, ...(data.teams ?? []).filter((t) => t.id !== scope?.id)].filter(Boolean).map((t) => (
-                <div key={t.id ?? t.slug} className={"acc-scope" + (t.slug === scope?.slug ? " on" : "")}>
+                <div key={t.id ?? t.slug} className={"menu-row" + (t.slug === scope?.slug ? " on" : "")}>
                   <Avatar src={t.avatarUrl} name={t.name} size={18} />
-                  <span className="acc-scope-name">{t.name}</span>
-                  {t.slug === scope?.slug && <span className="acc-check"><Check /></span>}
+                  <span className="menu-row-label">{t.name}</span>
+                  {t.slug === scope?.slug && <span className="menu-check"><Check /></span>}
                 </div>
               ))}
-              <div className="acc-sep" />
+              <MenuSeparator />
               {/* One row, like Vercel's: who you are, and the gear that opens
                   everything about it. */}
-              <div className="acc-row">
+              <div className="menu-row acc-row">
                 <span className="acc-row-label">Theme</span>
                 <ThemeSwitcher />
               </div>
-              <div className="acc-sep" />
+              <MenuSeparator />
               <button className="acc-me" onClick={() => { setOpen(false); setSettings(true); }}>
                 <span className="acc-head-text">
                   <b>{data.user.name}</b>
@@ -83,13 +84,13 @@ export default function AccountMenu() {
                 <b>Not signed in to Vercel</b>
                 <p>{data?.hint ?? data?.error ?? "Run `vercel login` to see your deployed agents."}</p>
               </div>
-              <div className="acc-sep" />
+              <MenuSeparator />
               <div className="acc-row">
                 <span className="acc-row-label">Theme</span>
                 <ThemeSwitcher />
               </div>
-              <div className="acc-sep" />
-              <button className="acc-item" onClick={() => { setOpen(false); setSettings(true); }}>
+              <MenuSeparator />
+              <button className="menu-row acc-item" onClick={() => { setOpen(false); setSettings(true); }}>
                 <SettingsGear /> Settings
               </button>
             </>

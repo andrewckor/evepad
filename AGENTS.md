@@ -77,8 +77,14 @@ The app has light and dark themes, resolved to an explicit
 
 ## Reusable pieces — don't grow a second one
 
-One dropdown: `app/components/dropdown.jsx` (trigger + panel on the shadcn
-Popover). One tooltip: `components/ui/tooltip.jsx` (Base UI: trigger takes
+Menus: `app/components/menu.jsx` is the primitive set — `MenuList` (add
+`scroll` for a hidden bar with faded edges), `MenuRow`, `MenuLabel`,
+`MenuSeparator`. Every popover in the app is built from these, so they share
+one rhythm: `--menu-pad` (7px) is the ring of space around the list and
+`--menu-row-h` (34px) the row height, both in globals.css — change them and
+every menu moves. Rows sit FLUSH: their hover fill is the separation, so a gap
+would double it. `app/components/dropdown.jsx` is the trigger+panel wrapper
+built on those primitives. One tooltip: `components/ui/tooltip.jsx` (Base UI: trigger takes
 `render`, not asChild). One modal look: the Geist-measured `.set-dialog`
 chrome. One loader family: `loading-state.jsx` (pixel grid) and the 12px
 `.th-spin` ring for inline rows. Before styling a new menu, row, or panel,
