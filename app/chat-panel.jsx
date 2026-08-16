@@ -9,13 +9,16 @@ import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
 import { SidebarRight, PlusCircle, ChevronRight, ChevronDown } from "vercel-geist-icons";
 import { Streamdown } from "streamdown";
+import { MD_COMPONENTS } from "./components/markdown.jsx";
+import LoadingState from "./components/loading-state.jsx";
+import { Check } from "vercel-geist-icons";
+import { ArrowUp } from "vercel-geist-icons";
 import {
   MessageScrollerProvider, MessageScroller, MessageScrollerViewport,
   MessageScrollerContent, MessageScrollerItem, MessageScrollerButton,
 } from "@/components/ui/message-scroller";
 import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
-import { Spinner } from "@/components/ui/spinner";
 
 export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onNewChat, seed, onClose }) {
   // Same drag-resize contract as the terminal — one shared panel geometry.
@@ -183,29 +186,34 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
                   <MessageScrollerItem key={i} messageId={String(i)} scrollAnchor={m.role === "user"}>
                     <Message align={m.role === "user" ? "end" : "start"}>
                       <MessageContent>
+                        {/* Same rows the Build editor's trace uses, so a tool
+                            call looks like a tool call everywhere. */}
                         {(m.tools ?? []).map((t) => (
-                          <div key={t.callId} className="msg-tool mono">
-                            {t.status === "running" ? "…" : "✓"} {t.name}
+                          <div key={t.callId} className="th-row static">
+                            <span className="th-ic">
+                              {t.status === "running" ? <span className="th-spin" /> : <Check />}
+                            </span>
+                            <span className="th-name">{t.name}</span>
                           </div>
                         ))}
-                        {m.text && (
-                          <Bubble variant={m.role === "user" ? "default" : "secondary"} align={m.role === "user" ? "end" : "start"}>
-                            <BubbleContent>
-                              {/* Streamdown renders markdown safely mid-stream
-                                  (unclosed ** and ``` while tokens arrive). */}
-                              <Streamdown className="chat-md">{m.text}</Streamdown>
-                            </BubbleContent>
+                        {m.text && (m.role === "user" ? (
+                          <Bubble variant="secondary" align="end" className="oc-bubble">
+                            <BubbleContent>{m.text}</BubbleContent>
                           </Bubble>
-                        )}
+                        ) : (
+                          /* Bare markdown, like the editor — the agent's answer
+                             is the page, not a card on it. Streamdown renders
+                             safely mid-stream (unclosed ** and ``` while
+                             tokens arrive); MD_COMPONENTS is our code block. */
+                          <Streamdown className="chat-md" components={MD_COMPONENTS}>{m.text}</Streamdown>
+                        ))}
                       </MessageContent>
                     </Message>
                   </MessageScrollerItem>
                 ))}
                 {waiting && (
                   <MessageScrollerItem messageId="thinking">
-                    <div className="dim mono" style={{ display: "flex", gap: 8, alignItems: "center", padding: "2px 4px" }}>
-                      <Spinner /> thinking…
-                    </div>
+                    <LoadingState label="Working" />
                   </MessageScrollerItem>
                 )}
               </MessageScrollerContent>
@@ -214,16 +222,29 @@ export default function ChatPanel({ project, dock, onDock, size, onSize, clamp, 
           </MessageScroller>
         </MessageScrollerProvider>
       </div>
-      <div className="chat-input">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder={waiting ? "waiting for the agent…" : "Message the agent"}
-          disabled={waiting}
-          autoFocus
-        />
-        <button onClick={send} disabled={waiting || !input.trim()}>↩</button>
+      <div className="chat-composer">
+        <div className="oc-card">
+          <textarea
+            rows={1}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              const el = e.target;
+              const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
+              el.style.height = "auto";
+              el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
+            }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder={waiting ? "waiting for the agent…" : `Message ${project.name}…`}
+            className="oc-ta"
+            disabled={waiting}
+            autoFocus
+          />
+          <div className="oc-card-row">
+            <span />
+            <button className="oc-send" onClick={send} disabled={waiting || !input.trim()}><ArrowUp /></button>
+          </div>
+        </div>
       </div>
     </motion.aside>
   );

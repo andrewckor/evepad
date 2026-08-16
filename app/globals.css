@@ -34,6 +34,8 @@
   --shadow-panel:-8px 0 32px rgba(0,0,0,.08);
   --shadow-panel-up:0 -8px 28px rgba(0,0,0,.08);
   --term-bg:#f7f7f7;
+  --agent-pill:#e6e6e6;
+  --agent-pill-fg:#171717;
   /* State colours darken slightly so they hold contrast on white. */
   --blue:#0072f5;
   --ok:#0f9d58;
@@ -96,6 +98,8 @@
   --shadow-panel-up:0 -14px 40px rgba(0,0,0,.55);
   /* xterm paints its own canvas; the TUI takes whatever ground we hand it. */
   --term-bg:#0a0a0a;
+  --agent-pill:#fff;
+  --agent-pill-fg:#000;
   --sans:var(--font-geist-sans),-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
   --mono:var(--font-geist-mono),ui-monospace,SFMono-Regular,Menlo,monospace;
   --r-sm:6px; --r:8px; --r-lg:12px;
@@ -504,10 +508,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .gpill em{font-style:normal;color:var(--dim2);font-size:11px}
 .react-flow__node.gagent{
   width:auto;height:auto;box-shadow:none;border:none;
-  background:var(--btn);border-radius:999px;padding:10px 22px;cursor:default;
+  background:var(--agent-pill);border-radius:999px;padding:10px 22px;cursor:default;
 }
 .agent-label{display:flex;align-items:center;justify-content:center;gap:9px}
-.agent-label b{color:var(--btn-fg);font-size:15px;font-weight:600;max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-label b{color:var(--agent-pill-fg);font-size:15px;font-weight:600;max-width:40ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .agent-logo{display:inline-flex}
 .react-flow__node.gcircle{width:auto;height:auto;box-shadow:none;border:none;background:transparent;padding:0;cursor:pointer}
 /* React Flow lights the whole rectangular node on hover/select, which drew a
@@ -656,7 +660,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   background:var(--panel2);border:1px solid var(--line);border-radius:16px 16px 16px 4px;
   padding:8px 13px;margin-right:40px;white-space:pre-wrap;font-size:13.5px;
 }
-.msg-tool{font-size:12px;color:var(--dim);padding:2px 4px;font-family:var(--mono)}
 .box-item.sched{height:44px}
 .box-item.sched .box-name{display:flex;flex-direction:column;align-items:flex-start;gap:1px;line-height:1.25}
 .sched-when{font-style:normal;color:var(--dim2);font-size:10.5px;font-family:var(--mono)}
@@ -682,6 +685,13 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 /* search row: input flexes, the Esc key sits inside the same bar */
 .pk-search{display:flex;align-items:center;gap:8px;padding-right:10px;border-bottom:1px solid var(--line)}
 .pk-search [data-slot="command-input-wrapper"]{flex:1;border-bottom:none}
+.pk-search [data-slot="command-input-wrapper"]{padding:0}
+.pk-search [data-slot="input-group"]{
+  background:transparent!important;border:none!important;border-radius:0!important;
+  box-shadow:none!important;height:40px!important;
+}
+.pk-search [data-slot="command-input"]{font-size:13.5px;color:var(--fg)}
+.pk-search [data-slot="command-input"]::placeholder{color:var(--dim2)}
 .pk-trigger{
   display:inline-flex;align-items:center;gap:9px;height:36px;padding:0 10px 0 8px;
   border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);
@@ -773,14 +783,14 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   color:var(--dim);font-weight:600;
 }
 .acc-avatar img{width:100%;height:100%;object-fit:cover;display:block}
-.acc-pop{width:280px;padding:6px}
+.acc-pop{width:280px;padding:4px}
 .acc-head{display:flex;align-items:center;gap:10px;padding:8px 8px 6px}
 .acc-head-text{display:flex;flex-direction:column;gap:1px;min-width:0}
 .acc-head-text b{font-size:13px;font-weight:500;color:var(--fg)}
 .acc-head-text i{font-style:normal;font-size:11.5px;color:var(--dim2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.acc-sep{height:1px;background:var(--line);margin:6px -6px}
-.acc-label{padding:2px 8px 4px;font-size:11px;font-weight:500;color:var(--dim2)}
-.acc-scope{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r-sm);font-size:13px;color:var(--dim)}
+.acc-sep{height:1px;background:var(--line);margin:4px -4px}
+.acc-label{padding:6px 8px 2px;font-size:11px;font-weight:500;color:var(--dim2)}
+.acc-scope{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border-radius:var(--r-sm);font-size:13px;color:var(--dim)}
 .acc-scope.on{color:var(--fg)}
 .acc-scope-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acc-check{display:inline-flex;font-size:14px;color:var(--fg)}
@@ -817,7 +827,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .thsw-opt.on{background:var(--panel);color:var(--fg);box-shadow:0 0 0 1px var(--line2)}
 /* Row that hosts a control instead of an action; same 8px inset as the
    action rows so the label column lines up. */
-.acc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 8px}
+.acc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;height:36px;padding:0 8px}
 .acc-row-label{font-size:13px;color:var(--dim)}
 
 /* Shared dropdown (components/dropdown.jsx). One trigger look, one panel
@@ -999,7 +1009,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 /* the agent node, mid-materialization: same white pill as .gagent */
 .manifest-pill{
   display:inline-flex;align-items:center;gap:14px;
-  background:#171717;color:var(--fg);
+  background:var(--panel);color:var(--fg);
   border:1px solid var(--line2);border-radius:999px;padding:14px 30px 14px 22px;
   box-shadow:var(--shadow-lift);
   animation:pillin 420ms cubic-bezier(.23,1,.32,1) both;
@@ -1265,8 +1275,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-palette button[data-on="1"]{background:var(--hover)}
 .oc-cmd-desc{color:var(--dim2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oc-agent{color:var(--dim);font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px}
-.chat-composer .chat-input{border-top:none;padding-bottom:6px}
-/* User turns read as a quiet aside, not the loudest thing on screen — the
+.chat-composer /* User turns read as a quiet aside, not the loudest thing on screen — the
    white default pulled the eye away from the agent's answer, which is the
    content that matters. */
 [data-slot="bubble"].oc-bubble>[data-slot="bubble-content"]{
@@ -1287,14 +1296,6 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .chat-model select:hover{color:var(--fg);border-color:var(--line2)}
 .chat-model select:focus{outline:none;border-color:var(--line2)}
 .chat-model select option,.chat-model select optgroup{background:var(--panel);color:var(--fg)}
-.chat-input{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
-.chat-input input{
-  flex:1;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);
-  color:var(--fg);padding:9px 12px;font:inherit;font-size:13.5px;outline:none;
-}
-.chat-input input:focus{border-color:var(--line2)}
-.chat-input button{width:40px;border:1px solid var(--line);border-radius:var(--r);font-size:15px;color:var(--dim)}
-.chat-input button:not(:disabled):hover{color:var(--fg);border-color:var(--line3)}
 
 /* terminal panel: dockable right (slide from right, resize left edge) or
    bottom (slide from bottom, resize top edge) */

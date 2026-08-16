@@ -8,8 +8,8 @@
 // without reimplementation.
 
 import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
-import { Streamdown, useIsCodeFenceIncomplete } from "streamdown";
-import CodeBlock from "./code-block.jsx";
+import { Streamdown } from "streamdown";
+import { MD_COMPONENTS } from "./markdown.jsx";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,27 +35,6 @@ const Tip = ({ label, children }) => (
 );
 
 
-// Streamdown's own code block never highlighted here (it lazy-loads shiki,
-// which isn't installed) and its fallback body is sans-serif with
-// white-space:normal — so every block rendered as wrapped prose. Ours
-// replaces it; inline code keeps the default treatment.
-function MdCode({ node, className, children, ...props }) {
-  const incomplete = useIsCodeFenceIncomplete();
-  if (!("data-block" in props)) return <code className={className} {...props}>{children}</code>;
-  const language = /language-([\w-]+)/.exec(className ?? "")?.[1] ?? "";
-  const code = typeof children === "string"
-    ? children
-    : (children?.props?.children ?? "");
-  return (
-    <CodeBlock
-      code={String(code)}
-      language={language}
-      meta={node?.properties?.metastring}
-      isIncomplete={incomplete}
-    />
-  );
-}
-const MD_COMPONENTS = { code: MdCode };
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
