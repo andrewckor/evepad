@@ -38,8 +38,8 @@
   --btn:#171717;
   --btn-fg:#fff;
   --btn-hover:#000;
-  --ring:rgba(0,0,0,.12);
-  --ring-soft:rgba(0,0,0,.04);
+  --hairline:rgba(0,0,0,.12);
+  --hairline-soft:rgba(0,0,0,.04);
   --shadow-menu:0 0 0 1px rgba(0,0,0,.06),0 12px 32px rgba(0,0,0,.12);
   --shadow-lift:0 0 0 1px rgba(0,0,0,.05),0 8px 24px rgba(0,0,0,.1);
   --shadow-dock:0 0 0 1px rgba(0,0,0,.06),0 -8px 28px rgba(0,0,0,.1);
@@ -107,8 +107,11 @@
   --btn-hover:#fff;
   --on-accent:#fff;      /* text on a coloured fill */
   --chip:#141414;        /* the composer card */
-  --ring:rgba(255,255,255,.14);
-  --ring-soft:rgba(255,255,255,.05);
+  /* NOT --ring: that name belongs to shadcn's focus ring (#0072f5), which is
+     defined further down this same block and silently won — the runs table's
+     chevron chip turned blue on hover because of it. */
+  --hairline:rgba(255,255,255,.14);
+  --hairline-soft:rgba(255,255,255,.05);
   /* Shadows are theme state too: what reads as depth on black is a smear of
      ink on white, so light mode swaps the whole set for soft Geist-style
      shadows instead of scaling these down. */
@@ -183,7 +186,7 @@ svg.gi{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-wid
 .rowchev svg{width:11px;height:11px}
 tbody tr:hover .rowchev{color:var(--fg)}
 .rowchev span{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;transition:background .12s}
-tbody tr:hover .rowchev span{background:var(--ring)}
+tbody tr:hover .rowchev span{background:var(--hairline)}
 .chatbtn svg,.copybtn svg,.sec-chev svg{width:14px;height:14px;flex:none}
 
 /* ---- top bar ---- */
@@ -555,7 +558,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .gcircle .circle{transition:border-color .15s,box-shadow .15s,background .15s}
 .gcircle:hover .circle{
   border-color:var(--line3);background:var(--hover);
-  box-shadow:0 0 0 4px var(--ring-soft);
+  box-shadow:0 0 0 4px var(--hairline-soft);
 }
 .toolbox{display:flex;flex-direction:column;text-align:left}
 .box-title{padding:9px 15px;border-bottom:1px solid var(--line);font-size:13px;font-weight:600;color:var(--fg)}
@@ -889,7 +892,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   width:540px;max-width:calc(100% - 2rem);overflow:hidden;
   background:var(--panel);border-radius:12px;padding:0;border:none;
   box-shadow:
-    var(--ring) 0 0 0 1px,
+    var(--hairline) 0 0 0 1px,
     rgba(0,0,0,.06) 0 32px 72px -12px,
     rgba(0,0,0,.08) 0 8px 32px -12px,
     rgba(0,0,0,.12) 0 8px 24px -12px;

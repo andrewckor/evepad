@@ -45,6 +45,9 @@ The app has light and dark themes, resolved to an explicit
   Use the tokens (`--bg --panel --panel2 --hover --inset --line/--line2/--line3
   --fg --dim --dim2 --chip --btn/--btn-fg --on-accent --ring --ring-soft` and
   the state colours). If no token fits, add one to BOTH `:root` blocks.
+- Token names must not collide with shadcn's. `--ring` is THEIRS (the focus
+  ring); ours is `--hairline`/`--hairline-soft`. A collision inside the same
+  `:root` is silent — the later definition just wins.
 - Shadows are tokens too (`--shadow-menu/-lift/-dock/-panel/-panel-up`) —
   dark-mode shadows read as ink smears on white, so light swaps the set.
 - Literals are only correct where the colour is genuinely theme-independent:
