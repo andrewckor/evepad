@@ -2,6 +2,7 @@ import "./globals.css";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Shell from "./components/shell.jsx";
+import { Toaster } from "@/components/ui/sonner";
 export const metadata = { title: "eve cockpit", description: "Agent runs, local and remote" };
 
 // Resolve the theme before the first paint. React can't do this — its first
@@ -34,6 +35,8 @@ export default function RootLayout({ children }) {
         {/* The Shell (topbar, pickers, chat, terminal) mounts once and survives
             all route changes — pages below it only swap their content. */}
         <Shell>{children}</Shell>
+        {/* Outside the Shell so a toast outlives any panel that raised it. */}
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );

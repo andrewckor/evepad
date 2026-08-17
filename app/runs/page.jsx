@@ -8,6 +8,8 @@ import { ChevronLeft, ChevronRight, FolderPlus } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
+import { toast } from "sonner";
+import ReconnectDialog from "@/app/components/reconnect-dialog.jsx";
 
 const ENVS = ["local", "preview", "production"];
 
@@ -22,6 +24,37 @@ const DEFAULT_PERIOD = "12h";
 const periodLabel = (v) => PERIODS.find(([k]) => k === v)?.[1] ?? v;
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
+// Stable id so the credential toast is updated in place rather than restacked
+// by every SWR poll, and so any code path can dismiss the one that's showing.
+const AUTH_TOAST = "vercel-auth";
+// Per kind, because one message can't be both friendly and true here: an
+// expired token IS expired, but a bare 403 might just be a scope this token
+// can't see. Nothing blames the user, and each one says what happens next.
+// `env` is null when the failure is account-wide rather than one environment
+// (the project listing itself failed), so every line has to read both ways.
+const scope = (env) => (env ? `your ${env} “Agent runs”` : `your “Agent runs”`);
+const AUTH_COPY = {
+  expired: {
+    title: "Your Vercel sign-in expired",
+    desc: (env) => `Sign back in to get access to ${scope(env)}.`,
+  },
+  missing: {
+    title: "You’re not signed in to Vercel",
+    desc: (env) => `Sign in to get access to ${scope(env)}.`,
+  },
+  forbidden: {
+    // Same line as `expired`. A bare 403 can technically also be a scope this
+    // account can't see, but naming that in the toast ("Vercel turned down the
+    // request") reads like a wall — and the remedy is identical either way.
+    // The nuance stays in the dialog, where there's room to explain it.
+    title: "Your Vercel sign-in expired",
+    desc: (env) => `Sign back in to get access to ${scope(env)}.`,
+  },
+  plan: {
+    title: "Not on your plan",
+    desc: (env) => `Run history this far back needs an Observability plan.`,
+  },
+};
 
 const money = (n) => "$" + (Number(n) || 0).toFixed(4);
 const kt = (n) => {
@@ -254,11 +287,46 @@ function Dashboard() {
   const hasLocal = Boolean(
     (projectList?.projects ?? []).find((p) => p.name === project)?.localPath,
   );
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, mutate: refetchRuns } = useSWR(
     `/api/runs?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`,
     fetcher,
     { refreshInterval: isLocal ? 2000 : 0, revalidateOnFocus: isLocal, keepPreviousData: true },
   );
+
+  // Credentials going stale is the one failure here the user can fix, so it
+  // gets the corner rather than only the empty table — including when another
+  // environment still returns data and the page looks fine.
+  const [reconnect, setReconnect] = useState(null);
+  // ?authfail=expired|missing|forbidden|plan — the same dev-override shape as
+  // ?firstrun on the home page, including the production guard: reaching this
+  // state for real needs an expired token, which you can't summon on demand,
+  // but a query param that fakes a credential failure has no business being
+  // reachable in a build.
+  const forcedAuth = process.env.NODE_ENV !== "production" ? q.get("authfail") : null;
+  const auth = forcedAuth
+    ? { env: "production", kind: forcedAuth, canReconnect: forcedAuth !== "plan", message: `forced: ${forcedAuth}` }
+    : data?.auth ?? null;
+  useEffect(() => {
+    if (!auth) { toast.dismiss(AUTH_TOAST); return; }
+    const copy = AUTH_COPY[auth.kind] ?? AUTH_COPY.forbidden;
+    toast(copy.title, {
+      // A fixed id: SWR refetches on an interval and an id-less toast would
+      // stack another copy of the same message on every poll. Same id updates
+      // the existing one in place.
+      id: AUTH_TOAST,
+      description: copy.desc(auth.env),
+      // The user has to act on this one, and a toast that fades before they
+      // reach it is worse than none.
+      duration: Infinity,
+      className: "toast-warn",
+      // A plan limit still gets a toast — it's the only surface now that the
+      // inline banner is gone — but no button, because signing in again can't
+      // buy a plan and a dead-end action is worse than none.
+      action: auth.canReconnect
+        ? { label: "Reconnect", onClick: () => setReconnect(auth.kind) }
+        : undefined,
+    });
+  }, [auth?.kind, auth?.env, auth?.canReconnect]);
 
   const all = data?.sessions ?? [];
   const triggers = useMemo(() => [...new Set(all.map((s) => s.trigger))], [all]);
@@ -299,6 +367,27 @@ function Dashboard() {
 
   return (
     <>
+      <ReconnectDialog
+        open={Boolean(reconnect)}
+        onOpenChange={(v) => !v && setReconnect(null)}
+        kind={reconnect ?? "forbidden"}
+        onReconnected={() => {
+          // The token is live again, but the runs response in SWR's cache is
+          // the failed one — refetch, and drop the toast that prompted this.
+          toast.dismiss(AUTH_TOAST);
+          setReconnect(null);
+          // Same rule as ?firstrun: the dev override must not outlive the fix
+          // and strand you re-reading a failure that isn't happening any more.
+          // Dropped, not set — setParam() would write the string "null".
+          if (forcedAuth) {
+            const next = new URLSearchParams(q.toString());
+            next.delete("authfail");
+            router.replace("/runs?" + next.toString(), { scroll: false });
+          }
+          refetchRuns();
+          refetchProjects();
+        }}
+      />
       <div className="wrap">
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <EnvPicker value={environment} onChange={pickEnv} hasLocal={hasLocal} />
@@ -321,7 +410,11 @@ function Dashboard() {
                 {locating ? "Opening…" : "Choose folder"}
               </button>
             </div>
-          ) : (
+          ) : auth ? null : (
+            // Nothing inline for a credential failure — the toast owns it, and
+            // two messages for one problem is one too many. Explicitly null
+            // rather than deleted: falling through to .err below would dump the
+            // raw request URL and x-vercel-id at the user.
             <div className="err"><b>{environment}</b> unavailable — {data.error}</div>
           )
         )}

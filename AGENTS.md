@@ -90,9 +90,40 @@ would double it. `app/components/dropdown.jsx` is the trigger+panel wrapper
 built on those primitives. One tooltip: `components/ui/tooltip.jsx` (Base UI: trigger takes
 `render`, not asChild). One modal look: the Geist-measured `.set-dialog`
 chrome. One loader family: `loading-state.jsx` (pixel grid) and the 12px
-`.th-spin` ring for inline rows. Before styling a new menu, row, or panel,
+`.th-spin` ring for inline rows.
+
+Messages have two shapes and they are not interchangeable. `.note` is the
+INLINE banner for a condition that belongs in the page — it explains the empty
+table it sits above (no local checkout, a plan limit). The CORNER one is
+shadcn's sonner (`components/ui/sonner.jsx`, mounted once in layout.jsx), for
+something that happened to the whole app with nowhere on the page to live
+(credentials going stale under a view that was working). Import `toast` from
+`sonner` and call it directly — do not wrap it in a provider of our own.
+Always pass a stable `id`: SWR refetches on an interval and an id-less toast
+stacks a copy per poll, while the same id updates in place. Use
+`duration: Infinity` whenever the user must act, since a toast that fades
+before they reach it is worse than none. One action, max — more than one means
+it wanted to be a dialog. Two edits to the generated wrapper are deliberate and
+must survive a `shadcn add` re-run: the theme comes from our `data-theme`
+attribute (not next-themes, which this app doesn't use) and the lucide icon set
+is dropped. Before styling a new menu, row, or panel,
 reuse these — two implementations of the same control is how the app drifted
 last time.
+
+## Dev overrides for states you can't summon
+
+Failure states need a way in, or they rot. Two exist, same shape:
+`/?firstrun=signed-out|empty|error` forces the Welcome screens, and
+`/runs?authfail=expired|missing|forbidden|plan` forces the credential toast and
+its Reconnect dialog. Both are read from the query string in the page, never
+from stored state, so a real sign-in always outranks them.
+
+Credentials themselves: `cliToken()` in `lib/projects.js` is the ONE reader
+(honours `VERCEL_TOKEN`, else the CLI's `auth.json`). Never cache the token in
+a module variable — `vercel-client.js` did, and its analytics clients bake the
+token in at construction, so a rotated credential kept 403ing until the dev
+server restarted while `/api/account` showed you happily signed in. Client maps
+are keyed by identity and evicted on rotation; keep it that way.
 
 ## Performance — top priority
 

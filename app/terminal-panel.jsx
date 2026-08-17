@@ -4,25 +4,13 @@
 // in a normal shell, so chatting with the agent, watching logs, and its slash
 // commands all work. xterm.js renders; a pty on the cockpit server hosts.
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { SidebarRight, ChevronRight, ChevronDown } from "vercel-geist-icons";
 import { motion } from "motion/react";
 import { SPRING } from "./components/motion.js";
-
-// Reads the live tokens so the terminal matches whatever the rest of the app
-// is wearing, instead of a second copy of the palette drifting out of step.
-function xtermTheme() {
-  const cs = getComputedStyle(document.documentElement);
-  const v = (n, fallback) => cs.getPropertyValue(n).trim() || fallback;
-  return {
-    background: v("--term-bg", "#0a0a0a"),
-    foreground: v("--fg", "#ededed"),
-    cursor: v("--acc", "#0072f5"),
-  };
-}
+import XtermView from "./components/xterm-view.jsx";
 
 export default function TerminalPanel({ project, dock, onDock, size, onSize, clamp, onResizing, onClose }) {
-  const mount = useRef(null);
   // The old flat "starting…" lied for the common case — an already-running
   // server is an ATTACH. Seed from what we already know about the project.
   const [status, setStatus] = useState(() =>
@@ -46,91 +34,6 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
     window.addEventListener("pointerup", up);
   };
 
-  useEffect(() => {
-    let disposed = false;
-    let xterm, fit, abort;
-    let themeSync;
-
-    (async () => {
-      // Fire the pty request FIRST and await it later: it used to sit behind
-      // the xterm bundle, so the server didn't even hear about us until the
-      // chunk had loaded (async-parallel / async-defer-await).
-      const startReq = fetch("/api/term", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ project: project.name, action: "start" }),
-      });
-
-      // xterm touches `window` at import time — load it client-side only.
-      const [{ Terminal }, { FitAddon }] = await Promise.all([
-        import("@xterm/xterm"),
-        import("@xterm/addon-fit"),
-        import("@xterm/xterm/css/xterm.css"),
-      ]);
-      if (disposed) return;
-
-      const start = await startReq;
-      const info = await start.json();
-      if (!start.ok) { setStatus(info.error ?? "failed to start"); return; }
-      setStatus(info.mode === "attach" ? `attached to :${info.port}` : `serving on :${info.port}`);
-
-      xterm = new Terminal({
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-        fontSize: 12.5,
-        // xterm paints to a canvas, so it can't read CSS variables — the
-        // theme has to be handed to it, and re-handed when it changes.
-        theme: xtermTheme(),
-        cursorBlink: true,
-        scrollback: 4000,
-      });
-      themeSync = new MutationObserver(() => { xterm.options.theme = xtermTheme(); });
-      themeSync.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-
-      fit = new FitAddon();
-      xterm.loadAddon(fit);
-      xterm.open(mount.current);
-      fit.fit();
-      xterm.focus();
-
-      const sendResize = () =>
-        fetch("/api/term", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ project: project.name, action: "resize", cols: xterm.cols, rows: xterm.rows }),
-        });
-      sendResize();
-      const ro = new ResizeObserver(() => { fit.fit(); sendResize(); });
-      ro.observe(mount.current);
-
-      xterm.onData((data) =>
-        fetch("/api/term", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ project: project.name, action: "input", data }),
-        }),
-      );
-
-      abort = new AbortController();
-      const res = await fetch(`/api/term/stream?project=${encodeURIComponent(project.name)}`, { signal: abort.signal });
-      const reader = res.body.getReader();
-      (async () => {
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done || disposed) break;
-          xterm.write(value);
-        }
-      })().catch(() => {}); // closing the panel aborts the read — expected
-
-      return () => ro.disconnect();
-    })().catch(() => {}); // teardown aborts the stream mid-await — expected
-
-    return () => {
-      themeSync?.disconnect();
-      disposed = true;
-      abort?.abort();
-      xterm?.dispose();
-    };
-  }, [project.name]);
 
   const off = dock === "right" ? { x: "100%" } : { y: "100%" };
   return (
@@ -165,7 +68,12 @@ export default function TerminalPanel({ project, dock, onDock, size, onSize, cla
           </button>
         </div>
       </div>
-      <div className="term-body" ref={mount} />
+      <XtermView
+        project={project.name}
+        onStatus={(info) =>
+          setStatus(info.error ?? (info.mode === "attach" ? `attached to :${info.port}` : `serving on :${info.port}`))
+        }
+      />
     </motion.aside>
   );
 }

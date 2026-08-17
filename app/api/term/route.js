@@ -7,10 +7,15 @@ export async function POST(request) {
   const { project: name, action, data, cols, rows, variant } = await request.json();
 
   if (action === "start") {
-    const project = await resolveProject(name);
+    // The login terminal isn't a project's — and it's exactly the terminal you
+    // need when resolveProject() can't work, because the credential that lists
+    // projects is the thing that's broken.
+    const project = variant === "login"
+      ? { name: "__login" }
+      : await resolveProject(name);
     if (!project) return Response.json({ error: "unknown project" }, { status: 404 });
     try {
-      const term = await startTerm(project, variant);
+      const term = await startTerm(project, variant, { cols, rows });
       return Response.json({ ok: true, mode: term.mode, port: term.port });
     } catch (e) {
       return Response.json({ error: String(e.message ?? e) }, { status: 409 });

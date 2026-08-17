@@ -76,6 +76,15 @@ export async function GET() {
     cache = { at: Date.now(), key, data };
     return Response.json(data);
   } catch (e) {
-    return Response.json({ loggedIn: false, error: String(e.message ?? e).slice(0, 200) });
+    // tokenSource travels with the failure, not just the success: a rejected
+    // credential is exactly when the caller needs to know WHERE it came from.
+    // Without it the reconnect dialog tells someone using VERCEL_TOKEN to run
+    // `vercel login`, which can't help — the env var outranks auth.json, so
+    // they'd sign in successfully and watch nothing change.
+    return Response.json({
+      loggedIn: false,
+      tokenSource: process.env.VERCEL_TOKEN ? "VERCEL_TOKEN" : "vercel CLI",
+      error: String(e.message ?? e).slice(0, 200),
+    });
   }
 }
