@@ -8,7 +8,7 @@ import { ChevronLeft, ChevronRight, FolderPlus } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/toast";
 import ReconnectDialog from "@/app/components/reconnect-dialog.jsx";
 
 const ENVS = ["local", "preview", "production"];
@@ -24,9 +24,10 @@ const DEFAULT_PERIOD = "12h";
 const periodLabel = (v) => PERIODS.find(([k]) => k === v)?.[1] ?? v;
 
 const fetcher = (url) => fetch(url).then((r) => r.json());
-// Stable id so the credential toast is updated in place rather than restacked
-// by every SWR poll, and so any code path can dismiss the one that's showing.
-const AUTH_TOAST = "vercel-auth";
+// The live credential toast, so every SWR poll updates it in place instead of
+// stacking another copy. Base UI mints ids on add(), so we hold onto it rather
+// than choosing one up front.
+let authToastId = null;
 // Per kind, because one message can't be both friendly and true here: an
 // expired token IS expired, but a bare 403 might just be a scope this token
 // can't see. Nothing blames the user, and each one says what happens next.
@@ -307,25 +308,26 @@ function Dashboard() {
     ? { env: "production", kind: forcedAuth, canReconnect: forcedAuth !== "plan", message: `forced: ${forcedAuth}` }
     : data?.auth ?? null;
   useEffect(() => {
-    if (!auth) { toast.dismiss(AUTH_TOAST); return; }
+    if (!auth) {
+      if (authToastId) { toast.close(authToastId); authToastId = null; }
+      return;
+    }
     const copy = AUTH_COPY[auth.kind] ?? AUTH_COPY.forbidden;
-    toast(copy.title, {
-      // A fixed id: SWR refetches on an interval and an id-less toast would
-      // stack another copy of the same message on every poll. Same id updates
-      // the existing one in place.
-      id: AUTH_TOAST,
+    const opts = {
+      title: copy.title,
       description: copy.desc(auth.env),
       // The user has to act on this one, and a toast that fades before they
-      // reach it is worse than none.
-      duration: Infinity,
-      className: "toast-warn",
+      // reach it is worse than none. 0 means it never times out.
+      timeout: 0,
       // A plan limit still gets a toast — it's the only surface now that the
       // inline banner is gone — but no button, because signing in again can't
       // buy a plan and a dead-end action is worse than none.
-      action: auth.canReconnect
-        ? { label: "Reconnect", onClick: () => setReconnect(auth.kind) }
+      actionProps: auth.canReconnect
+        ? { children: "Reconnect", onClick: () => setReconnect(auth.kind) }
         : undefined,
-    });
+    };
+    if (authToastId) toast.update(authToastId, opts);
+    else authToastId = toast.add(opts);
   }, [auth?.kind, auth?.env, auth?.canReconnect]);
 
   const all = data?.sessions ?? [];
@@ -374,7 +376,7 @@ function Dashboard() {
         onReconnected={() => {
           // The token is live again, but the runs response in SWR's cache is
           // the failed one — refetch, and drop the toast that prompted this.
-          toast.dismiss(AUTH_TOAST);
+          if (authToastId) { toast.close(authToastId); authToastId = null; }
           setReconnect(null);
           // Same rule as ?firstrun: the dev override must not outlive the fix
           // and strand you re-reading a failure that isn't happening any more.

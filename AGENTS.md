@@ -95,18 +95,17 @@ chrome. One loader family: `loading-state.jsx` (pixel grid) and the 12px
 Messages have two shapes and they are not interchangeable. `.note` is the
 INLINE banner for a condition that belongs in the page — it explains the empty
 table it sits above (no local checkout, a plan limit). The CORNER one is
-shadcn's sonner (`components/ui/sonner.jsx`, mounted once in layout.jsx), for
+shadcn's toast (`components/ui/toast.jsx`, mounted once in layout.jsx), for
 something that happened to the whole app with nowhere on the page to live
-(credentials going stale under a view that was working). Import `toast` from
-`sonner` and call it directly — do not wrap it in a provider of our own.
-Always pass a stable `id`: SWR refetches on an interval and an id-less toast
-stacks a copy per poll, while the same id updates in place. Use
-`duration: Infinity` whenever the user must act, since a toast that fades
-before they reach it is worse than none. One action, max — more than one means
-it wanted to be a dialog. Two edits to the generated wrapper are deliberate and
-must survive a `shadcn add` re-run: the theme comes from our `data-theme`
-attribute (not next-themes, which this app doesn't use) and the lucide icon set
-is dropped. Before styling a new menu, row, or panel,
+(credentials going stale under a view that was working). It is the Base UI
+toast — the same library as the popover, dialog and tooltip — so it adds no
+dependency. Import `toast` from `@/components/ui/toast` and call
+`toast.add(...)`; hold the id it returns and `toast.update(id, ...)` rather
+than adding again, or an SWR poll stacks a copy per tick. `timeout: 0` when the
+user must act, since a toast that fades before they reach it is worse than
+none. One action, max — more than one means it wanted to be a dialog. One edit
+to the generated file is deliberate and must survive a `shadcn add` re-run: the
+lucide icons are swapped for Geist ones. Before styling a new menu, row, or panel,
 reuse these — two implementations of the same control is how the app drifted
 last time.
 

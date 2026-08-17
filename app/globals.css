@@ -527,7 +527,30 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 .err{border:1px solid var(--bad);border-radius:var(--r);padding:12px 15px;color:var(--bad);margin-bottom:16px;font-size:13.5px}
 .note{border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;color:var(--dim);margin-bottom:16px;font-size:13.5px}
 
-/* Toasts are styled UNLAYERED at the end of this file — see the sonner block. */
+/* ---- toasts (components/ui/toast.jsx) --------------------------------
+   The corner counterpart to .note: .note explains the empty page it sits in,
+   a toast reports something that happened to the whole app. Base UI owns the
+   stack, swipe and animation; these rules only dress it in Geist. */
+[data-slot="toast"]{
+  width:420px;max-width:calc(100vw - 32px);
+  border:1px solid var(--line2);background:var(--panel);
+  border-radius:var(--r);box-shadow:var(--shadow-lift);
+  /* Tone is a left edge, not a fill: a red card in the corner reads as a crash
+     when the app is still usable and the user just needs to sign in again. */
+  border-left:2px solid var(--warn);
+}
+[data-slot="toast-content"]{padding:16px 18px;gap:14px}
+[data-slot="toast-title"]{font-size:15px;font-weight:500;color:var(--fg);line-height:21px}
+[data-slot="toast-description"]{font-size:14px;color:var(--dim);line-height:20px}
+/* The action gets the same shape as every other primary button in the app. */
+[data-slot="toast-action"]{
+  height:36px;padding:0 16px;border-radius:var(--r-sm);
+  background:var(--btn);color:var(--btn-fg);font-size:14px;font-weight:500;
+  border:none;transition:background .1s;
+}
+[data-slot="toast-action"]:hover{background:var(--btn-hover)}
+[data-slot="toast-close"]{color:var(--dim2)}
+[data-slot="toast-close"]:hover{color:var(--fg);background:var(--hover)}
 /* Informative, with the fix attached: text left, primary action right. */
 .note-action{display:flex;align-items:center;gap:12px;line-height:1.55}
 .note-action>span:nth-child(2){flex:1;min-width:0}
@@ -1580,39 +1603,6 @@ button:disabled { cursor: default; }
 
 }
 
-/* Sonner injects its own stylesheet at runtime, UNLAYERED — so like the
-   React Flow block below, these overrides have to be unlayered too. In
-   @layer app they lost every one: the toast kept sonner's own black fill,
-   16px padding and 1px border, and the tone edge never appeared. */
-/* ---- toasts (components/ui/sonner.jsx) ------------------------------
-   The corner counterpart to .note: .note explains the empty page it sits in,
-   a toast reports something that happened to the whole app. Sonner owns the
-   stack, positioning and animation; these rules only dress it in Geist.
-
-   [data-styled=true] is not decoration: sonner's own rules carry it, and its
-   stylesheet is injected at runtime — i.e. after ours — so matching its
-   specificity loses on order. Carrying the attribute puts us one above it,
-   which is why this doesn't depend on who loads first. */
-[data-sonner-toaster]{--border-radius:var(--r);font-family:var(--sans)}  /* --width is set inline in sonner.jsx — see there */
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"]{
-  border:1px solid var(--line2);background:var(--panel);
-  box-shadow:var(--shadow-lift);padding:16px 18px;gap:14px;
-}
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-title]{font-size:15px;font-weight:500;color:var(--fg);line-height:21px}
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-description]{font-size:14px;color:var(--dim);line-height:20px}
-/* The action gets the same shape as every other primary button in the app. */
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button]{
-  height:36px;padding:0 16px;border-radius:var(--r-sm);
-  background:var(--btn);color:var(--btn-fg);font-size:14px;font-weight:500;
-  transition:background .1s;
-}
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-button]:hover{background:var(--btn-hover)}
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]{background:var(--panel);border-color:var(--line2);color:var(--dim2)}
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"] [data-close-button]:hover{color:var(--fg);background:var(--hover)}
-/* Tone is a left edge, not a fill: a red card in the corner reads as a crash
-   when the app is still usable and the user just needs to sign in again.
-   Only .toast-warn exists — a .toast-bad twin was written and never used. */
-[data-sonner-toaster] [data-sonner-toast][data-styled="true"].toast-warn{border-left:2px solid var(--warn)}
 
 /* React Flow ships an UNLAYERED stylesheet (imported in agent-graph.jsx),
    and unlayered CSS beats every layer — so its overrides stay unlayered
