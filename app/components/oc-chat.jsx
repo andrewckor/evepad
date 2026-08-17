@@ -790,19 +790,25 @@ export default function OcChat({ project, onIdle }) {
             ))}
           </div>
         )}
+        {/* Same primitives as every other menu: the --menu-pad ring, flush
+            --menu-row-h rows, and the hidden scrollbar with faded edges. This
+            was the last popover in the app still carrying its own paddings. */}
         {palette && (
-          <div className="oc-palette">
-            {palette.items.map((it, i) => (
-              <button
-                key={it.key}
-                data-on={i === palIndex ? "1" : "0"}
-                onMouseEnter={() => setPalIndex(i)}
-                onClick={() => it.run()}
-              >
-                <span className="mono">{it.label}</span>
-                <span className="oc-cmd-desc">{it.desc}</span>
-              </button>
-            ))}
+          <div className="oc-palette menu-pop">
+            <MenuList scroll max={300}>
+              {palette.items.map((it, i) => (
+                <button
+                  key={it.key}
+                  className="menu-row"
+                  data-on={i === palIndex ? "1" : "0"}
+                  onMouseEnter={() => setPalIndex(i)}
+                  onClick={() => it.run()}
+                >
+                  <span className="mono oc-cmd-name">{it.label}</span>
+                  <span className="oc-cmd-desc">{it.desc}</span>
+                </button>
+              ))}
+            </MenuList>
           </div>
         )}
         <div className="oc-card">

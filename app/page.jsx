@@ -9,6 +9,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { I } from "./components/icons.jsx";
 import { Badge } from "./components/badge.jsx";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import ProjectLogo from "./components/project-logo.jsx";
 import { Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -66,9 +68,10 @@ function NewAgentCard({ onCreated, startOpen = false }) {
   return (
     <div className="agentcard">
       <b>New Agent</b>
-      <input
+      <Input
         className="newinput"
         placeholder="agent-name (kebab-case)"
+        aria-label="Agent name"
         value={name}
         autoFocus
         onChange={(e) => { setName(e.target.value); if (typeof phase === "string" && phase !== "creating") setPhase(null); }}
@@ -85,7 +88,9 @@ function NewAgentCard({ onCreated, startOpen = false }) {
         <span className="bad" style={{ fontSize: 12.5 }}>{phase}</span>
       ) : null}
       <div style={{ display: "flex", gap: 8 }}>
-        <button className="chatbtn" onClick={create} disabled={!valid || phase === "creating"}>Create</button>
+        {/* Create is the primary action here; both being .chatbtn made them
+            read as equals. */}
+        <button className="btn-primary" onClick={create} disabled={!valid || phase === "creating"}>Create</button>
         <button className="chatbtn" onClick={() => { setOpen(false); setPhase(null); }} disabled={phase === "creating"}>Cancel</button>
       </div>
     </div>

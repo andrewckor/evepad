@@ -32,8 +32,11 @@
   --fg:#171717;
   --dim:#666;
   /* Geist gray-800 (46%), not gray-700 (#8f8f8f): at 11-12px on white the
-     lighter one measures 3.2:1, under the 4.5 needed for small text. */
-  --dim2:#757575;
+     lighter one measures 3.2:1, under the 4.5 needed for small text. A hair
+     darker than Geist's own: this is also the faintest text on --panel
+     (#fafafa), where #757575 lands at 4.41 — under AA. #6f6f6f is 4.81
+     there and 5.03 on white. */
+  --dim2:#6f6f6f;
   --chip:#fafafa;
   --btn:#171717;
   --btn-fg:#fff;
@@ -46,6 +49,11 @@
   --shadow-panel:-8px 0 32px rgba(0,0,0,.08);
   --shadow-panel-up:0 -8px 28px rgba(0,0,0,.08);
   --term-bg:#f7f7f7;
+  /* Segmented-control track and thumb. They can't both be derived from one
+     surface token: the thumb has to sit ON the menu, and the menu is white
+     here and black in dark, so "raised" points in opposite directions. */
+  --sw-track:#f2f2f2;
+  --sw-thumb:#fff;
   --chart-cached:#a1a1a1;
   /* The dark-mode green measures 1.94:1 on the pale tint; Geist uses the
      darker end of the ramp for light-mode status text. */
@@ -58,7 +66,10 @@
   /* State colours as TEXT need the darker end of each ramp — the mid values
      that glow on black sit at 3.5-4.1:1 on white. Measured: every one below
      clears 4.5. Fills keep their own brightness (see .gbadge). */
-  --blue:#0072f5;
+  /* Geist blue-900, not the #0072f5 accent: --blue is text (link hovers, the
+     prod chip, code keywords) and the accent measures 4.26 on --panel. Fills
+     still use --acc, where that brightness is correct. */
+  --blue:#0068d6;
   --ok:#0a7f45;
   --green:#0a7f45;
   --bad:#d1373c;
@@ -90,7 +101,11 @@
   --line2:#2e2e2e;
   --fg:#ededed;
   --dim:#a1a1a1;
-  --dim2:#666;
+  /* #666 was 3.66:1 on black — under AA at the 12-14px this carries (card
+     descriptions, timestamps, domains). Still clearly a step below --dim,
+     and closer to Geist's own secondary greys, which never go below #8f8f8f
+     for real text. */
+  --dim2:#7a7a7a;
   --blue:#52a8ff;
   --acc:#0072f5;
   --purple:#bf7af0;
@@ -120,6 +135,9 @@
   --shadow-dock:0 -12px 40px rgba(0,0,0,.65);
   --shadow-panel:-18px 0 48px rgba(0,0,0,.6);
   --shadow-panel-up:0 -14px 40px rgba(0,0,0,.55);
+  /* Raised means lighter here, and the menu under it is pure black. */
+  --sw-track:transparent;
+  --sw-thumb:#1f1f1f;
   /* xterm paints its own canvas; the TUI takes whatever ground we hand it. */
   --term-bg:#0a0a0a;
   --chart-cached:#666;
@@ -192,6 +210,10 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
 /* ---- top bar ---- */
 .topbar{
   display:flex;align-items:center;gap:10px;
+  /* Container, not viewport: docking the terminal or chat narrows this bar
+     while the window stays put — the same reason the graph overlays query
+     their pane. */
+  container-type:inline-size;
   /* Tight to the window edge: the bar's controls are their own hit targets
      with their own padding, so the extra 12px only pushed them inward. */
   padding:0 12px;height:56px;border-bottom:1px solid var(--line);
@@ -201,7 +223,38 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
 .crumb b{color:var(--fg);font-weight:500}
 .crumb span{color:var(--line2)}
 /* stacked breadcrumb: title on top, run id slides in beneath on detail views */
-.crumbstack{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0}
+/* Centred on the BAR, not between the button groups. In flow it sat between
+   two flexible spacers, so its position depended on how wide each side's
+   controls happened to be — the title shifted whenever Build/Chat/Terminal
+   appeared or the project name changed length. Absolute, so the sides can
+   grow without moving it.
+   pointer-events stay off the box (it spans the bar) and back on for the
+   link and copy button inside it. */
+.crumbstack{
+  position:absolute;left:50%;top:0;transform:translateX(-50%);
+  height:56px;max-width:44%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;
+  pointer-events:none;
+}
+.crumbstack a,.crumbstack button{pointer-events:auto}
+
+/* Narrow bar: controls collapse to their icons and the tooltip carries the
+   label, the way Vercel's own bar does it. The project switcher keeps its
+   logo and live dot — that pair is the identity; the name is in the menu it
+   opens. */
+@container (max-width: 720px){
+  .btn-label{display:none}
+  .chatbtn{width:36px;padding:0;justify-content:center}
+  .pk-trigger-name{display:none}
+  .pk-trigger .chev-ud{display:none}
+  .crumbstack{max-width:38%}
+}
+/* Tighter still: the breadcrumb slash and the account avatar are the first
+   things you can lose without losing a control. */
+@container (max-width: 520px){
+  .topsep{display:none}
+  .crumbstack{display:none}
+}
 .crumb-title{font-size:14px;font-weight:600;color:var(--fg);line-height:1.3}
 .crumb-title a:hover{color:var(--blue)}
 .crumb-sub{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--dim2);line-height:1.2}
@@ -259,14 +312,19 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
 .chatbtn:hover{border-color:var(--line2);background:var(--hover);color:var(--fg)}
 
 /* ---- dashboard ---- */
-.wrap{padding:24px 16px;max-width:1400px;margin:0 auto}
+/* Container, not viewport — same reason as the top bar: docking the chat or
+   terminal sheet narrows this column while the window stays 1400px wide, so a
+   media query never fires and the two charts stay side by side in 500px. */
+.wrap{padding:24px 16px;max-width:1400px;margin:0 auto;container-type:inline-size}
 
 .charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-@media (max-width:900px){.charts{grid-template-columns:1fr}}
+@container (max-width:900px){.charts{grid-template-columns:1fr}}
 .chartcard{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px 10px}
-.chartcard .chead{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+/* Wraps rather than overlaps: three token series don't fit beside the title in
+   a docked-panel width, and a nowrap legend used to run straight through it. */
+.chartcard .chead{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px;flex-wrap:wrap;margin-bottom:6px}
 .chartcard .ctitle{font-size:14px;font-weight:500}
-.legend{display:flex;gap:16px;font-size:13px;color:var(--dim)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--dim)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .legend b{color:var(--fg);font-weight:500}
 .chartsvg{width:100%;height:130px;display:block}
@@ -321,7 +379,12 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
    max-width:0 on the title cell is what lets it ellipsize under auto layout. */
 table{width:100%;border-collapse:collapse;table-layout:auto}
 th,td{white-space:nowrap}
-th:first-child,td.title-cell{width:100%;max-width:0}
+/* max-width:0 lets the title ellipsize, but with nothing to stop it the Run
+   column is also the first thing to collapse: dock a panel and it crushes to
+   16px while its header text spills onto Trigger. A floor keeps the most
+   important column readable and hands the overflow to .tablescroll, which is
+   what Vercel does too. */
+th:first-child,td.title-cell{width:100%;max-width:0;min-width:220px}
 td.title-cell{overflow:hidden;text-overflow:ellipsis}
 th:last-child,td.rowchev{width:36px;padding:0 8px}
 /* Measured on vercel.com/…/observability/agent-runs: headers #a1a1a1 at
@@ -456,7 +519,10 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
 .tl .ms{width:64px;text-align:right;color:var(--dim);font-family:var(--mono)}
 
 .tool{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 13px;margin:10px 0}
-pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12px;color:#c9ccd2;line-height:1.5}
+/* Survived the tokenising sweep because it sits on the bare `pre` element,
+   not a class: a dark-mode grey that measures 1.54:1 on the light panel,
+   which is the JSON braces and commas. */
+pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.5}
 .empty{color:var(--dim);padding:70px 20px;text-align:center;font-size:14px}
 .err{border:1px solid var(--bad);border-radius:var(--r);padding:12px 15px;color:var(--bad);margin-bottom:16px;font-size:13.5px}
 .note{border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;color:var(--dim);margin-bottom:16px;font-size:13.5px}
@@ -465,13 +531,7 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 .note-action>span:nth-child(2){flex:1;min-width:0}
 .note-ic{display:inline-flex;flex:none;font-size:16px;color:var(--dim2)}
 .note-action b{color:var(--fg);font-weight:500}
-.note-btn{
-  flex:none;height:32px;padding:0 14px;border-radius:var(--r-sm);
-  background:var(--btn);color:var(--btn-fg);font-size:13.5px;font-weight:500;
-  transition:background .1s;
-}
-.note-btn:hover:not(:disabled){background:var(--btn-hover)}
-.note-btn:disabled{opacity:.55;cursor:default}
+.note-btn{flex:none;height:32px}
 
 /* skeleton loaders */
 @keyframes shimmer{0%{opacity:.4}50%{opacity:.85}100%{opacity:.4}}
@@ -524,11 +584,22 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .cardfact svg{width:13px;height:13px;flex:none;opacity:.8}
 .carddomain{transition:color .12s}
 .carddomain:hover{color:var(--fg);text-decoration:underline;text-underline-offset:3px}
+/* shadcn Input, dressed to match the rest of the app's fields. */
 .newinput{
   background:var(--panel);border:1px solid var(--line);border-radius:var(--r-sm);
-  color:var(--fg);padding:8px 11px;font:inherit;font-size:13.5px;outline:none;width:100%;
+  color:var(--fg);padding:8px 11px;font:inherit;font-size:13.5px;outline:none;
+  width:100%;height:auto;box-shadow:none;
 }
-.newinput:focus{border-color:var(--line2)}
+.newinput:focus,.newinput:focus-visible{border-color:var(--line2);box-shadow:none;outline:none}
+/* The one primary button shape, shared with the note banner's action. */
+.btn-primary{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  height:36px;padding:0 14px;border-radius:var(--r-sm);
+  background:var(--btn);color:var(--btn-fg);font-size:13.5px;font-weight:500;
+  transition:background .1s;
+}
+.btn-primary:hover:not(:disabled){background:var(--btn-hover)}
+.btn-primary:disabled{opacity:.45;cursor:default}
 
 /* build page (near-fullscreen) */
 .buildpage{display:grid;grid-template-columns:520px 1fr;height:calc(100dvh - 56px)}
@@ -632,7 +703,11 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .cb-line{display:flex}
 .cb-n{
   flex:none;width:20px;text-align:right;user-select:none;
-  font-size:10.5px;line-height:1.86;color:color-mix(in srgb,var(--dim2) 60%,transparent);
+  /* The gutter is read, not decoration: the 60% mix this used to carry left it
+     at 2.31:1 on light and worse on dark. --dim2 flat is the comment colour,
+     which is the right weight for a line number, and 10.5px in a 20px gutter
+     already keeps it out of the way. */
+  font-size:10.5px;line-height:1.86;color:var(--dim2);
 }
 .cb-t{padding-left:10px;white-space:pre}
 /* Five token classes, the reference's palette on our tokens. */
@@ -803,20 +878,19 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 /* Theme switcher, measured on vercel.com/geist/theme-switcher: 96x32 pill,
    three 32px targets, 16px icons; inactive #8f8f8f, active filled and ringed. */
 /* Geist's small switcher: 24px targets, 14px icons. */
-.thsw{display:inline-flex;align-items:center;height:24px;border-radius:999px;box-shadow:0 0 0 1px var(--line2)}
+.thsw{display:inline-flex;align-items:center;height:24px;border-radius:999px;background:var(--sw-track);box-shadow:0 0 0 1px var(--line2)}
 .thsw-opt{
   width:24px;height:24px;border-radius:999px;display:inline-flex;
   align-items:center;justify-content:center;font-size:14px;color:var(--dim2);
   transition:color .1s,background .1s;
 }
 .thsw-opt:hover{color:var(--fg)}
-.thsw-opt.on{background:var(--panel);color:var(--fg);box-shadow:0 0 0 1px var(--line2)}
-/* Row that hosts a control instead of an action; same 8px inset as the
-   action rows so the label column lines up. */
+/* --panel used to be the thumb, which is #fafafa on a white menu: the active
+   theme was effectively unmarked in light. */
+.thsw-opt.on{background:var(--sw-thumb);color:var(--fg);box-shadow:0 0 0 1px var(--line2)}
 /* A control row: same metrics as .menu-row, but its content is a widget,
    so it spreads instead of flowing. */
 .acc-row{justify-content:space-between;gap:12px}
-.acc-row:hover{background:transparent}
 .acc-row-label{font-size:13px;color:var(--dim)}
 
 /* ---- menus: one surface, one rhythm ---------------------------------
@@ -831,11 +905,18 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   transition:background .1s,color .1s;
 }
 .menu-row:hover:not(:disabled){background:var(--hover);color:var(--fg)}
+/* A control row isn't clickable, so it must not take the action hover — and
+   this has to sit AFTER the rule above: .acc-row:hover ties on specificity
+   and loses on order, which is why the whole Theme row used to light up. */
+.menu-row.acc-row:hover{background:transparent;color:var(--dim)}
 .menu-row:disabled{opacity:.4;cursor:default;pointer-events:none}
 /* Wrapper exists so a disabled row still has something that receives hover. */
 .menu-row-wrap{display:block;width:100%}
 .menu-row:disabled .cbx{opacity:.6}
 .menu-row.on{color:var(--fg)}
+/* Keyboard cursor — a palette driven by arrow keys needs the same fill hover
+   gives, or the selected row is invisible until you reach for the mouse. */
+.menu-row[data-on="1"]{background:var(--hover);color:var(--fg)}
 .menu-row-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .menu-row-trail{flex:none;display:inline-flex;align-items:center;color:var(--dim2)}
 .menu-row:hover .menu-row-trail{color:var(--fg)}
@@ -1287,16 +1368,17 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   border:1px solid var(--line2);border-radius:var(--r);
   background:var(--panel);overflow:hidden;box-shadow:var(--shadow-dock);
 }
-.oc-palette button{
-  display:flex;align-items:baseline;gap:10px;width:100%;
-  padding:7px 11px;font-size:13px;text-align:left;
-}
-.oc-palette button[data-on="1"]{background:var(--hover)}
-.oc-cmd-desc{color:var(--dim2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* The command name keeps its own width; the description takes the rest and
+   ellipsizes, so a long one can't wrap the row to two lines. */
+.oc-cmd-name{flex:none;color:var(--fg)}
+.oc-cmd-desc{flex:1;min-width:0;color:var(--dim2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oc-agent{color:var(--dim);font-size:11.5px;border:1px solid var(--line);border-radius:999px;padding:2px 9px}
-.chat-composer /* User turns read as a quiet aside, not the loudest thing on screen — the
+/* User turns read as a quiet aside, not the loudest thing on screen — the
    white default pulled the eye away from the agent's answer, which is the
-   content that matters. */
+   content that matters. (A stray `.chat-composer` prefix used to sit in front
+   of this selector, making it a descendant rule that never matched; the
+   bubbles only looked right because shadcn's --muted happens to equal
+   --panel2 in light.) */
 [data-slot="bubble"].oc-bubble>[data-slot="bubble-content"]{
   background:var(--panel2);color:var(--fg);
 }
@@ -1404,39 +1486,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   --radius-4xl:calc(var(--radius) * 2.6);
 }
 
-.dark {
-  --background:oklch(0.145 0 0);
-  --foreground:oklch(0.985 0 0);
-  --card:oklch(0.205 0 0);
-  --card-foreground:oklch(0.985 0 0);
-  --popover:oklch(0.205 0 0);
-  --popover-foreground:oklch(0.985 0 0);
-  --primary:oklch(0.922 0 0);
-  --primary-foreground:oklch(0.205 0 0);
-  --secondary:oklch(0.269 0 0);
-  --secondary-foreground:oklch(0.985 0 0);
-  --muted:oklch(0.269 0 0);
-  --muted-foreground:oklch(0.708 0 0);
-  --accent:oklch(0.269 0 0);
-  --accent-foreground:oklch(0.985 0 0);
-  --destructive:oklch(0.704 0.191 22.216);
-  --border:oklch(1 0 0 / 10%);
-  --input:oklch(1 0 0 / 15%);
-  --ring:oklch(0.556 0 0);
-  --chart-1:oklch(0.87 0 0);
-  --chart-2:oklch(0.556 0 0);
-  --chart-3:oklch(0.439 0 0);
-  --chart-4:oklch(0.371 0 0);
-  --chart-5:oklch(0.269 0 0);
-  --sidebar:oklch(0.205 0 0);
-  --sidebar-foreground:oklch(0.985 0 0);
-  --sidebar-primary:oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground:oklch(0.985 0 0);
-  --sidebar-accent:oklch(0.269 0 0);
-  --sidebar-accent-foreground:oklch(0.985 0 0);
-  --sidebar-border:oklch(1 0 0 / 10%);
-  --sidebar-ring:oklch(0.556 0 0);
-}
+/* The shadcn starter's `.dark` block used to live here: 31 generic oklch
+   greys re-declaring every semantic token. It was dead — the class IS set on
+   <html> in dark mode, but each of those tokens is also mapped to the Geist
+   palette in the :root blocks above, which win, so nothing ever read a value
+   from it. Removed rather than left as a second, silently-losing source of
+   truth for the same 31 names. */
 
 @layer base {
   * {

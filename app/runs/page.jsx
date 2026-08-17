@@ -317,7 +317,7 @@ function Dashboard() {
                 <b>{project}</b> isn&rsquo;t on this Mac yet. Choose its folder to see
                 local runs.
               </span>
-              <button className="note-btn" onClick={chooseFolder} disabled={locating}>
+              <button className="btn-primary note-btn" onClick={chooseFolder} disabled={locating}>
                 {locating ? "Opening…" : "Choose folder"}
               </button>
             </div>

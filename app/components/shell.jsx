@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { SPRING } from "./motion.js";
 import dynamic from "next/dynamic";
 import ProjectPicker from "./project-picker.jsx";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import AccountMenu from "./account-menu.jsx";
 import ChatPanel from "../chat-panel.jsx";
 
@@ -53,6 +54,17 @@ const ENV_DEFAULT = "local,preview,production";
 function readEnvPref() {
   if (typeof window === "undefined") return ENV_DEFAULT;
   try { return localStorage.getItem(ENV_KEY) || ENV_DEFAULT; } catch { return ENV_DEFAULT; }
+}
+
+// Icon-only controls need a real tooltip: at narrow widths the label IS the
+// tooltip, and the native title is both slow and unstyled.
+function Tip({ label, children }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 function TopNav({ panel, setPanel, liveProject, termProject }) {
@@ -100,6 +112,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
   return (
     <>
       <div className="topbar">
+        <TooltipProvider delay={300}>
         <AnimatePresence initial={false}>
           {!isHome && (
             <motion.div
@@ -110,11 +123,12 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
               transition={SPRING}
               style={{ overflow: "hidden", flexShrink: 0 }}
             >
-              <Link
-                className="backbtn"
-                href={isDetail ? listHref() : fromBuild ? `/build?project=${encodeURIComponent(project)}&environment=${environment}&period=${period}` : "/"}
-                title={isDetail ? "Back to Agent Runs" : fromBuild ? "Back to Build" : "Back to Agents"}
-              >{I.back}</Link>
+              <Tip label={isDetail ? "Back to Agent Runs" : fromBuild ? "Back to Build" : "Back to Agents"}>
+                <Link
+                  className="backbtn"
+                  href={isDetail ? listHref() : fromBuild ? `/build?project=${encodeURIComponent(project)}&environment=${environment}&period=${period}` : "/"}
+                >{I.back}</Link>
+              </Tip>
             </motion.div>
           )}
         </AnimatePresence>
@@ -122,20 +136,23 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
         <span className="topsep" />
         <ProjectPicker value={project} onChange={pickProject} />
         {isBuild && project && (
-          <Link className="chatbtn" href={listHref({ from: "build" })} title={`Agent runs for ${project}`}>
-            {I.clockDashed} Runs
-          </Link>
+          <Tip label={`Agent runs for ${project}`}>
+            <Link className="chatbtn" href={listHref({ from: "build" })}>
+              {I.clockDashed} <span className="btn-label">Runs</span>
+            </Link>
+          </Tip>
         )}
         {!isHome && termProject && !isBuild && (
-          <Link
-            className="chatbtn"
-            onMouseEnter={warmBuild}
-            onFocus={warmBuild}
-            href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
-            title={`Build ${termProject.name} — generate tools with AI Gateway`}
-          >
-            {I.bolt} Build
-          </Link>
+          <Tip label={`Build ${termProject.name} — generate tools with AI Gateway`}>
+            <Link
+              className="chatbtn"
+              onMouseEnter={warmBuild}
+              onFocus={warmBuild}
+              href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
+            >
+              {I.bolt} <span className="btn-label">Build</span>
+            </Link>
+          </Tip>
         )}
         <div className="spacer" />
         <div className="crumbstack">
@@ -165,18 +182,22 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
             )}
           </AnimatePresence>
         </div>
-        <div className="spacer" />
         {!isHome && liveProject && (
-          <button className="chatbtn" data-on={panel === "chat" ? "1" : "0"} onClick={() => setPanel((p) => (p === "chat" ? null : "chat"))} title={`Chat with ${liveProject.name} on :${liveProject.localPort}`}>
-            {I.message} Chat
-          </button>
+          <Tip label={`Chat with ${liveProject.name} on :${liveProject.localPort}`}>
+            <button className="chatbtn" data-on={panel === "chat" ? "1" : "0"} onClick={() => setPanel((p) => (p === "chat" ? null : "chat"))}>
+              {I.message} <span className="btn-label">Chat</span>
+            </button>
+          </Tip>
         )}
         {!isHome && termProject && (
-          <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onMouseEnter={warmTerminal} onFocus={warmTerminal} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))} title={`Open a terminal running eve dev for ${termProject.name}`}>
-            {I.terminal} Terminal
-          </button>
+          <Tip label={`Open a terminal running eve dev for ${termProject.name}`}>
+            <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onMouseEnter={warmTerminal} onFocus={warmTerminal} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))}>
+              {I.terminal} <span className="btn-label">Terminal</span>
+            </button>
+          </Tip>
         )}
         {isDetail && <span className="badge-env">{environment}</span>}
+        </TooltipProvider>
       </div>
 
     </>
