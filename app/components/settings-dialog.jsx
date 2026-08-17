@@ -16,7 +16,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 const fetcher = (url) => fetch(url).then((r) => r.json());
 // Home-relative paths fit without truncation, which beats any clever
 // ellipsis: the RTL trick that keeps a path's tail visible also drags its
-// leading slash to the far end, so "/Users/andrew/x" renders "Users/andrew/x/".
+// leading slash to the far end, so "/Users/jane/x" renders "Users/jane/x/".
 const tilde = (p) => (p ?? "").replace(/^\/(?:Users|home)\/[^/]+\//, "~/");
 
 function Row({ label, children, hint }) {

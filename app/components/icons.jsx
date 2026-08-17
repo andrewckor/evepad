@@ -1,5 +1,3 @@
-// Single icon registry for the app. Geist icons only (see AGENTS.md): these are
-// Vercel's actual glyphs, 1em / currentColor, sized by surrounding font.
 import {
   ArrowLeft, ChevronDownSmall, ChevronRight, MagnifyingGlass, Calendar,
   Clock, ClockDashed, Globe, Lightning, Terminal, Message,

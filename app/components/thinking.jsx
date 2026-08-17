@@ -14,7 +14,6 @@
 import { useState } from "react";
 import { Sparkles, ChevronDownSmall, Terminal, Pencil, MagnifyingGlass, Globe, Wrench, CrossCircle } from "vercel-geist-icons";
 
-// Geist icon per opencode tool — nearest concept, never invented (AGENTS.md).
 const TOOL_ICONS = {
   bash: <Terminal />, edit: <Pencil />, write: <Pencil />, patch: <Pencil />,
   read: <MagnifyingGlass />, glob: <MagnifyingGlass />, grep: <MagnifyingGlass />,

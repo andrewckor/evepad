@@ -131,10 +131,10 @@ export function CliSignIn({ account, onContinue, demo = false, terminal = false 
     );
   }
 
-  // `terminal` runs the sign-in here so it doesn't mean leaving the page. The
-  // copyable command below is the fallback when the pty can't start — every
-  // caller passes `terminal`, so that branch is reachable ONLY through
-  // termFailed. It used to be reachable through nothing at all.
+  // `terminal` runs the sign-in here so it doesn't mean leaving the page.
+  // The copyable command below is the fallback when the pty can't start —
+  // every caller passes `terminal`, so that branch is reached only through
+  // termFailed.
   if (terminal && !termFailed) {
     return (
       <>

@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils"
-import { Loader2Icon } from "lucide-react"
+import { LoaderCircle } from "vercel-geist-icons"
 
 function Spinner({
   className,
   ...props
 }) {
   return (
-    <Loader2Icon
+    <LoaderCircle
       data-slot="spinner"
       role="status"
       aria-label="Loading"

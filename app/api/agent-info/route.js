@@ -83,7 +83,7 @@ export async function GET(request) {
   //   agent/extensions/<ext>/connections/<name>.ts    -> "<ext>__<name>"
   // An extension's connections usually ship inside its npm package; a local
   // file of the same name SHADOWS the packaged one rather than adding to it
-  // (shoppy does exactly this to add providedArguments to kernel's browser),
+  // (a common way to extend a packaged connection's arguments),
   // so the two sources are unioned by name, not summed.
   const dirNames = (dir) => {
     try {
