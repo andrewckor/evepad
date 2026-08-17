@@ -1,8 +1,5 @@
 "use client"
 
-// Geist icons throughout, not the generated lucide set — AGENTS.md forbids
-// them. There is no octagon-X in Geist and a lookalike is worse than none, so
-// `error` reuses the warning mark; the destructive colour carries the meaning.
 import * as React from "react"
 import { Toast as ToastPrimitive } from "@base-ui/react/toast"
 

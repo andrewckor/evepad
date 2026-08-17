@@ -529,27 +529,24 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 
 /* ---- toasts (components/ui/toast.jsx) --------------------------------
    The corner counterpart to .note: .note explains the empty page it sits in,
-   a toast reports something that happened to the whole app. Base UI owns the
-   stack, swipe and animation; these rules only dress it in Geist. */
+   a toast reports something that happened to the whole app.
+
+   Deliberately thin. The component's own shape — radius, padding, type scale,
+   button sizes — is left alone; these rules only map its semantic colours onto
+   our tokens and widen the gap before the action. */
 [data-slot="toast"]{
   width:420px;max-width:calc(100vw - 32px);
-  border:1px solid var(--line2);background:var(--panel);
-  border-radius:var(--r);box-shadow:var(--shadow-lift);
-  /* Tone is a left edge, not a fill: a red card in the corner reads as a crash
-     when the app is still usable and the user just needs to sign in again. */
-  border-left:2px solid var(--warn);
+  background:var(--panel);border-color:var(--line2);
 }
-[data-slot="toast-content"]{padding:16px 18px;gap:14px}
-[data-slot="toast-title"]{font-size:15px;font-weight:500;color:var(--fg);line-height:21px}
-[data-slot="toast-description"]{font-size:14px;color:var(--dim);line-height:20px}
-/* The action gets the same shape as every other primary button in the app. */
+/* The action needs room to read as a separate thing, not part of the sentence. */
+[data-slot="toast-content"]{gap:20px}
+[data-slot="toast-title"]{color:var(--fg)}
+[data-slot="toast-description"]{color:var(--dim)}
 [data-slot="toast-action"]{
-  height:36px;padding:0 16px;border-radius:var(--r-sm);
-  background:var(--btn);color:var(--btn-fg);font-size:14px;font-weight:500;
-  border:none;transition:background .1s;
+  background:var(--btn);color:var(--btn-fg);border-color:transparent;
 }
-[data-slot="toast-action"]:hover{background:var(--btn-hover)}
-[data-slot="toast-close"]{color:var(--dim2)}
+[data-slot="toast-action"]:hover{background:var(--btn-hover);color:var(--btn-fg)}
+[data-slot="toast-close"]{border-color:transparent;background:transparent;color:var(--dim2)}
 [data-slot="toast-close"]:hover{color:var(--fg);background:var(--hover)}
 /* Informative, with the fix attached: text left, primary action right. */
 .note-action{display:flex;align-items:center;gap:12px;line-height:1.55}
