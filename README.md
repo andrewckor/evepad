@@ -1,4 +1,4 @@
-# eve cockpit
+# evepad
 
 A local dashboard + build harness for [eve](https://vercel.com/docs/eve) agents —
 "a v0 for eve". One surface for the whole loop: create an agent, generate and
@@ -26,7 +26,7 @@ Open http://127.0.0.1:5173. Everything else boots lazily on first use
 ## Connect your agents
 
 - **Existing checkout**: pick the project in the top-left dropdown and press
-  the 📁 button to point the cockpit at its folder. Press ▶ to start
+  the 📁 button to point evepad at its folder. Press ▶ to start
   `eve dev` for it.
 - **New agent**: from the Agents homepage, "New agent" scaffolds `eve init`,
   links a Vercel project, pulls env, and starts the dev server — all behind

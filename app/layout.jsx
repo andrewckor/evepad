@@ -3,7 +3,14 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Shell from "./components/shell.jsx";
 import { Toaster } from "@/components/ui/toast";
-export const metadata = { title: "eve cockpit", description: "Agent runs, local and remote" };
+export const metadata = {
+  title: "evepad",
+  description: "Agent runs, local and remote",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-icon.png",
+  },
+};
 
 // Resolve the theme before the first paint. React can't do this — its first
 // render happens after the browser has already painted the document's default

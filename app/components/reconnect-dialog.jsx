@@ -17,7 +17,7 @@ import { CliSignIn } from "./welcome.jsx";
 // Reconnecting cannot help a plan limit, so `plan` never reaches this dialog —
 // see authFailure() in lib/data.js.
 const COPY = {
-  expired: "Your Vercel sign-in has expired. Sign in again below and the cockpit picks it up on its own — nothing else to do.",
+  expired: "Your Vercel sign-in has expired. Sign in again below and evepad picks it up on its own — nothing else to do.",
   missing: "There's no Vercel sign-in on this Mac yet. Sign in below and your agents will show up here.",
   forbidden: "Vercel turned down the request. Usually that just means the sign-in expired, though it can also be a scope this account can't see.",
 };

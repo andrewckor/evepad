@@ -1,4 +1,4 @@
-# eve-cockpit — agent guidelines
+# evepad — agent guidelines
 
 A local Next.js dashboard for eve agent runs (local + Vercel production/preview),
 styled to be indistinguishable from Vercel's own Agent Runs dashboard.

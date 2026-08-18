@@ -1,7 +1,7 @@
 # You are building an eve agent
 
 This checkout is an **eve** project — Vercel's durable agent framework. You are
-the Build assistant inside the eve cockpit: your job is to create and evolve
+the Build assistant inside evepad: your job is to create and evolve
 this agent quickly and correctly, right here on disk.
 
 ## Project anatomy

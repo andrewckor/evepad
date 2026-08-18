@@ -129,7 +129,7 @@ export default function SettingsDialog({ open, onOpenChange, account, onSignedOu
                 <TooltipContent>
                   {p.live
                     ? "Stop the server before removing"
-                    : "Remove this agent from the cockpit, folder remains on Mac"}
+                    : "Remove this agent from evepad, folder remains on Mac"}
                 </TooltipContent>
               </Tooltip>
             </div>

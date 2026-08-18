@@ -120,11 +120,11 @@ export function CliSignIn({ account, onContinue, demo = false, terminal = false 
     return (
       <>
         <p className="wc-body">
-          The cockpit is using <span className="mono">VERCEL_TOKEN</span> from its environment,
+          evepad is using <span className="mono">VERCEL_TOKEN</span> from its environment,
           and Vercel rejected it.
         </p>
         <p className="wc-foot">
-          Replace that token and restart the cockpit. Signing in with the CLI
+          Replace that token and restart evepad. Signing in with the CLI
           won&rsquo;t help while it&rsquo;s set — the variable takes priority.
         </p>
       </>
@@ -225,7 +225,7 @@ export default function Welcome({ state, error, account, demo = false, localCoun
     <div className="wc">
       <b className="wc-title">No agents here yet</b>
       <p className="wc-body">
-        This scope has no eve agents. Create one and the cockpit scaffolds it,
+        This scope has no eve agents. Create one and evepad scaffolds it,
         makes its Vercel project, and starts it locally — then Build, Runs and
         the terminal all point at it.
       </p>
