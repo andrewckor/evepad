@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { createServer } from "node:net";
 import { resolveProject } from "../../../lib/projects.js";
 import { remember } from "../../../lib/registry.js";
+import { vercelCommand } from "../../../lib/vercel-cli.js";
 
 const exec = promisify(execFile);
 const LOG_DIR = join(process.env.HOME ?? "/tmp", ".cache", "eve-cockpit", "logs");
@@ -82,12 +83,14 @@ export async function POST(request) {
         // needs the link to resolve credentials. Linking an existing project only
         // writes ids locally; it creates nothing on Vercel.
         if (!existsSync(join(project.localPath, ".vercel", "project.json")) && project.id) {
-          await exec("vercel", ["link", "--yes", "--project", project.name], {
+          const [vc, ...pre] = vercelCommand();
+          await exec(vc, [...pre, "link", "--yes", "--project", project.name], {
             cwd: project.localPath,
             timeout: 60_000,
           });
         }
-        await exec("vercel", ["env", "pull", ".env.local", "--yes"], { cwd: project.localPath, timeout: 60_000 });
+        const [vc2, ...pre2] = vercelCommand();
+        await exec(vc2, [...pre2, "env", "pull", ".env.local", "--yes"], { cwd: project.localPath, timeout: 60_000 });
       } catch {} // creds are fixable later; don't block the boot on this
     }
 

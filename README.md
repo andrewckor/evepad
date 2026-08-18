@@ -10,18 +10,33 @@ production side by side.
 
 - **macOS** (the folder picker and Vercel CLI auth path are Mac-specific today)
 - **Node 20+** (developed on Node 24)
-- **Vercel CLI**, logged in: `npm i -g vercel && vercel login`
-  — production/preview runs and AI Gateway credentials ride on this login.
+
+That's all. The Vercel CLI is used for sign-in, project linking and env pulls,
+but it doesn't have to be installed — without it, every call runs through
+`npx vercel` instead. Sign in from the app's first-run screen.
 
 ## Run
 
 ```bash
-npm install
-npm run dev
+npx evepad
 ```
 
-Open http://127.0.0.1:5173. Everything else boots lazily on first use
-(the OpenCode server per project, terminals, event hubs).
+Opens http://127.0.0.1:4680. The published package ships the app prebuilt, so
+this starts a server rather than building one — nothing compiles on your
+machine. `npm i -g evepad` if you use it often; `evepad --port 4681` to move
+it. Everything else boots lazily on first use (the OpenCode server per
+project, terminals, event hubs).
+
+Install it as a PWA from the browser (Chrome: Install evepad, Safari: Add to
+Dock) and it gets its own window and Dock icon.
+
+## Develop
+
+```bash
+npm install
+npm run dev          # http://127.0.0.1:5173
+node scripts/pack.mjs # build + assemble the publishable package into dist/
+```
 
 ## Connect your agents
 
@@ -58,3 +73,11 @@ Open http://127.0.0.1:5173. Everything else boots lazily on first use
   silently returns empty lists against 5.x agents.
 - Design north star: indistinguishable from Vercel's own dashboard
   (Geist, measured values, `vercel-geist-icons` only). See `AGENTS.md`.
+
+## Notices
+
+evepad is a community project — not affiliated with, endorsed by, or sponsored
+by Vercel. "eve" and "Vercel" are trademarks of Vercel, Inc.
+
+The pixel-grid loader (and the app icon derived from it) follows the Loading
+State component from [beautifului.dev](https://www.beautifului.dev/).

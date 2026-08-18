@@ -9,6 +9,7 @@ import { mkdirSync, openSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createServer } from "node:net";
 import { remember } from "../../../lib/registry.js";
+import { vercelCommand } from "../../../lib/vercel-cli.js";
 
 const exec = promisify(execFile);
 const WORKSPACE = join(process.env.HOME ?? "/tmp", "eve-agents");
@@ -40,10 +41,11 @@ export async function POST(request) {
     });
 
     // 2. Vercel project: link --yes creates the project when it doesn't exist.
-    await exec("vercel", ["link", "--yes", "--project", name], { cwd: dir, timeout: 90_000 });
+    const [vc, ...pre] = vercelCommand();
+    await exec(vc, [...pre, "link", "--yes", "--project", name], { cwd: dir, timeout: 90_000 });
 
     // 3. AI Gateway credentials (OIDC) for local dev.
-    await exec("vercel", ["env", "pull", ".env.local", "--yes"], { cwd: dir, timeout: 60_000 });
+    await exec(vc, [...pre, "env", "pull", ".env.local", "--yes"], { cwd: dir, timeout: 60_000 });
 
     // 4. Register so pickers/play/build know the checkout immediately.
     remember(name, dir);

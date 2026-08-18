@@ -4,6 +4,7 @@
 // of its own that could drift from the CLI's.
 
 import { spawn } from "node:child_process";
+import { vercelCommand } from "../../../lib/vercel-cli.js";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,8 @@ export async function POST(request) {
   // `vercel logout` clears the CLI's credentials for the whole machine, not
   // just this app — the cockpit has no session of its own to end.
   const code = await new Promise((resolve) => {
-    const child = spawn("vercel", ["logout"], { stdio: "ignore" });
+    const [vc, ...pre] = vercelCommand();
+    const child = spawn(vc, [...pre, "logout"], { stdio: "ignore" });
     child.on("error", () => resolve(-1));
     child.on("exit", (c) => resolve(c ?? -1));
   });
