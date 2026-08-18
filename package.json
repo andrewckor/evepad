@@ -1,6 +1,6 @@
 {
   "name": "evepad",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local dashboard and build harness for eve agents",
   "license": "Apache-2.0",
   "private": true,
@@ -9,6 +9,7 @@
     "dev": "next dev --hostname 127.0.0.1 --port 5173",
     "build": "next build",
     "start": "next start --hostname 127.0.0.1 --port 5173",
+    "pack": "node scripts/pack.mjs",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true"
   },
   "dependencies": {
