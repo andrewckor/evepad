@@ -100,7 +100,11 @@ export default function ProjectPicker({ value, onChange }) {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="pk-trigger">
+      {/* With no project the trigger is just the words "All Projects" — and the
+          narrow bar hides that label, leaving an empty box. data-none lets the
+          stylesheet drop it at that width instead. With a project there is
+          still the logo and live dot to show, so it stays. */}
+      <PopoverTrigger className="pk-trigger" data-none={value && current ? undefined : "1"}>
         {value && current ? (
           <>
             <ProjectLogo p={current} size={20} />

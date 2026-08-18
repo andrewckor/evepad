@@ -133,7 +133,6 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
           )}
         </AnimatePresence>
         <AccountMenu />
-        <span className="topsep" />
         <ProjectPicker value={project} onChange={pickProject} />
         {isBuild && project && (
           <Tip label={`Agent runs for ${project}`}>
@@ -275,12 +274,15 @@ function ShellInner({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantPanel]);
 
-  // Build is its own full-width workspace (chat + graph) — a docked panel
-  // would compete with it, so entering Build collapses whatever is open.
+  // The chat and terminal both belong to ONE agent, so they close when there
+  // is no agent in view: the Agents list has no project, and leaving a
+  // terminal open over it showed a session for whichever agent you last
+  // visited. Build is its own full-width workspace (chat + graph) and a docked
+  // panel would compete with it, so it collapses there too.
   const pathname = usePathname();
   useEffect(() => {
-    if (pathname === "/build") setPanel(null);
-  }, [pathname]);
+    if (pathname === "/build" || !project) setPanel(null);
+  }, [pathname, project]);
 
   const pushed = (panel === "terminal" && termProject) || (panel === "chat" && liveProject);
   return (
