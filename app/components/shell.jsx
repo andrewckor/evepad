@@ -206,6 +206,7 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
 
 function ShellInner({ children }) {
   const q = useSearchParams();
+  const router = useRouter();
   const project = q.get("project") ?? "";
 
   // One companion-panel slot: chat OR terminal, never both.
@@ -258,6 +259,21 @@ function ShellInner({ children }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
+
+  // ?panel=terminal — how "create an agent" hands over: the sidebar opening is
+  // what starts eve dev, visibly. Declared after the guard above so it wins on
+  // the same render (that guard closes the panel for a server that isn't live
+  // yet, which a brand-new agent never is), and the param is dropped so a
+  // refresh doesn't reopen it.
+  const wantPanel = q.get("panel");
+  useEffect(() => {
+    if (wantPanel !== "terminal") return;
+    setPanel("terminal");
+    const next = new URLSearchParams(q.toString());
+    next.delete("panel");
+    router.replace(`${window.location.pathname}?${next}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wantPanel]);
 
   // Build is its own full-width workspace (chat + graph) — a docked panel
   // would compete with it, so entering Build collapses whatever is open.

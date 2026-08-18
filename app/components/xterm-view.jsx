@@ -30,6 +30,9 @@ export default function XtermView({
   variant,
   className = "term-body",
   fontSize = 12.5,
+  // Extra fields the server needs to START this pty (the create variant needs
+  // the folder). Body-only: never part of the identity of the terminal.
+  extra,
   onStatus,
   onExit,
 }) {
@@ -42,7 +45,7 @@ export default function XtermView({
   useEffect(() => {
     let disposed = false;
     let xterm, fit, abort, themeSync;
-    const body = (extra) => JSON.stringify({ project, variant, ...extra });
+    const body = (fields) => JSON.stringify({ project, variant, ...extra, ...fields });
 
     (async () => {
       // xterm touches `window` at import time — load it client-side only.

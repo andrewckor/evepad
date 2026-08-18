@@ -15,6 +15,7 @@ import ProjectLogo from "./components/project-logo.jsx";
 import { Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import Welcome from "./components/welcome.jsx";
+import NewAgentDialog from "./components/new-agent-dialog.jsx";
 
 // Icon-only controls get real tooltips (instant, styled), not the browser's
 // sluggish native title.
@@ -37,63 +38,13 @@ const ago = (ts) => {
   return Math.floor(s / 86400) + "d ago";
 };
 
-function NewAgentCard({ onCreated, startOpen = false }) {
-  const [open, setOpen] = useState(startOpen);
-  const [name, setName] = useState("");
-  const [phase, setPhase] = useState(null); // null | "creating" | error string
-  const valid = /^[a-z][a-z0-9-]{1,40}$/.test(name);
-
-  const create = async () => {
-    if (!valid || phase === "creating") return;
-    setPhase("creating");
-    const r = await fetch("/api/create-agent", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name }),
-    });
-    const body = await r.json();
-    if (!r.ok) { setPhase(body.error ?? "failed"); return; }
-    onCreated(name);
-  };
-
-  if (!open) {
-    return (
-      <button className="agentcard new" onClick={() => setOpen(true)}>
-        <span className="newplus">{I.plus}</span>
-        <b>New Agent</b>
-        <span className="dim2">Scaffold an eve agent, create its Vercel project, and boot it — one step.</span>
-      </button>
-    );
-  }
+function NewAgentCard({ onOpen }) {
   return (
-    <div className="agentcard">
+    <button className="agentcard new" onClick={onOpen}>
+      <span className="newplus">{I.plus}</span>
       <b>New Agent</b>
-      <Input
-        className="newinput"
-        placeholder="agent-name (kebab-case)"
-        aria-label="Agent name"
-        value={name}
-        autoFocus
-        onChange={(e) => { setName(e.target.value); if (typeof phase === "string" && phase !== "creating") setPhase(null); }}
-        onKeyDown={(e) => e.key === "Enter" && create()}
-        disabled={phase === "creating"}
-      />
-      <span className="dim2" style={{ fontSize: 12 }}>
-        Creates <span className="mono">~/eve-agents/{name || "…"}</span>, a Vercel project of the same name,
-        pulls AI Gateway creds, and starts <span className="mono">eve dev</span>. Model: <span className="mono">zai/glm-5.2</span> (free).
-      </span>
-      {phase === "creating" ? (
-        <span className="warn" style={{ fontSize: 13 }}>Creating — scaffold, link, creds, boot (~1 min)…</span>
-      ) : typeof phase === "string" && phase ? (
-        <span className="bad" style={{ fontSize: 12.5 }}>{phase}</span>
-      ) : null}
-      <div style={{ display: "flex", gap: 8 }}>
-        {/* Create is the primary action here; both being .chatbtn made them
-            read as equals. */}
-        <button className="btn-primary" onClick={create} disabled={!valid || phase === "creating"}>Create</button>
-        <button className="chatbtn" onClick={() => { setOpen(false); setPhase(null); }} disabled={phase === "creating"}>Cancel</button>
-      </div>
-    </div>
+      <span className="dim2">Scaffold an eve agent, create its Vercel project, and boot it — one step.</span>
+    </button>
   );
 }
 
@@ -104,7 +55,7 @@ function Home() {
   const { data: account, mutate: recheck } = useSWR("/api/account", fetcher);
   const projects = data?.projects ?? [];
   const [busy, setBusy] = useState({});
-  const [newOpen, setNewOpen] = useState(0);
+  const [newOpen, setNewOpen] = useState(false);
   // Per-session only: a stored flag would outlive the reason for it.
   const [skipped, setSkipped] = useState(false);
 
@@ -146,7 +97,6 @@ function Home() {
 
   const open = (p) => router.push(`/runs?project=${encodeURIComponent(p.name)}`);
 
-  const created = (name) => router.push(`/runs?project=${encodeURIComponent(name)}&environment=local`);
 
   // Nothing to show and a reason why: the whole page becomes that reason,
   // rather than a grid of one card next to a spinner that never stops.
@@ -169,16 +119,10 @@ function Home() {
             recheck();
             mutate();
           }}
-          onNew={() => setNewOpen((n) => n + 1)}
+          onNew={() => setNewOpen(true)}
           onSkip={() => setSkipped(true)}
         />
-        {/* Mounted so "Create your first agent" has something to open, but out
-            of the way until it does. */}
-        {newOpen > 0 && (
-          <div className="wc-newcard">
-            <NewAgentCard key={newOpen} startOpen onCreated={created} />
-          </div>
-        )}
+        <NewAgentDialog open={newOpen} onOpenChange={setNewOpen} />
       </div>
     );
   }
@@ -193,9 +137,10 @@ function Home() {
           <span className="dim">{projects.filter((p) => p.live).length} running locally</span>
         )}
       </div>
+      <NewAgentDialog open={newOpen} onOpenChange={setNewOpen} />
       <TooltipProvider delay={150}>
       <div className="agentgrid">
-        <NewAgentCard onCreated={created} />
+        <NewAgentCard onOpen={() => setNewOpen(true)} />
         {projects.map((p) => (
           <div key={p.name} className="agentcard" onClick={() => open(p)} role="button" tabIndex={0}>
             <div className="agentrow">

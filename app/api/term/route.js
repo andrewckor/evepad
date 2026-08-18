@@ -17,14 +17,17 @@ export async function POST(request) {
     );
   }
 
-  const { project: name, action, data, cols, rows, variant } = await request.json();
+  const body = await request.json();
+  const { project: name, action, data, cols, rows, variant } = body;
 
   if (action === "start") {
     // The login terminal isn't a project's — and it's exactly the terminal you
     // need when resolveProject() can't work, because the credential that lists
     // projects is the thing that's broken.
-    const project = variant === "login"
-      ? { name: "__login" }
+    const project = variant === "login" ? { name: "__login" }
+      // Creating: there is no project yet — the name and the folder the user
+      // picked ARE the input.
+      : variant === "create" ? { name, localPath: body.dir, model: body.model }
       : await resolveProject(name);
     if (!project) return Response.json({ error: "unknown project" }, { status: 404 });
     try {

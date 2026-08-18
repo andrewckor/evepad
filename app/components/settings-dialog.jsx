@@ -35,6 +35,26 @@ export default function SettingsDialog({ open, onOpenChange, account, onSignedOu
   // Two-step, because this signs the Vercel CLI out of the whole machine —
   // the cockpit has no session of its own to end, so a stray click would sign
   // you out of your terminal too.
+  const { data: settings, mutate: refetchSettings } = useSWR("/api/settings", fetcher);
+  const [picking, setPicking] = useState(false);
+  // Same native picker the New Agent dialog uses; this just persists the answer.
+  const pickWorkspace = async () => {
+    setPicking(true);
+    try {
+      const r = await fetch("/api/folder", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: "Where should new agents live?" }),
+      }).then((x) => x.json());
+      if (r.path) {
+        await fetch("/api/settings", {
+          method: "POST", headers: { "content-type": "application/json" },
+          body: JSON.stringify({ workspace: r.path }),
+        });
+        refetchSettings();
+      }
+    } finally { setPicking(false); }
+  };
+
   const [confirmOut, setConfirmOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -63,11 +83,7 @@ export default function SettingsDialog({ open, onOpenChange, account, onSignedOu
   const linked = (projects?.projects ?? []).filter((p) => p.localPath);
 
   const unlink = async (p) => {
-    await fetch("/api/registry", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ project: p.name, action: "forget" }),
-    });
+    await fetch(`/api/agents?name=${encodeURIComponent(p.name)}`, { method: "DELETE" });
     mutate();
   };
 
@@ -89,6 +105,11 @@ export default function SettingsDialog({ open, onOpenChange, account, onSignedOu
           </Row>
           <Row label="Scope" hint="vercel switch">
             {account?.scope?.name ?? "—"}
+          </Row>
+          <Row label="New agents path" hint={tilde(settings?.workspace) || "…"}>
+            <Button variant="outline" size="sm" onClick={pickWorkspace} disabled={picking}>
+              {picking ? "Choosing…" : "Change path"}
+            </Button>
           </Row>
           <Row label="Credentials" hint={account?.tokenSource === "VERCEL_TOKEN" ? "from the environment" : "~/Library/Application Support/com.vercel.cli"}>
             {account?.tokenSource ?? "none"}
@@ -117,9 +138,8 @@ export default function SettingsDialog({ open, onOpenChange, account, onSignedOu
                   render={
                     <span className="set-link-act">
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
-                        className="set-unlink"
                         disabled={p.live}
                         onClick={() => unlink(p)}
                       >Remove</Button>
@@ -144,16 +164,16 @@ export default function SettingsDialog({ open, onOpenChange, account, onSignedOu
               <>
                 <span className="set-signout-q">Sign the Vercel CLI out on this Mac?</span>
                 <span className="set-signout-row">
-                  <Button variant="ghost" size="sm" className="set-danger" onClick={signOut} disabled={signingOut}>
+                  <Button variant="destructive" size="sm" onClick={signOut} disabled={signingOut}>
                     {signingOut ? "Signing out…" : "Sign out"}
                   </Button>
-                  <Button variant="ghost" size="sm" className="set-cancel" onClick={() => setConfirmOut(false)}>Cancel</Button>
+                  <Button variant="outline" size="sm" onClick={() => setConfirmOut(false)}>Cancel</Button>
                 </span>
               </>
             ) : (
               <>
                 <span className="set-signout-who">Signed in as {account.user.email}</span>
-                <Button variant="ghost" size="sm" className="set-cancel" onClick={() => setConfirmOut(true)}>Sign out</Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirmOut(true)}>Sign out</Button>
               </>
             )}
           </div>
