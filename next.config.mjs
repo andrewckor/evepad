@@ -6,6 +6,8 @@ const nextConfig = {
   // published package ships a prebuilt app: `evepad` boots node server.js
   // instead of installing 1GB and compiling on first request.
   output: "standalone",
+  // node-pty is a native addon — keep it a runtime require, never bundled.
+  serverExternalPackages: ["node-pty"],
 };
 
 export default nextConfig;

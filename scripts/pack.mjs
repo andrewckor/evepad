@@ -36,7 +36,9 @@ if (await inUse(devPort)) {
 
 rmSync(join(root, ".next"), { recursive: true, force: true });
 
-execSync("npx next build", { stdio: "inherit" });
+// --webpack: Turbopack externalises native addons under an internal id that
+// doesn't resolve in standalone output, so node-pty terminals die at runtime.
+execSync("npx next build --webpack", { stdio: "inherit" });
 
 rmSync(join(root, "dist"), { recursive: true, force: true });
 mkdirSync(out, { recursive: true });

@@ -1,6 +1,6 @@
 {
   "name": "evepad",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Local dashboard and build harness for eve agents",
   "license": "Apache-2.0",
   "private": true,

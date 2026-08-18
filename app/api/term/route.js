@@ -10,7 +10,8 @@ export async function POST(request) {
   let startTerm, stopTerm, getTerm;
   try {
     ({ startTerm, stopTerm, getTerm } = await terminals());
-  } catch {
+  } catch (e) {
+    console.error("[term] terminals module failed to load:", e);
     return Response.json(
       { error: "Terminals need node-pty, which isn't installed for this platform." },
       { status: 501 },
