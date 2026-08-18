@@ -21,6 +21,7 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import LoadingState from "./loading-state.jsx";
 import Thinking from "./thinking.jsx";
+import FileDiff from "./file-diff.jsx";
 import { ArrowUp, Plus, SlashForward } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -39,7 +40,7 @@ const Tip = ({ label, children }) => (
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
-const MsgRow = React.memo(function MsgRow({ m, live }) {
+const MsgRow = React.memo(function MsgRow({ m, live, project, diff }) {
   const parts = [...m.parts.values()].sort((a, b) => String(a.id).localeCompare(String(b.id)));
   const isUser = m.info.role === "user";
 
@@ -51,7 +52,10 @@ const MsgRow = React.memo(function MsgRow({ m, live }) {
   for (const p of parts) {
     const trace = p.type === "reasoning" || p.type === "tool";
     const tail = groups[groups.length - 1];
-    if (trace && tail?.type === "trace") tail.parts.push(p);
+    // A patch part names the files THIS message wrote — the per-message
+    // attribution session.diff can't give, since that one is session-wide.
+    if (p.type === "patch") groups.push({ type: "patch", part: p, key: p.id });
+    else if (trace && tail?.type === "trace") tail.parts.push(p);
     else if (trace) groups.push({ type: "trace", parts: [p], key: p.id });
     else groups.push({ type: "text", part: p, key: p.id });
   }
@@ -71,6 +75,30 @@ const MsgRow = React.memo(function MsgRow({ m, live }) {
               <Streamdown key={g.key} className="chat-md" components={MD_COMPONENTS}>{p.text}</Streamdown>
             );
           }
+          if (g.type === "patch") {
+            const files = g.part.files ?? [];
+            if (!files.length) return null;
+            return (
+              <div key={g.key} className="oc-patch">
+                {files.map((f) => {
+                  // Counts come from the session diff we already track, so the
+                  // collapsed card is complete without fetching anything.
+                  // Patch parts carry absolute paths, git reports repo-relative
+                  // ones — match from whichever end is longer.
+                  const d = diff?.find((x) => x.file === f || f.endsWith(x.file) || x.file.endsWith(f));
+                  return (
+                    <FileDiff
+                      key={f}
+                      project={project}
+                      file={f}
+                      additions={d?.additions}
+                      deletions={d?.deletions}
+                    />
+                  );
+                })}
+              </div>
+            );
+          }
           // A trace is working while any of its tools is, or while it is the
           // tail of the message the model is still streaming into.
           const busy = g.parts.some((p) => ["pending", "running"].includes(p.state?.status))
@@ -80,7 +108,7 @@ const MsgRow = React.memo(function MsgRow({ m, live }) {
       </MessageContent>
     </Message>
   );
-}, (prev, next) => prev.m === next.m && prev.rev === next.rev && prev.live === next.live);
+}, (prev, next) => prev.m === next.m && prev.rev === next.rev && prev.live === next.live && prev.diff === next.diff);
 
 const fetchJson = async (url, opts) => {
   const r = await fetch(url, opts);
@@ -155,7 +183,10 @@ export default function OcChat({ project, onIdle }) {
   const [runKey, setRunKey] = useState(0);
   useEffect(() => { if (busy) setRunKey((k) => k + 1); }, [busy]);
   const [perms, setPerms] = useState([]); // pending permission asks
-  const [diff, setDiff] = useState([]);   // [{file, additions, deletions}] for this session
+  // [{file, additions, deletions}] straight from git. OpenCode's session.diff
+  // event fires but always carries an empty list on this server version, so
+  // the counts — and the composer chip — came from nothing.
+  const [diff, setDiff] = useState([]);
   const [diffOpen, setDiffOpen] = useState(false);
   const [error, setError] = useState(null);
   const [input, setInput] = useState("");
@@ -170,6 +201,18 @@ export default function OcChat({ project, onIdle }) {
 
   const idRef = useRef("anon");
   const skey = (k) => `${idRef.current}:${k}`;
+
+  const refreshChanges = useCallback(() => {
+    if (!project) return;
+    fetch(`/api/oc/changes?project=${encodeURIComponent(project)}`)
+      .then((r) => r.json())
+      .then((d) => setDiff(d.files ?? []))
+      .catch(() => {});
+  }, [project]);
+  // On arrival, and again once the agent stops working — those are the only
+  // moments the working tree can have changed under us.
+  useEffect(() => { refreshChanges(); }, [refreshChanges]);
+  useEffect(() => { if (!busy) refreshChanges(); }, [busy, refreshChanges]);
 
   const act = useCallback((body) =>
     fetchJson("/api/oc/act", {
@@ -720,7 +763,7 @@ export default function OcChat({ project, onIdle }) {
                   <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)}>
                     {/* only the trailing message can still be streaming — a
                         blanket `busy` would set every trace shimmering. */}
-                    <MsgRow m={m} rev={m.rev ?? 0} live={busy && i === msgs.length - 1} />
+                    <MsgRow m={m} rev={m.rev ?? 0} live={busy && i === msgs.length - 1} project={project} diff={diff} />
                   </MessageScrollerItem>
                 ))}
                 {error && boot && (
@@ -752,10 +795,13 @@ export default function OcChat({ project, onIdle }) {
             {diffOpen && (
               <span className="oc-diff-pop">
                 {diff.map((d) => (
-                  <span key={d.file} className="oc-diff-row mono">
-                    <span className="oc-diff-file">{d.file.split("/").slice(-2).join("/")}</span>
-                    <span className="ok">+{d.additions}</span> <span className="bad">−{d.deletions}</span>
-                  </span>
+                  <FileDiff
+                    key={d.file}
+                    project={project}
+                    file={d.file}
+                    additions={d.additions}
+                    deletions={d.deletions}
+                  />
                 ))}
               </span>
             )}
