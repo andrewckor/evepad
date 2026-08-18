@@ -1,4 +1,4 @@
-import { getWorkspace, setWorkspace, ensureWorkspace, workspaceError, DEFAULT_WORKSPACE } from "../../../lib/settings.js";
+import { getWorkspace, setWorkspace, workspaceError, DEFAULT_WORKSPACE } from "../../../lib/settings.js";
 
 export const dynamic = "force-dynamic";
 

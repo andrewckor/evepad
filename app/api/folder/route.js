@@ -7,17 +7,20 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { ensureWorkspace } from "../../../lib/settings.js";
+import { existsSync } from "node:fs";
+import { getWorkspace } from "../../../lib/settings.js";
 
 const exec = promisify(execFile);
 
 export async function POST(request) {
   const { prompt, start } = await request.json().catch(() => ({}));
-  // Open where the user's agents live, when that folder exists. osascript
-  // rejects a default location that doesn't (-1700), so the hint is omitted
-  // rather than guessed.
-  const from = start ?? ensureWorkspace();
-  const where = from ? ` default location POSIX file ${JSON.stringify(from)}` : "";
+  // Opening a picker must not touch the disk. This used to call
+  // ensureWorkspace(), which CREATED ~/eve-agents just to compute a starting
+  // point — a read with a side effect, and it quietly resurrected the folder
+  // after every cleanup. The hint is used only if the folder already exists;
+  // osascript rejects one that doesn't (-1700), so it's omitted otherwise.
+  const from = start ?? getWorkspace();
+  const where = from && existsSync(from) ? ` default location POSIX file ${JSON.stringify(from)}` : "";
   const title = typeof prompt === "string" && prompt ? prompt : "Choose a folder";
 
   try {
