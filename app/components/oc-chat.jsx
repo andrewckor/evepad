@@ -433,12 +433,8 @@ export default function OcChat({ project, onIdle }) {
     return () => clearInterval(iv);
   }, [busy, sessionId, project]);
 
-  // Ordered by creation time, not by id. Server ids (msg_002f…) sort
-  // chronologically among themselves, but an optimistic "local-…" id sorts
-  // BEFORE all of them — so a message you just sent jumped to the top of the
-  // transcript and looked like it hadn't arrived until the server echoed it
-  // back seconds later. Ids stay the tiebreaker for messages minted in the
-  // same millisecond.
+  // By time, not id: an optimistic "local-…" id sorts before every server
+  // "msg_…", so a message you just sent jumped to the top of the transcript.
   const msgs = [...store.current.values()].sort((a, b) => {
     const at = a.info.time?.created ?? a.info.localAt ?? 0;
     const bt = b.info.time?.created ?? b.info.localAt ?? 0;
@@ -803,9 +799,8 @@ export default function OcChat({ project, onIdle }) {
         </span>
         <span className="spacer" />
         {diff.length > 0 && (
-          // The app's popover, not a hand-rolled one: dismissal on outside
-          // click and Escape comes with it, and the positioner keeps a wide
-          // diff inside the viewport instead of growing past its edge.
+          // The app's popover: outside-click and Escape dismissal come with
+          // it, and the positioner keeps a wide diff on screen.
           <Popover open={diffOpen} onOpenChange={setDiffOpen}>
             <PopoverTrigger className="oc-diff-chip mono">
               {diff.length} file{diff.length === 1 ? "" : "s"} changed

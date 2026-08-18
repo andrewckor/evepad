@@ -663,16 +663,13 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .box-item:hover{background:var(--hover)}
 .box-name{
   font-size:13px;font-weight:500;color:var(--fg);text-align:left;flex:1;padding:5px 0;cursor:pointer;
-  /* Rows are a fixed height the graph lays itself out against (34px, 44px for
-     schedules — see boxH/schedH in build/page.jsx), so a long name has to
-     truncate; wrapping pushed it straight out of the card. */
+  /* Rows are the fixed height the graph lays out against (boxH/schedH in
+     build/page.jsx), so a long name truncates rather than wrapping. */
   min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
 }
 .box-name:hover{color:var(--blue)}
 /* Lifted out of the flow: at opacity 0 these still reserved ~78px of every
-   row, so the name got a fraction of the card to live in and wrapped out of
-   it. They now ride over the row's right edge, fading in over whatever text
-   they cover. */
+   row, leaving the name too little width and wrapping it out of the card. */
 .box-actions{
   position:absolute;right:0;top:0;bottom:0;
   display:inline-flex;align-items:center;gap:2px;padding:0 6px 0 20px;
@@ -967,10 +964,8 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .menu-sep{height:1px;background:var(--line);margin:var(--menu-pad) calc(var(--menu-pad) * -1)}
 /* The scroll treatment, shared: no visible bar, edges dissolve so the list
    reads as continuing under the panel rather than being cut. */
-/* Where a scrollbar must be SEEN (the bar is the only hint there's more),
-   this is the one it wears — the platform default is a slab that lands on
-   top of the content it's meant to be scrolling. Everything that scrolls
-   invisibly uses .menu-scroll/.tablescroll instead. */
+/* The one visible scrollbar; everything that scrolls invisibly uses
+   .menu-scroll/.tablescroll. */
 .thinbar{scrollbar-width:thin;scrollbar-color:var(--line3) transparent}
 .thinbar::-webkit-scrollbar{width:6px;height:6px}
 .thinbar::-webkit-scrollbar-track{background:transparent}
@@ -1245,10 +1240,8 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-status-inner.on{opacity:1}
 .oc-diff-chip{font-size:11.5px;color:var(--dim);padding:2px 8px;border:1px solid var(--line);border-radius:999px}
 .oc-diff-chip:hover{color:var(--fg);border-color:var(--line2)}
-/* Sized to its content, but never past the room the positioner reports it
-   has — an expanded diff is as wide as its longest line, which walked the
-   panel off the left edge of the screen. Base UI publishes --available-width
-   on the positioner; the popup inherits it. */
+/* An expanded diff is as wide as its longest line, which walked the panel off
+   screen. --available-width comes from the Base UI positioner. */
 .oc-diff-pop{
   width:max-content;min-width:260px;
   max-width:min(620px, var(--available-width, 620px));
@@ -1318,9 +1311,7 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    Widening the item's paint box by the same 6px (negative margin + equal
    padding) leaves every content position untouched. */
 [data-slot="message-scroller-item"]{margin-left:-6px;padding-left:6px}
-/* A round button, like the composer's send and add: it floats over the
-   transcript rather than sitting in a row, and the app's floating controls
-   are circles. */
+/* Round, like the composer's send and add — floating controls are circles. */
 [data-slot="message-scroller-button"]{border-radius:50%}
 /* Session tab and new-chat button: same quiet hover pill as a Thinking
    header, so the two controls above the transcript match the one inside it. */

@@ -11,11 +11,30 @@
 
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { createConnection } from "node:net";
 import { join } from "node:path";
 
 const root = process.cwd();
 const app = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const out = join(root, "dist", "evepad");
+
+// dev keeps writing to .next, so a build alongside it dies on a half-written
+// manifest — after the whole compile, with nothing naming the cause.
+const devPort = Number(/--port\s+(\d+)/.exec(app.scripts?.dev ?? "")?.[1] ?? 5173);
+const inUse = (port) =>
+  new Promise((res) => {
+    const s = createConnection({ port, host: "127.0.0.1" })
+      .once("connect", () => s.destroy(res(true)))
+      .once("error", () => res(false));
+  });
+
+if (await inUse(devPort)) {
+  console.error(`\n  The dev server is running on :${devPort}.`);
+  console.error(`  Stop it first — a release build can't share .next with it.\n`);
+  process.exit(1);
+}
+
+rmSync(join(root, ".next"), { recursive: true, force: true });
 
 execSync("npx next build", { stdio: "inherit" });
 
@@ -28,7 +47,11 @@ cpSync(join(root, ".next", "standalone"), join(out, "standalone"), { recursive: 
 cpSync(join(root, ".next", "static"), join(out, "standalone", ".next", "static"), { recursive: true });
 cpSync(join(root, "public"), join(out, "standalone", "public"), { recursive: true });
 // resolved from the package's own dependencies instead — see header.
-rmSync(join(out, "standalone", "node_modules", "node-pty"), { recursive: true, force: true });
+// Turbopack traces opencode-ai in where webpack didn't: 137MB of binaries npm
+// installs per-platform anyway.
+for (const dep of ["node-pty", "opencode-ai"]) {
+  rmSync(join(out, "standalone", "node_modules", dep), { recursive: true, force: true });
+}
 cpSync(join(root, "bin"), join(out, "bin"), { recursive: true });
 // The npm page is the README — publishing without one shows an empty package.
 cpSync(join(root, "README.md"), join(out, "README.md"));
