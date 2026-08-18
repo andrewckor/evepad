@@ -30,22 +30,38 @@ cpSync(join(root, "public"), join(out, "standalone", "public"), { recursive: tru
 // resolved from the package's own dependencies instead — see header.
 rmSync(join(out, "standalone", "node_modules", "node-pty"), { recursive: true, force: true });
 cpSync(join(root, "bin"), join(out, "bin"), { recursive: true });
+// The npm page is the README — publishing without one shows an empty package.
+cpSync(join(root, "README.md"), join(out, "README.md"));
+// Apache-2.0 §4 requires both to travel with any distribution of the work.
+cpSync(join(root, "LICENSE"), join(out, "LICENSE"));
+cpSync(join(root, "NOTICE"), join(out, "NOTICE"));
 
 writeFileSync(join(out, "package.json"), JSON.stringify({
   name: "evepad",
   version: app.version,
   description: app.description ?? "Agent runs, local and remote",
   license: app.license,
+  homepage: "https://github.com/andrewckor/evepad#readme",
+  repository: { type: "git", url: "git+https://github.com/andrewckor/evepad.git" },
+  bugs: { url: "https://github.com/andrewckor/evepad/issues" },
+  keywords: ["eve", "vercel", "agents", "dashboard", "cli", "local"],
   bin: { evepad: "bin/evepad.mjs" },
   engines: { node: ">=20.9" },
   // npm strips the exec bit from node-pty's spawn-helper (same reason the
   // repo's own postinstall exists); resolved by path so hoisting can't break it.
   scripts: {
-    postinstall: "node -e \"const{dirname,join}=require('path');const fs=require('fs');const p=join(dirname(require.resolve('node-pty/package.json')),'prebuilds');for(const d of fs.readdirSync(p)){try{fs.chmodSync(join(p,d,'spawn-helper'),0o755)}catch{}}\"",
+    postinstall: "node -e \"try{const{dirname,join}=require('path');const fs=require('fs');const p=join(dirname(require.resolve('node-pty/package.json')),'prebuilds');for(const d of fs.readdirSync(p)){try{fs.chmodSync(join(p,d,'spawn-helper'),0o755)}catch{}}}catch{}\"",
   },
   dependencies: {
-    "node-pty": app.dependencies["node-pty"],
     "opencode-ai": app.dependencies["opencode-ai"],
+  },
+  // node-pty ships prebuilds for darwin and win32 only; on Linux it compiles
+  // with node-gyp, which needs python3/make/g++ and takes tens of seconds —
+  // or fails outright in a slim container. As a hard dependency that failure
+  // blocks the whole install. Optional means the dashboard installs and runs
+  // everywhere, and only the embedded terminals degrade.
+  optionalDependencies: {
+    "node-pty": app.dependencies["node-pty"],
   },
 }, null, 2));
 

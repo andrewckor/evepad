@@ -8,8 +8,13 @@ production side by side.
 
 ## Requirements
 
-- **macOS** (the folder picker and Vercel CLI auth path are Mac-specific today)
 - **Node 20+** (developed on Node 24)
+- **macOS** is the developed-and-tested platform. It runs on Linux, with two
+  caveats: the folder picker is Mac-only, and the embedded terminals need
+  `node-pty`, which has no Linux prebuild — it compiles with node-gyp
+  (`python3`, `make`, `g++`) and is an *optional* dependency, so without those
+  the app still installs and runs, just without terminals. Headless hosts skip
+  the browser open and print the URL.
 
 That's all. The Vercel CLI is used for sign-in, project linking and env pulls,
 but it doesn't have to be installed — without it, every call runs through

@@ -42,11 +42,21 @@ async function probe() {
 }
 
 function openBrowser() {
-  if (flag("--no-open")) return;
+  if (flag("--no-open")) return false;
+  // Headless Linux (containers, CI, remote sandboxes) has no browser and often
+  // no xdg-open either. Print the URL instead of pretending.
+  if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return false;
   const cmd = process.platform === "darwin" ? "open"
     : process.platform === "win32" ? "start"
     : "xdg-open";
-  spawn(cmd, [URL_], { stdio: "ignore", detached: true, shell: process.platform === "win32" }).unref();
+  try {
+    const child = spawn(cmd, [URL_], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
+    // A missing opener emits 'error'; unhandled, that is an uncaught exception
+    // that kills the launcher AFTER the server is already up.
+    child.on("error", () => {});
+    child.unref();
+    return true;
+  } catch { return false; }
 }
 
 const state = await probe();
@@ -86,6 +96,7 @@ console.log(`    ${dim("\u2192")} starting server on :${PORT}\u2026`);
 // stdout alone left two voices in one terminal. So stderr is piped and the
 // known banner lines are dropped; everything else passes through verbatim,
 // because a real startup error must never be swallowed by a cosmetic filter.
+let ready = false;
 const server = spawn(process.execPath, [join(pkgDir, "standalone", "server.js")], {
   env,
   cwd: pkgDir,
@@ -94,7 +105,6 @@ const server = spawn(process.execPath, [join(pkgDir, "standalone", "server.js")]
 
 const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
 const BANNER = /^\s*(\u25b2\s*Next\.js|[-\u2022]\s*(Local|Network|Environments|Experiments)\b|\u2713\s*(Starting|Ready|Compiled))/;
-let ready = false;
 let tail = "";
 server.stderr.on("data", (chunk) => {
   const lines = (tail + chunk.toString()).split("\n");
@@ -107,7 +117,13 @@ server.stderr.on("data", (chunk) => {
     process.stderr.write(line + "\n");
   }
 });
-server.on("exit", (code) => process.exit(code ?? 0));
+server.on("exit", (code) => {
+  // A crash at startup writes to stderr and exits in the same tick; exiting
+  // immediately discarded that output, so a failure looked like silence.
+  // One turn of the loop lets the piped chunks reach the terminal first.
+  if (!ready && code) console.error(`\n    evepad server exited (code ${code}) before it was ready`);
+  setImmediate(() => process.exit(code ?? 0));
+});
 // Ctrl-C escalates. Next shuts down gracefully — it drains open connections —
 // and a dashboard tab always holds one (SSE, keep-alive polling), so a bare
 // SIGTERM waits forever and Ctrl-C appears to do nothing. Give the graceful
@@ -139,8 +155,10 @@ for (;;) {
 ready = true;
 console.log();
 console.log(`    ${ok("\u2713")} ready at ${URL_} ${dim(`(server boot ${Date.now() - t0}ms)`)}`);
-if (!flag("--no-open")) {
+const openedBrowser = openBrowser();
+if (openedBrowser) {
   console.log(`    ${dim("\u2192")} opening your browser ${dim("\u2014 Ctrl-C here stops evepad")}`);
+} else {
+  console.log(`    ${dim("\u2192")} open that URL ${dim("\u2014 Ctrl-C here stops evepad")}`);
 }
 console.log();
-openBrowser();

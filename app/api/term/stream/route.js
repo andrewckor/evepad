@@ -1,11 +1,16 @@
 // Raw byte stream from a project's pty: scrollback replay, then live output.
 // The client feeds chunks straight into xterm.write().
 
-import { getTerm } from "../../../../lib/terminals.js";
+// Lazy for the same reason as the control route: node-pty is optional.
+const terminals = () => import("../../../../lib/terminals.js");
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
+  let getTerm;
+  try { ({ getTerm } = await terminals()); }
+  catch { return new Response("terminals unavailable on this platform", { status: 501 }); }
+
   const url = new URL(request.url);
   const name = url.searchParams.get("project") ?? "";
   const term = getTerm(name, url.searchParams.get("variant") ?? undefined);

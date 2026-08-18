@@ -1,9 +1,22 @@
 // Control plane for embedded terminals: start, stop, keyboard input, resize.
 
 import { resolveProject } from "../../../lib/projects.js";
-import { startTerm, stopTerm, getTerm } from "../../../lib/terminals.js";
+// Imported lazily: terminals need node-pty, an optional dependency that has no
+// Linux prebuild. A missing pty must degrade to "terminals unavailable", not
+// take down the routes that merely sit next to it.
+const terminals = () => import("../../../lib/terminals.js");
 
 export async function POST(request) {
+  let startTerm, stopTerm, getTerm;
+  try {
+    ({ startTerm, stopTerm, getTerm } = await terminals());
+  } catch {
+    return Response.json(
+      { error: "Terminals need node-pty, which isn't installed for this platform." },
+      { status: 501 },
+    );
+  }
+
   const { project: name, action, data, cols, rows, variant } = await request.json();
 
   if (action === "start") {
