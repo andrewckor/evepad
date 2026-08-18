@@ -123,7 +123,9 @@ function toGraph(info, actions) {
   // human-readable cadence. Falls back to the empty pill when none exist.
   if (schedules.length) {
     nodes.push({
-      id: "box:schedules", position: { x: -290 - 110, y: srcBottom - schedH }, style: { width: 220 },
+      // Wider than the other boxes: a schedule row carries a name AND its
+      // cadence, and names run longer than a tool's single verb.
+      id: "box:schedules", position: { x: -290 - 125, y: srcBottom - schedH }, style: { width: 250 },
       data: {
         label: (
           <div className="toolbox">
@@ -131,10 +133,11 @@ function toGraph(info, actions) {
             {schedules.map((sc) => (
               <div key={sc.name} className="box-item sched nodrag">
                 <button className="box-name" onClick={() => actions.explainSchedule(sc.name)} title={`Ask Build what ${sc.name} does`}>
-                  {sc.name}
+                  <span className="sched-name">{sc.name}</span>
                   <i className="sched-when">{humanCron(sc.cron) ?? "—"}</i>
                 </button>
                 <span className="box-actions">
+                  <Button variant="ghost" size="icon-sm" title="Copy name" onClick={() => navigator.clipboard?.writeText(sc.name)}><Copy /></Button>
                   <Button variant="ghost" size="icon-sm" title={`Edit agent/schedules/${sc.name}.ts`} onClick={() => actions.editSchedule(sc.name)}><Pencil /></Button>
                   <Button variant="ghost" size="icon-sm" className="del" title={`Delete ${sc.name}`} onClick={() => actions.removeSchedule(sc.name)}><Trash /></Button>
                 </span>

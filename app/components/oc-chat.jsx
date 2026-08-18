@@ -335,7 +335,7 @@ export default function OcChat({ project, onIdle }) {
           const part = p.part;
           if (part?.sessionID !== sid) return;
           let msg = store.current.get(part.messageID);
-          if (!msg) { msg = { info: { id: part.messageID, sessionID: sid, role: "assistant" }, parts: new Map() }; store.current.set(part.messageID, msg); }
+          if (!msg) { msg = { info: { id: part.messageID, sessionID: sid, role: "assistant", localAt: Date.now() }, parts: new Map() }; store.current.set(part.messageID, msg); }
           msg.parts.set(part.id, part);
           touch(msg);
           bumpSoon();
@@ -433,7 +433,17 @@ export default function OcChat({ project, onIdle }) {
     return () => clearInterval(iv);
   }, [busy, sessionId, project]);
 
-  const msgs = [...store.current.values()].sort((a, b) => String(a.info.id).localeCompare(String(b.info.id)));
+  // Ordered by creation time, not by id. Server ids (msg_002f…) sort
+  // chronologically among themselves, but an optimistic "local-…" id sorts
+  // BEFORE all of them — so a message you just sent jumped to the top of the
+  // transcript and looked like it hadn't arrived until the server echoed it
+  // back seconds later. Ids stay the tiebreaker for messages minted in the
+  // same millisecond.
+  const msgs = [...store.current.values()].sort((a, b) => {
+    const at = a.info.time?.created ?? a.info.localAt ?? 0;
+    const bt = b.info.time?.created ?? b.info.localAt ?? 0;
+    return at - bt || String(a.info.id).localeCompare(String(b.info.id));
+  });
 
   // ---- actions
   const selModel = boot?.models.find((m) => `${m.providerID}:${m.modelID}` === modelKey);
@@ -457,7 +467,7 @@ export default function OcChat({ project, onIdle }) {
   const note = (text) => {
     const id = `note-${Date.now()}`;
     store.current.set(id, {
-      info: { id, role: "assistant", sessionID: sessionRef.current },
+      info: { id, role: "assistant", sessionID: sessionRef.current, localAt: Date.now() },
       parts: new Map([["p", { id: "p", type: "text", text }]]),
     });
     bump();
@@ -544,8 +554,9 @@ export default function OcChat({ project, onIdle }) {
         if (builtin) { await runBuiltin(cmd); return; }
         const known = boot?.commands.find((c) => c.name === cmd);
         if (known) {
-          store.current.set(`local-${Date.now()}`, {
-            info: { id: `local-${Date.now()}`, role: "user", sessionID: sid },
+          const localId = `local-${Date.now()}`;
+          store.current.set(localId, {
+            info: { id: localId, role: "user", sessionID: sid, localAt: Date.now() },
             parts: new Map([["p", { id: "p", type: "text", text }]]),
           });
           bump(); setBusy(true);
@@ -553,8 +564,9 @@ export default function OcChat({ project, onIdle }) {
           return;
         }
       }
-      store.current.set(`local-${Date.now()}`, {
-        info: { id: `local-${Date.now()}`, role: "user", sessionID: sid },
+      const localId = `local-${Date.now()}`;
+      store.current.set(localId, {
+        info: { id: localId, role: "user", sessionID: sid, localAt: Date.now() },
         parts: new Map([["p", { id: "p", type: "text", text }]]),
       });
       bump(); setBusy(true);
@@ -791,26 +803,27 @@ export default function OcChat({ project, onIdle }) {
         </span>
         <span className="spacer" />
         {diff.length > 0 && (
-          <span className="oc-diff">
-            {diffOpen && (
-              <span className="oc-diff-pop">
-                {diff.map((d) => (
-                  <FileDiff
-                    key={d.file}
-                    project={project}
-                    file={d.file}
-                    additions={d.additions}
-                    deletions={d.deletions}
-                  />
-                ))}
-              </span>
-            )}
-            <button className="oc-diff-chip mono" onClick={() => setDiffOpen((o) => !o)}>
+          // The app's popover, not a hand-rolled one: dismissal on outside
+          // click and Escape comes with it, and the positioner keeps a wide
+          // diff inside the viewport instead of growing past its edge.
+          <Popover open={diffOpen} onOpenChange={setDiffOpen}>
+            <PopoverTrigger className="oc-diff-chip mono">
               {diff.length} file{diff.length === 1 ? "" : "s"} changed
               <span className="ok"> +{diff.reduce((n, d) => n + d.additions, 0)}</span>
               <span className="bad"> −{diff.reduce((n, d) => n + d.deletions, 0)}</span>
-            </button>
-          </span>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="end" sideOffset={8} className="oc-diff-pop">
+              {diff.map((d) => (
+                <FileDiff
+                  key={d.file}
+                  project={project}
+                  file={d.file}
+                  additions={d.additions}
+                  deletions={d.deletions}
+                />
+              ))}
+            </PopoverContent>
+          </Popover>
         )}
         </div>
       </div>
@@ -874,7 +887,7 @@ export default function OcChat({ project, onIdle }) {
             }}
             onKeyDown={onKey}
             placeholder={busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`}
-            className="oc-ta"
+            className="oc-ta thinbar"
             disabled={booting}
             autoFocus
           />

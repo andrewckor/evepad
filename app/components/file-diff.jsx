@@ -17,7 +17,7 @@ const kindOf = (line) => (line[0] === "+" ? "add" : line[0] === "-" ? "del" : "c
 function Hunks({ hunks }) {
   if (!hunks.length) return <div className="fd-empty">No changes recorded for this file.</div>;
   return (
-    <div className="fd-hunks mono">
+    <div className="fd-hunks mono thinbar">
       {hunks.map((h, i) => {
         // Line numbers are reconstructed as we walk: the API gives the hunk's
         // starting points, and each side advances only on lines that belong
