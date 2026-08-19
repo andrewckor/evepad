@@ -29,7 +29,10 @@ function PopoverContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="isolate z-50"
+        // Deliberate edit — must survive a `shadcn add` re-run: the docked
+        // terminal/chat panels are fixed at z-index:90, and Tailwind's z-50
+        // buried every tooltip and menu under them.
+        className="isolate z-[120]"
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"
