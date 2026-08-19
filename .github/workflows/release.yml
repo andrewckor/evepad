@@ -26,7 +26,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0 # needs the tags to know what has shipped
 
@@ -43,7 +43,7 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: steps.check.outputs.release == 'true'
         with:
           # 24 for its bundled npm 11: trusted publishing needs >= 11.5.1, and
