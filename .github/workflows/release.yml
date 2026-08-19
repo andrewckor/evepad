@@ -1,0 +1,106 @@
+# Publishes evepad when the version in package.json changes on main.
+#
+# The gate is the tag, not the diff: a run is a no-op unless v<version> is
+# missing, so a re-run after a half-finished release picks up where it stopped
+# instead of trying to publish a version npm already has.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+    # Only a package.json change can bump the version, so nothing else needs
+    # to wake this up.
+    paths: ["package.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write # OIDC — how npm authenticates us, in place of a token
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # needs the tags to know what has shipped
+
+      - name: Decide whether there is anything to release
+        id: check
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "v$version is already tagged — nothing to do"
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$version is new"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.release == 'true'
+        with:
+          # 24 for its bundled npm 11: trusted publishing needs >= 11.5.1, and
+          # node 22 still ships 10.9.
+          node-version: 24
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Install
+        if: steps.check.outputs.release == 'true'
+        run: npm ci
+
+      - name: Build the tarball
+        if: steps.check.outputs.release == 'true'
+        run: npm run pack
+
+      # Publishing is the one step that cannot be undone, so it runs before the
+      # tag: a failure here leaves nothing behind to clean up. Skipped when the
+      # version is already on npm, which is what makes a re-run safe.
+      #
+      # No token: npm sees the OIDC credentials this job is granted above and
+      # exchanges them with the trusted publisher configured on the package.
+      - name: Publish to npm
+        if: steps.check.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          if npm view "evepad@$VERSION" version >/dev/null 2>&1; then
+            echo "evepad@$VERSION is already on npm — skipping publish"
+          else
+            npm publish "./dist/evepad-$VERSION.tgz"
+          fi
+
+      - name: Tag and release
+        if: steps.check.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.check.outputs.version }}
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+          # Everything since the previous tag, or the whole history first time.
+          previous="$(git describe --tags --abbrev=0 "v$VERSION^" 2>/dev/null || true)"
+          if [ -n "$previous" ]; then
+            range="$previous..v$VERSION"
+          else
+            range="v$VERSION"
+          fi
+
+          {
+            git log --no-merges --pretty='- %s' "$range"
+            echo
+            echo "Install: \`npx evepad@$VERSION\`"
+          } > notes.md
+
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file notes.md \
+            "./dist/evepad-$VERSION.tgz#evepad-$VERSION.tgz"
