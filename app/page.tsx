@@ -13,6 +13,7 @@ import ProjectLogo from "./components/project-logo";
 import { Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import Welcome from "./components/welcome";
+import LoadingState from "./components/loading-state";
 import NewAgentDialog from "./components/new-agent-dialog";
 
 // Icon-only controls get real tooltips (instant, styled), not the browser's
@@ -106,6 +107,22 @@ function Home() {
   };
 
   const open = (p: Project) => router.push(`/runs?project=${encodeURIComponent(p.name)}`);
+
+  // Until both requests land nothing is known — a premature grid flashes a
+  // lone New Agent card at people who have ten agents. Header plus the same
+  // dots the editor uses, and only that.
+  if (!data || !account) {
+    return (
+      <div className="wrap">
+        <div className="home-head">
+          <h1>Agents</h1>
+        </div>
+        <div className="home-loading">
+          <LoadingState label="Loading agents" elapsed={false} />
+        </div>
+      </div>
+    );
+  }
 
   // Nothing to show and a reason why: the whole page becomes that reason,
   // rather than a grid of one card next to a spinner that never stops.
