@@ -185,13 +185,10 @@ const installViaNpm = () =>
   });
 
 if (cold) {
-  console.log(`    ${dim("\u2192")} first run \u00b7 downloading the Build editor\u2026`);
+  console.log(`    ${dim("\u2192")} setting up the first run\u2026`);
   await downloadDirect().catch(installViaNpm);
-  if (managedCandidates.some((f) => existsSync(f))) {
-    console.log(`    ${ok("\u2713")} editor installed`);
-  } else {
+  if (!managedCandidates.some((f) => existsSync(f)))
     console.log(`    ${dim("\u2192")} download failed \u2014 Build will retry in the background`);
-  }
 }
 console.log(`    ${dim("\u2192")} starting server on :${PORT}\u2026`);
 
