@@ -8,9 +8,12 @@
 // an installed PWA keeps pointing at the same app.
 
 import { spawn } from "node:child_process";
+import { Readable } from "node:stream";
+import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -35,8 +38,9 @@ const PORT = Number(opt("--port") ?? process.env.PORT ?? 4680);
 const URL_LOCAL = `http://localhost:${PORT}`;
 const URL_DIRECT = `http://127.0.0.1:${PORT}`;
 const PROBE_URL = `${URL_DIRECT}/`;
+// Next's own labels (see `next start`): Local and Network.
 const addresses = () =>
-  `      ${dim("- Local:")}     ${URL_LOCAL}\n      ${dim("- Loopback:")}  ${URL_DIRECT}`;
+  `      ${dim("- Local:")}    ${URL_LOCAL}\n      ${dim("- Network:")}  ${URL_DIRECT}`;
 const pkgDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 async function probe() {
@@ -77,7 +81,7 @@ function openBrowser() {
 const state = await probe();
 if (state === "evepad") {
   // Already running — this launch is just a way back to the page.
-  console.log(`\n  ${brand("\u25b2 evepad")} ${dim("\u2014 already running, opening it")}`);
+  console.log(`\n  ${brand("evepad \u25b2")} ${dim("\u2014 already running, opening it")}`);
   console.log(addresses());
   console.log();
   openBrowser();
@@ -107,8 +111,88 @@ try {
     readFileSync(join(pkgDir, "standalone", "node_modules", "next", "package.json"), "utf8"),
   ).version;
 } catch {}
+// Cold run = the pinned Build editor isn't on this machine yet; its one-time
+// ~1.3s download runs below, before the server spawns. Everyone runs the
+// pinned copy — a PATH opencode never substitutes.
+let ocVersion = null;
+let managedOcBin = null;
+try {
+  const manifest = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
+  ocVersion = manifest.opencodeVersion;
+} catch {}
+try {
+} catch {}
+const managedDir = ocVersion ? join(homedir(), ".evepad", "opencode", ocVersion) : null;
+// Two layouts: package/bin (direct tarball extract) or node_modules/.bin
+// (the npm fallback). Either counts as installed.
+const managedCandidates = managedDir
+  ? [
+      join(managedDir, "package", "bin", "opencode"),
+      join(managedDir, "node_modules", ".bin", "opencode"),
+    ]
+  : [];
+managedOcBin = managedCandidates.find(existsSync) ?? null;
+
+const cold = !!managedDir && !managedOcBin;
+
 console.log();
-console.log(`  ${brand(`\u25b2 evepad${nextVersion ? ` \u00b7 Next.js ${nextVersion}` : ""}`)}`);
+console.log(`  ${brand(`evepad \u25b2${nextVersion ? ` Next.js ${nextVersion}` : ""}`)}`);
+
+// The one-time editor download happens HERE, before the server spawns, so the
+// lines appear in the order things actually happen. The server keeps its own
+// ensure step (lib/opencode.ts) as the safety net if this fails.
+// Fast path: fetch the platform tarball straight off the registry and pipe
+// it through tar (~1.3s) — same bytes npm would fetch, none of its overhead.
+async function downloadDirect() {
+  const plat = process.platform === "win32" ? "windows" : process.platform;
+  const musl =
+    process.platform === "linux" && !process.report?.getReport?.()?.header?.glibcVersionRuntime;
+  const pkg = `opencode-${plat}-${process.arch}${musl ? "-musl" : ""}`;
+  const res = await fetch(`https://registry.npmjs.org/${pkg}/-/${pkg}-${ocVersion}.tgz`, {
+    signal: AbortSignal.timeout(240_000),
+  });
+  if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`);
+  mkdirSync(managedDir, { recursive: true });
+  const tar = spawn("tar", ["-xz", "-C", managedDir], { stdio: ["pipe", "ignore", "ignore"] });
+  Readable.fromWeb(res.body).pipe(tar.stdin);
+  await new Promise((resolve, reject) => {
+    tar.on("error", reject);
+    tar.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`tar exited ${code}`))));
+  });
+}
+
+const installViaNpm = () =>
+  new Promise((resolve) => {
+    const child = spawn(
+      "npm",
+      [
+        "install",
+        "--prefix",
+        managedDir,
+        "--no-audit",
+        "--no-fund",
+        "--loglevel=error",
+        `opencode-ai@${ocVersion}`,
+      ],
+      // Real errors pass through; npm's "new version available" ad does not.
+      {
+        stdio: ["ignore", "ignore", "inherit"],
+        env: { ...process.env, npm_config_update_notifier: "false" },
+      },
+    );
+    child.on("error", () => resolve(false));
+    child.on("exit", (code) => resolve(code === 0));
+  });
+
+if (cold) {
+  console.log(`    ${dim("\u2192")} first run \u00b7 downloading the Build editor\u2026`);
+  await downloadDirect().catch(installViaNpm);
+  if (managedCandidates.some((f) => existsSync(f))) {
+    console.log(`    ${ok("\u2713")} editor installed`);
+  } else {
+    console.log(`    ${dim("\u2192")} download failed \u2014 Build will retry in the background`);
+  }
+}
 console.log(`    ${dim("\u2192")} starting server on :${PORT}\u2026`);
 
 // Next prints its banner and ready lines to STDERR, not stdout — ignoring

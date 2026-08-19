@@ -1,9 +1,12 @@
 // Build the publishable evepad package into dist/ and `npm pack` it.
 //
 // What ships is the prebuilt app — bin/ plus .next/standalone — so `npx evepad`
-// runs without compiling anything. node-pty and opencode-ai are the exceptions:
-// both are native or spawned binaries, so they stay real dependencies and npm
-// fetches the right one per platform.
+// runs without compiling anything. node-pty is the exception: a native addon,
+// so it stays a (optional) dependency and npm fetches the right prebuild.
+// opencode is NOT a dependency — its platform binary is 143MB, ~90% of the
+// old install. Build chat runs a managed, version-pinned copy npm-installed
+// into ~/.evepad in the background on first boot (see lib/opencode.ts), so
+// `npx evepad` stays one command with nothing blocking on the download.
 
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
@@ -12,6 +15,13 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const app = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+// The launcher needs the pinned opencode version to tell a cold run (long
+// first boot, say why) from a warm one. lib/opencode.ts owns the pin; fail
+// loudly if it ever moves.
+const opencodeVersion = /OPENCODE_VERSION = "([^"]+)"/.exec(
+  readFileSync(join(root, "lib", "opencode.ts"), "utf8"),
+)?.[1];
+if (!opencodeVersion) throw new Error("OPENCODE_VERSION not found in lib/opencode.ts");
 const out = join(root, "dist", "evepad");
 
 // dev keeps writing to .next, so a build alongside it dies on a half-written
@@ -78,6 +88,7 @@ writeFileSync(
       bugs: { url: "https://github.com/andrewckor/evepad/issues" },
       keywords: ["eve", "vercel", "agents", "dashboard", "cli", "local"],
       bin: { evepad: "bin/evepad.mjs" },
+      opencodeVersion,
       engines: { node: ">=24" },
       // npm strips the exec bit from node-pty's spawn-helper; resolved by path so
       // hoisting can't move it out from under us.
@@ -88,9 +99,6 @@ writeFileSync(
           "node -e \"if(!require('fs').existsSync('./standalone/server.js'))throw new Error('run npm run pack — do not publish from the repo root')\"",
         postinstall:
           "node -e \"try{const{dirname,join}=require('path');const fs=require('fs');const p=join(dirname(require.resolve('node-pty/package.json')),'prebuilds');for(const d of fs.readdirSync(p)){try{fs.chmodSync(join(p,d,'spawn-helper'),0o755)}catch{}}}catch{}\"",
-      },
-      dependencies: {
-        "opencode-ai": app.dependencies["opencode-ai"],
       },
       // Optional: node-pty has no Linux prebuild, and a compile failure there
       // should cost you the terminals, not the whole install.

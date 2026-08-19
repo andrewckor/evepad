@@ -8,8 +8,7 @@
 // without reimplementation.
 
 import React, { useState, useRef, useEffect, useCallback, startTransition } from "react";
-import { Streamdown } from "streamdown";
-import { MD_COMPONENTS } from "./markdown";
+import { Md } from "./md";
 import { Button } from "@/components/ui/button";
 import {
   MessageScrollerProvider,
@@ -103,9 +102,9 @@ const MsgRow = React.memo(
                   <BubbleContent>{p.text}</BubbleContent>
                 </Bubble>
               ) : (
-                <Streamdown key={g.key} className="chat-md" components={MD_COMPONENTS}>
+                <Md key={g.key} className="chat-md">
                   {p.text}
-                </Streamdown>
+                </Md>
               );
             }
             if (g.type === "patch") {
@@ -240,6 +239,7 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
   const [modelKey, setModelKey] = useState<string | null>(null);
   const [agentName, setAgentName] = useState<string | null>(null); // null = server default
   const [palIndex, setPalIndex] = useState(0);
+  const [installing, setInstalling] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const onIdleRef = useRef(onIdle);
@@ -257,10 +257,8 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
       .catch(() => {});
   }, [project]);
   // On arrival, and again once the agent stops working — those are the only
-  // moments the working tree can have changed under us.
-  useEffect(() => {
-    refreshChanges();
-  }, [refreshChanges]);
+  // moments the working tree can have changed under us. Mount is covered too:
+  // busy starts false, so this fires once on the way in.
   useEffect(() => {
     if (!busy) refreshChanges();
   }, [busy, refreshChanges]);
@@ -282,13 +280,20 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
     setError(null);
     store.current = new Map();
     bump();
-    // /api/oc/state answers 202 {booting} rather than holding the connection
-    // open through a cold opencode boot — poll until it's ready.
+    // wait=1 long-polls: the server holds the request and answers the moment
+    // the opencode boot lands (8s ceiling per request) — no 400ms re-ask loop.
+    // A fresh machine may be mid-download of opencode itself (installing) —
+    // that's minutes, not seconds, so the deadline stretches to match.
     const load = async () => {
-      for (let i = 0; i < 150 && !stale; i++) {
-        const b = await fetchJson(`/api/oc/state?project=${encodeURIComponent(project)}`);
+      const t0 = Date.now();
+      let deadline = 60_000;
+      while (!stale && Date.now() - t0 < deadline) {
+        const b = await fetchJson(`/api/oc/state?project=${encodeURIComponent(project)}&wait=1`);
         if (!b?.booting) return b;
-        await new Promise((r) => setTimeout(r, 400));
+        if (b.installing) {
+          deadline = 360_000;
+          setInstalling(true);
+        }
       }
       throw new Error("editor did not start");
     };
@@ -1066,7 +1071,13 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
               the timer starts with the work, not with the page. */}
             <LoadingState
               key={booting ? "boot" : runKey}
-              label={booting ? "Connecting to the editor" : "Working"}
+              label={
+                booting
+                  ? installing
+                    ? "Setting up the editor — one-time download"
+                    : "Connecting to the editor"
+                  : "Working"
+              }
               elapsed={!booting}
             />
           </span>

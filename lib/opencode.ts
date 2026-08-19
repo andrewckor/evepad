@@ -10,17 +10,19 @@
 // the project, bash asks (the cockpit UI renders approval toasts),
 // external_directory denied.
 
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { execFile } from "node:child_process";
+import { homedir } from "node:os";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
+import { Readable } from "node:stream";
 import { createOpencodeServer, createOpencodeClient } from "@opencode-ai/sdk";
 import { vercelCommand } from "./vercel-cli";
 import type { Project } from "./types";
 
-type OcClient = ReturnType<typeof createOpencodeClient>;
+export type OcClient = ReturnType<typeof createOpencodeClient>;
 type OcServer = Awaited<ReturnType<typeof createOpencodeServer>>;
-type ReadyEntry = { server: OcServer; client: OcClient; bootToken: string };
+type ReadyEntry = { server: OcServer; client: OcClient; bootToken: string; lastSeen?: number };
 type ServerEntry = Partial<ReadyEntry> & { booting?: Promise<ReadyEntry> };
 
 // An event off the server's bus. The SDK types each variant precisely; the
@@ -43,6 +45,8 @@ export type EventHub = {
 type OcGlobal = {
   servers: Map<string, ServerEntry>;
   hubs: Map<string, EventHub>;
+  pulls: Map<string, Promise<string | null>>;
+  install?: Promise<void> | null;
   cleanupInstalled?: boolean;
 };
 
@@ -54,6 +58,7 @@ const g = ((globalThis as { __eveCockpitOpencode?: Partial<OcGlobal> }).__eveCoc
   {}) as OcGlobal;
 g.servers ??= new Map();
 g.hubs ??= new Map();
+g.pulls ??= new Map();
 
 function readOidc(dir: string): string | null {
   try {
@@ -79,20 +84,152 @@ const isExpired = (t: string): boolean => {
 export async function freshOidc(dir: string): Promise<string | null> {
   let t = readOidc(dir);
   if (!t || isExpired(t)) {
-    try {
-      const [vc, ...pre] = vercelCommand() as [string, ...string[]];
-      await exec(vc, [...pre, "env", "pull", ".env.local", "--yes"], { cwd: dir, timeout: 60_000 });
-      t = readOidc(dir);
-    } catch {}
+    // One pull per directory at a time: every /api/oc/* call lands here, and
+    // an expired token used to fan out into N concurrent `vercel env pull`s.
+    let pull = g.pulls.get(dir);
+    if (!pull) {
+      pull = (async () => {
+        try {
+          const [vc, ...pre] = vercelCommand() as [string, ...string[]];
+          await exec(vc, [...pre, "env", "pull", ".env.local", "--yes"], {
+            cwd: dir,
+            timeout: 60_000,
+          });
+        } catch {}
+        return readOidc(dir);
+      })().finally(() => g.pulls.delete(dir));
+      g.pulls.set(dir, pull);
+    }
+    t = await pull;
   }
   return t && !isExpired(t) ? t : null;
 }
 
+// Keep in lockstep with @opencode-ai/sdk in package.json — the bundled client
+// talks to the server this installs.
+const OPENCODE_VERSION = "1.18.18";
+
+// One prefix PER VERSION: an evepad release that bumps OPENCODE_VERSION gets a
+// fresh install, never an in-place update over the old one — npm run from the
+// standalone server drops the .bin link on in-place updates.
+const managedRoot = () => join(homedir(), ".evepad", "opencode");
+const managedPrefix = () => join(managedRoot(), OPENCODE_VERSION);
+
+const onPath = async (cmd: string): Promise<boolean> => {
+  try {
+    await exec("which", [cmd]);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// The binary lands in one of two layouts: package/bin (direct tarball
+// extract, the fast path) or node_modules/.bin (the npm fallback).
+const managedBinDirs = () => [
+  join(managedPrefix(), "package", "bin"),
+  join(managedPrefix(), "node_modules", ".bin"),
+];
+const managedBin = () => managedBinDirs().find((d) => existsSync(join(d, "opencode"))) ?? null;
+
+// The npm registry tarball for this machine's platform binary. The registry
+// is what npm itself would hit — same bytes, none of npm's overhead (node
+// startup, metadata round-trips, and a second full copy in the npm cache).
+const platformTarball = () => {
+  const plat = process.platform === "win32" ? "windows" : process.platform;
+  const report = process.report?.getReport?.() as { header?: { glibcVersionRuntime?: string } };
+  const musl = process.platform === "linux" && !report?.header?.glibcVersionRuntime;
+  const pkg = `opencode-${plat}-${process.arch}${musl ? "-musl" : ""}`;
+  return `https://registry.npmjs.org/${pkg}/-/${pkg}-${OPENCODE_VERSION}.tgz`;
+};
+
+// Direct fetch piped through tar: ~1.3s vs ~5.5s for the npm route.
+async function downloadDirect(): Promise<void> {
+  const dest = managedPrefix();
+  mkdirSync(dest, { recursive: true });
+  const res = await fetch(platformTarball(), { signal: AbortSignal.timeout(240_000) });
+  if (!res.ok || !res.body) throw new Error(`download failed: ${res.status}`);
+  const tar = spawn("tar", ["-xz", "-C", dest], { stdio: ["pipe", "ignore", "ignore"] });
+  Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]).pipe(tar.stdin);
+  await new Promise<void>((resolve, reject) => {
+    tar.on("error", reject);
+    tar.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`tar exited ${code}`))));
+  });
+}
+
+async function installViaNpm(): Promise<void> {
+  await exec(
+    "npm",
+    [
+      "install",
+      "--prefix",
+      managedPrefix(),
+      "--no-audit",
+      "--no-fund",
+      "--loglevel=error",
+      `opencode-ai@${OPENCODE_VERSION}`,
+    ],
+    { timeout: 300_000 },
+  );
+}
+
+// The published package doesn't bundle opencode (its platform binary is
+// 143MB, ~90% of the old install). Resolution order: the managed copy in
+// ~/.evepad/opencode/<version> when it exists; else a ~1.3s direct download
+// of the pinned version. Every user runs the pinned copy — a user-owned
+// opencode on PATH is only the last-ditch fallback when the download itself
+// fails (offline first run). The launcher (bin/evepad.mjs) runs the same
+// decision before the server spawns; this is the safety net for
+// `npm run dev` and launcher failures, reported via installing:true.
+async function ensureOpencodeBinary(): Promise<void> {
+  const have = managedBin();
+  if (have) {
+    if (!process.env.PATH?.includes(have)) process.env.PATH = `${have}:${process.env.PATH ?? ""}`;
+    return;
+  }
+  g.install ??= downloadDirect().catch(installViaNpm);
+  try {
+    await g.install;
+    // Older versions are ~140MB each of dead weight — sweep the siblings
+    // once the new install is in.
+    try {
+      for (const d of readdirSync(managedRoot()))
+        if (d !== OPENCODE_VERSION)
+          rmSync(join(managedRoot(), d), { recursive: true, force: true });
+    } catch {}
+  } catch {
+    // Both installers failed (offline?) — fall through to the checks below,
+    // which end in the actionable error, not npm's.
+  } finally {
+    g.install = null;
+  }
+  const bin = managedBin();
+  if (bin) {
+    if (!process.env.PATH?.includes(bin)) process.env.PATH = `${bin}:${process.env.PATH ?? ""}`;
+    return;
+  }
+  // Install failed (offline?) — a PATH copy is version drift, but version
+  // drift beats a dead Build tab.
+  if (!(await onPath("opencode")))
+    throw new Error(
+      "Could not set up the editor — install opencode yourself: `npm i -g opencode-ai`, then reload.",
+    );
+}
+
+export const opencodeInstalling = (): boolean => Boolean(g.install);
+
+// Awaited by instrumentation.ts at server boot: "ready" is not printed until
+// the editor is installed, so a cold `npx evepad` is honest about its one
+// slow step and everything after it is instant. Errors don't kill the boot —
+// Build retries and falls back on its own (see ensureOpencodeBinary).
+export async function warmOpencodeInstall(): Promise<void> {
+  try {
+    await ensureOpencodeBinary();
+  } catch {}
+}
+
 async function bootServer(_dir: string, oidc: string): Promise<ReadyEntry> {
-  // createOpencodeServer spawns the `opencode` binary from PATH — ours lives
-  // in this app's node_modules/.bin (via the opencode-ai package).
-  const bin = join(process.cwd(), "node_modules", ".bin");
-  if (!process.env.PATH?.includes(bin)) process.env.PATH = `${bin}:${process.env.PATH ?? ""}`;
+  await ensureOpencodeBinary();
   // The child inherits process.env at spawn — set the project's token just
   // for this boot. (Sequential boots are fine; the mutex below serializes.)
   process.env.VERCEL_OIDC_TOKEN = oidc;
@@ -143,10 +280,16 @@ async function ensureServer(dir: string, oidc: string): Promise<ReadyEntry> {
   }
   if (entry?.server && entry.bootToken === oidc) {
     // Handles survive hot reloads on globalThis but the process behind them
-    // may be gone — verify liveness before trusting the cached server.
+    // may be gone — verify liveness before trusting the cached server. A
+    // probe every call is a wasted round-trip on hot paths, so one sighting
+    // vouches for the next 2s.
+    if (entry.lastSeen && Date.now() - entry.lastSeen < 2_000) return entry as ReadyEntry;
     try {
       const ok = await fetch(`${entry.server.url}/app`, { signal: AbortSignal.timeout(1500) });
-      if (ok.ok) return entry as ReadyEntry;
+      if (ok.ok) {
+        entry.lastSeen = Date.now();
+        return entry as ReadyEntry;
+      }
     } catch {}
   }
   if (entry?.server) {
@@ -216,9 +359,12 @@ export type ModelInfo = {
   default: boolean;
 };
 
-export async function listModels(project: Project): Promise<ModelInfo[]> {
+export async function listModels(
+  project: Project,
+  pre?: { client: OcClient },
+): Promise<ModelInfo[]> {
   if (!project.localPath) throw new Error("no local checkout for this project");
-  const { client } = await ocClient(project.localPath);
+  const { client } = pre ?? (await ocClient(project.localPath));
   const res = await client.config.providers({ throwOnError: true });
   const models: ModelInfo[] = [];
   for (const prov of res.data.providers ?? []) {
