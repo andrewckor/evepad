@@ -7,6 +7,8 @@ import { I, triggerIcon } from "@/app/components/icons.jsx";
 import { ChevronLeft, ChevronRight, FolderPlus } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { EnvBadge } from "../components/badge.jsx";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { Dropdown, DropdownItem, DropdownCheckItem } from "@/app/components/dropdown.jsx";
 import { toast } from "@/components/ui/toast";
 import ReconnectDialog from "@/app/components/reconnect-dialog.jsx";
@@ -81,7 +83,6 @@ const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 // "channel:photon" reads as just "photon" — the icon already says channel.
 const trigLabel = (t) => (t?.startsWith("channel:") ? t.slice(8) : cap(t));
 // Chip labels: abbreviate only where unambiguous — "prev" reads as "previous".
-const envShort = (e) => (e === "production" ? "prod" : e);
 
 function PeriodPicker({ value, onChange }) {
   return (
@@ -139,7 +140,7 @@ function EnvPicker({ value, onChange, hasLocal = true }) {
 // ---- charts ---------------------------------------------------------------
 
 function buckets(sessions, n = 48) {
-  const out = Array.from({ length: n }, () => ({ runs: 0, input: 0, output: 0, cached: 0 }));
+  const out = Array.from({ length: n }, () => ({ runs: 0, input: 0, output: 0, cached: 0, cost: 0 }));
   if (!sessions.length) return out;
   const times = sessions.map((s) => new Date(s.createdAt).getTime());
   const min = Math.min(...times), max = Math.max(...times);
@@ -150,8 +151,58 @@ function buckets(sessions, n = 48) {
     out[i].input += s.inputTokens;
     out[i].output += s.outputTokens;
     out[i].cached += s.cacheReadTokens;
+    out[i].cost += s.costUsd ?? 0;
   }
   return out;
+}
+
+// A stat card: the number is the headline, the chart is the shape of it.
+// Sized to sit three-up rather than two big panels.
+function Sparkline({ data, pick, color, fill = false }) {
+  const W = 120, H = 34, vals = data.map(pick);
+  const max = Math.max(...vals, 1);
+  const step = W / Math.max(vals.length - 1, 1);
+  const pts = vals.map((v, i) => `${i * step},${H - 2 - (v / max) * (H - 6)}`);
+  return (
+    <svg className="sparksvg" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      {fill && <polygon points={`0,${H} ${pts.join(" ")} ${W},${H}`} fill={color} opacity=".18" />}
+      <polyline points={pts.join(" ")} fill="none" stroke={color} strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function StatCard({ title, value, sub, breakdown, children }) {
+  const card = (
+    <div className="statcard">
+      <div className="stat-text">
+        <span className="stat-title">{title}</span>
+        <span className="stat-value">{value}</span>
+        {sub && <span className="stat-sub">{sub}</span>}
+      </div>
+      <div className="stat-chart">{children}</div>
+    </div>
+  );
+  if (!breakdown?.length) return card;
+  // The one hoverable tooltip in the app: it's a data readout you may want to
+  // move onto, not a label.
+  return (
+    <Tooltip disableHoverablePopup={false}>
+      <TooltipTrigger render={card} />
+      <TooltipContent side="bottom" className="stat-pop">
+        {/* The legend these cards replaced — same dots, same figures, now
+            only when you ask for it. */}
+        <span className="legend legend-col">
+          {breakdown.map((r) => (
+            <span key={r.label}>
+              <i style={{ background: r.color ?? "var(--dim2)" }} />
+              {r.label} <b>{r.value}</b>
+            </span>
+          ))}
+        </span>
+      </TooltipContent>
+    </Tooltip>
+  );
 }
 
 // Vercel's Runs chart: sharp spikes per bucket on a baseline.
@@ -307,6 +358,10 @@ function Dashboard() {
   const auth = forcedAuth
     ? { env: "production", kind: forcedAuth, canReconnect: forcedAuth !== "plan", message: `forced: ${forcedAuth}` }
     : data?.auth ?? null;
+  // The raw red banner is the only presentation that already says "no runs and
+  // here's why"; the missing-checkout note does not, so the table still needs
+  // its own line in that case.
+  const errShown = Boolean(data?.error) && !(/no checkout/i.test(data?.error ?? "") && !hasLocal) && !auth;
   useEffect(() => {
     if (!auth) {
       if (authToastId) { toast.close(authToastId); authToastId = null; }
@@ -341,13 +396,22 @@ function Dashboard() {
   );
 
   const totals = sessions.reduce(
-    (a, s) => ({ input: a.input + s.inputTokens, output: a.output + s.outputTokens, cached: a.cached + s.cacheReadTokens }),
-    { input: 0, output: 0, cached: 0 },
+    (a, s) => ({
+      input: a.input + s.inputTokens,
+      output: a.output + s.outputTokens,
+      cached: a.cached + s.cacheReadTokens,
+      cost: a.cost + (s.costUsd ?? 0),
+    }),
+    { input: 0, output: 0, cached: 0, cost: 0 },
   );
   const b = useMemo(() => buckets(sessions), [sessions]);
+  const costByEnv = useMemo(() => {
+    const by = new Map();
+    for (const s of sessions) by.set(s.environment, (by.get(s.environment) ?? 0) + (s.costUsd ?? 0));
+    return [...by].map(([env, v]) => ({ label: env, value: money(v), color: "var(--ok)" }));
+  }, [sessions]);
 
   const projectName = data?.project?.name ?? project;
-  const multiEnv = environment.includes(",");
   // Each session knows which environment it came from — links must use THAT,
   // not the (possibly multi) filter value.
   const runHref = (s) =>
@@ -425,36 +489,42 @@ function Dashboard() {
             hold their last render — redrawing them mid-fetch reads as a flash. */}
         {isLoading && !data ? (
           <div className="charts">
-            <div className="sk card" /><div className="sk card" />
+            <div className="sk statcard" /><div className="sk statcard" /><div className="sk statcard" />
           </div>
         ) : (
           <div className="charts">
-            <div className="chartcard">
-              <div className="chead">
-                <span className="ctitle">Runs</span>
-                <span className="legend">
-                  {triggers.map((t, i) => (
-                    <span key={t}><i style={{ background: i === 0 ? "var(--purple)" : "var(--blue)" }} />
-                      {trigLabel(t)} <b>{sessions.filter((s) => s.trigger === t).length}</b>
-                    </span>
-                  ))}
-                </span>
-              </div>
-              <SpikeChart data={b} />
-              <div className="axis"><span>{oldest ?? ""}</span><span>{newest ?? ""}</span></div>
-            </div>
-            <div className="chartcard">
-              <div className="chead">
-                <span className="ctitle">Tokens</span>
-                <span className="legend">
-                  <span><i style={{ background: "var(--blue)" }} />Input <b>{kt(totals.input)}</b></span>
-                  <span><i style={{ background: "var(--purple)" }} />Output <b>{kt(totals.output)}</b></span>
-                  <span><i style={{ background: "var(--chart-cached)" }} />Cached <b>{kt(totals.cached)}</b></span>
-                </span>
-              </div>
-              <StackedBars data={b} />
-              <div className="axis"><span>{oldest ?? ""}</span><span>{newest ?? ""}</span></div>
-            </div>
+            <TooltipProvider delay={150}>
+            <StatCard
+              title="Runs"
+              value={sessions.length}
+              breakdown={triggers.map((t, i) => ({
+                label: trigLabel(t),
+                value: sessions.filter((s) => s.trigger === t).length,
+                color: i === 0 ? "var(--purple)" : "var(--blue)",
+              }))}
+            >
+              <Sparkline data={b} pick={(d) => d.runs} color="var(--purple)" fill />
+            </StatCard>
+            <StatCard
+              title="Tokens"
+              value={kt(totals.input + totals.output)}
+              sub={`${kt(totals.cached)} cached`}
+              breakdown={[
+                { label: "Input", value: kt(totals.input), color: "var(--blue)" },
+                { label: "Output", value: kt(totals.output), color: "var(--purple)" },
+                { label: "Cached", value: kt(totals.cached), color: "var(--chart-cached)" },
+              ]}
+            >
+              <Sparkline data={b} pick={(d) => d.input + d.output} color="var(--blue)" fill />
+            </StatCard>
+            <StatCard
+              title="Cost"
+              value={money(totals.cost)}
+              breakdown={costByEnv}
+            >
+              <Sparkline data={b} pick={(d) => d.cost} color="var(--ok)" fill />
+            </StatCard>
+            </TooltipProvider>
           </div>
         )}
 
@@ -506,7 +576,7 @@ function Dashboard() {
               {!isLoading && sessions.slice(page * pageSize, (page + 1) * pageSize).map((s) => (
                 <tr key={s.runId} onMouseEnter={() => warm(s)} onClick={() => router.push(runHref(s))}>
                   <td className="title-cell">
-                    {multiEnv && <span className={"envchip" + (s.environment === "local" ? " loc" : s.environment === "production" ? " prod" : "")}>{envShort(s.environment)}</span>}
+                    <EnvBadge env={s.environment} className="envchip" />
                     {s.title}
                   </td>
                   <td><span className="trigger-badge">{triggerIcon(s.trigger)} {trigLabel(s.trigger)}</span></td>
@@ -548,9 +618,11 @@ function Dashboard() {
                 onClick={() => setPage((p) => p + 1)} title="Next page"><ChevronRight /></Button>
             </div>
           )}
-          {!isLoading && !sessions.length && !data?.error && (
+          {/* Suppressed only when the red banner is already explaining it —
+              a friendly note above still leaves the table needing a word. */}
+          {!isLoading && !sessions.length && !errShown && (
             <div className="empty">
-              No <b>{environment}</b> runs in the window “{periodLabel(period)}”.
+              No runs in the “{periodLabel(period)}”.
               {isLocal && " Talk to your agent and they'll appear here."}
             </div>
           )}
