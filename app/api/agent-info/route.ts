@@ -4,7 +4,7 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { resolveProject, eveVersionAt } from "@/lib/projects";
 import { errMsg } from "@/lib/utils";
@@ -12,13 +12,20 @@ import { errMsg } from "@/lib/utils";
 const exec = promisify(execFile);
 const cache = new Map<string, { at: number; data: Record<string, unknown> }>(); // name -> {at, data}
 const compiling = new Map<string, Promise<unknown>>();
+const failed = new Map<string, { at: number; message: string }>();
 const TTL = 10_000;
 
 // Extracted so the route can run it in the background and answer immediately.
 import type { Project } from "@/lib/types";
 
 async function compile(project: Project) {
-  const { stdout } = await exec("npm", ["exec", "--", "eve", "info", "--json"], {
+  // `npm exec` spends hundreds of ms resolving before eve even starts — call
+  // the project-local bin directly when it exists.
+  const eveBin = join(project.localPath ?? "", "node_modules", ".bin", "eve");
+  const [cmd, args] = existsSync(eveBin)
+    ? [eveBin, ["info", "--json"]]
+    : ["npm", ["exec", "--", "eve", "info", "--json"]];
+  const { stdout } = await exec(cmd, args as string[], {
     cwd: project.localPath ?? undefined,
     timeout: 120_000,
     maxBuffer: 16 << 20,
@@ -143,69 +150,36 @@ export async function GET(request: Request) {
   };
 
   const hit = cache.get(project.name);
-  if (!fresh && hit && Date.now() - hit.at < TTL * 6) {
+  const stale = fresh || !hit || Date.now() - hit.at >= TTL * 6;
+
+  // Compiles ALWAYS run in the background — an inline `eve info` holds one of
+  // the browser's six HTTP/1.1 slots for the whole compile. Callers get the
+  // last snapshot (with live disk reads) and compiling:true until the new one
+  // lands; the client's poll picks it up.
+  if (stale && !compiling.has(project.name)) {
+    const p = compile(project)
+      .then((data) => {
+        cache.set(project.name, { at: Date.now(), data });
+        failed.delete(project.name);
+      })
+      .catch((e) => failed.set(project.name, { at: Date.now(), message: errMsg(e).slice(0, 250) }))
+      .finally(() => compiling.delete(project.name));
+    compiling.set(project.name, p);
+  }
+
+  const live = {
+    tools: liveTools(),
+    schedules: liveSchedules(),
+    connections: liveConnections(),
+  };
+  if (hit)
     return Response.json({
       ...hit.data,
-      tools: liveTools(),
-      schedules: liveSchedules(),
-      connections: liveConnections(),
+      ...live,
+      ...(compiling.has(project.name) ? { compiling: true } : {}),
     });
-  }
-
-  // Never hold the connection for a cold `eve info` compile (seconds): start
-  // it, answer {compiling:true}, let the client poll. A held request costs one
-  // of six HTTP/1.1 slots and delays the next navigation.
-  if (!hit) {
-    if (!compiling.has(project.name)) {
-      const p = compile(project)
-        .then((data) => cache.set(project.name, { at: Date.now(), data }))
-        .catch(() => {})
-        .finally(() => compiling.delete(project.name));
-      compiling.set(project.name, p);
-    }
-    return Response.json(
-      {
-        compiling: true,
-        tools: liveTools(),
-        schedules: liveSchedules(),
-        connections: liveConnections(),
-      },
-      { status: 202 },
-    );
-  }
-
-  try {
-    const { stdout } = await exec("npm", ["exec", "--", "eve", "info", "--json"], {
-      cwd: project.localPath,
-      timeout: 120_000,
-      maxBuffer: 16 << 20,
-    });
-    const info = JSON.parse(stdout.slice(stdout.indexOf("{")));
-
-    // Group channel routes: the eve HTTP channel is many routes but one surface.
-    const byChannel = new Map<string, { name: string; kind: string; routes: number }>();
-    for (const c of info.channels ?? []) {
-      const key = `${c.name}:${c.kind}`;
-      if (!byChannel.has(key)) byChannel.set(key, { name: c.name, kind: c.kind, routes: 0 });
-      byChannel.get(key)!.routes += 1;
-    }
-
-    const data = {
-      name: info.agent?.name ?? info.name ?? project.name,
-      model: info.model ?? info.agent?.model?.id ?? null,
-      instructions: info.instructions ?? null,
-      tools: liveTools(),
-      skills: info.skills ?? [],
-      subagents: info.subagents ?? [],
-      schedules: liveSchedules(),
-      connections: liveConnections(),
-      channels: [...byChannel.values()],
-      diagnostics: info.diagnostics ?? null,
-      eveVersion: eveVersionAt(project.localPath),
-    };
-    cache.set(project.name, { at: Date.now(), data });
-    return Response.json(data);
-  } catch (e) {
-    return Response.json({ error: `eve info failed: ${errMsg(e).slice(0, 250)}` }, { status: 502 });
-  }
+  const err = failed.get(project.name);
+  if (err && Date.now() - err.at < 10_000)
+    return Response.json({ error: `eve info failed: ${err.message}` }, { status: 502 });
+  return Response.json({ compiling: true, ...live }, { status: 202 });
 }
