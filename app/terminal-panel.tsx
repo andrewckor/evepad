@@ -70,7 +70,7 @@ export default function TerminalPanel({
       <div className={"term-resize " + dock} onPointerDown={startDrag} title="Drag to resize" />
       <div className="term-head">
         <span className="dot on" />
-        <b>{project.name}</b>
+        <b className="term-title">{project.name}</b>
         <span className="dim2 mono">{status}</span>
         <div className="spacer" />
         <div className="term-actions">

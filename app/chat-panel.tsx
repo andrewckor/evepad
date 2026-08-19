@@ -198,7 +198,7 @@ export default function ChatPanel({
       <div className="term-head">
         <span className="dot on" />
         <b>Chat with</b>
-        <span className="dim">{project.name}</span>
+        <span className="dim term-title">{project.name}</span>
         <div className="spacer" />
         <div className="term-actions">
           <button className="dockbtn" onClick={onNewChat} title="Start a new chat session">
