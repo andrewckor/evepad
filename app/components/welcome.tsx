@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { Terminal, Copy, Check, ArrowRight, CheckCircleFill, Play } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import XtermView from "./xterm-view";
-import { motion } from "motion/react";
+import { m as M } from "motion/react";
 import { SPRING } from "./motion";
 
 function Command({ children }: { children: string }) {
@@ -171,7 +171,7 @@ export function CliSignIn({
         {/* Two states, deliberately: a STATIC command box until you press play,
             then the real thing. Nothing spawns a pty — and nothing can run —
             just because this screen rendered. */}
-        <motion.div
+        <M.div
           className={"wc-term" + (ran ? " grown" : "")}
           initial={false}
           // Wider once it's running: the device URL is ~58 columns, and a box
@@ -204,7 +204,7 @@ export function CliSignIn({
               </button>
             </div>
           )}
-        </motion.div>
+        </M.div>
         <p className="wc-foot">Run this command or paste it to your terminal.</p>
       </>
     );

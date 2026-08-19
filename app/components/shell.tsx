@@ -9,7 +9,7 @@ import React, { Suspense, useState, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR, { SWRConfig } from "swr";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, LazyMotion, m as M } from "motion/react";
 
 // One spring for every panel/push animation so they move as a single surface.
 // High damping = fast, organic settle, no bounce, nothing linear.
@@ -19,9 +19,10 @@ import ProjectPicker from "./project-picker";
 import { EnvBadge } from "./badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import AccountMenu from "./account-menu";
-import ChatPanel from "@/app/chat-panel";
+const ChatPanel = dynamic(() => import("@/app/chat-panel"), { ssr: false });
 
 import { I } from "./icons";
+import { warmMd } from "./md";
 
 const TerminalPanel = dynamic(() => import("../terminal-panel"), { ssr: false });
 
@@ -34,11 +35,21 @@ const shortRunId = (id: string | null | undefined): string => {
 // Hovering the button is the cheapest moment to fetch the terminal's chunks —
 // xterm is the heaviest thing the cockpit lazy-loads (bundle-preload).
 let buildWarmed = false;
-const warmBuild = () => {
-  if (buildWarmed) return;
-  buildWarmed = true;
-  import("../components/agent-graph");
-  import("../components/oc-chat");
+let lastBootKick = 0;
+const warmBuild = (name?: string) => {
+  if (!buildWarmed) {
+    buildWarmed = true;
+    import("../components/agent-graph");
+    import("../components/oc-chat");
+  }
+  // Kick the server work too: the opencode spawn and the `eve info` compile
+  // are the seconds the user otherwise pays AFTER landing on Build. Both
+  // routes background and dedupe, so a lost hover costs nothing.
+  if (!name || Date.now() - lastBootKick < 15_000) return;
+  lastBootKick = Date.now();
+  const q = `project=${encodeURIComponent(name)}`;
+  fetch(`/api/oc/state?${q}`).catch(() => {});
+  fetch(`/api/agent-info?${q}`).catch(() => {});
 };
 
 let termWarmed = false;
@@ -160,8 +171,8 @@ function TopNav({
                 <Link
                   className="tab"
                   data-on={isBuild ? "1" : "0"}
-                  onMouseEnter={warmBuild}
-                  onFocus={warmBuild}
+                  onMouseEnter={() => warmBuild(termProject.name)}
+                  onFocus={() => warmBuild(termProject.name)}
                   href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
                 >
                   {I.bolt} <span className="btn-label">Build</span>
@@ -174,7 +185,7 @@ function TopNav({
             {/* layout="position" animates only where the title sits, never its
               box — so the run-id subtitle still pushes it up smoothly, while
               swapping "Agent Runs" for "Build" no longer squeezes the width. */}
-            <motion.div layout="position" transition={SPRING} className="crumb-title">
+            <M.div layout="position" transition={SPRING} className="crumb-title">
               {isDetail ? (
                 <Link className="crumb-back" href={listHref()}>
                   <span className="crumb-back-ico">{I.chevLeft}</span>Agent Runs
@@ -182,14 +193,14 @@ function TopNav({
               ) : (
                 <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>
               )}
-            </motion.div>
+            </M.div>
             {/* popLayout pulls the exiting subtitle out of flow immediately, so
               the title measures its new position on that same render and
               animates down. Plain exit unmounts only AFTER its animation, and
               the title had no render left to animate with — it jumped. */}
             <AnimatePresence mode="popLayout">
               {isDetail && (
-                <motion.div
+                <M.div
                   layout="position"
                   className="crumb-sub"
                   initial={{ opacity: 0, y: 5 }}
@@ -208,7 +219,7 @@ function TopNav({
                   >
                     {I.copy}
                   </button>
-                </motion.div>
+                </M.div>
               )}
             </AnimatePresence>
           </div>
@@ -282,6 +293,21 @@ function ShellInner({ children }: { children: ReactNode }) {
     sessionStorage.setItem("termDock", d);
   };
 
+  // Once the page is idle, pull the deferred chunks (markdown pipeline, chat
+  // panel) so their first real use doesn't pay the download.
+  useEffect(() => {
+    const warm = () => {
+      warmMd();
+      import("@/app/chat-panel");
+    };
+    if ("requestIdleCallback" in window) {
+      const id = requestIdleCallback(warm);
+      return () => cancelIdleCallback(id);
+    }
+    const t = setTimeout(warm, 2000);
+    return () => clearTimeout(t);
+  }, []);
+
   const { data: projData } = useSWR("/api/projects", fetcher, {
     refreshInterval: 5000,
     keepPreviousData: true,
@@ -335,7 +361,7 @@ function ShellInner({ children }: { children: ReactNode }) {
   const pushed = (panel === "terminal" && termProject) || (panel === "chat" && liveProject);
   return (
     <>
-      <motion.div
+      <M.div
         className="frame"
         animate={{
           paddingRight: pushed && termDock === "right" ? termWidth : 0,
@@ -350,7 +376,7 @@ function ShellInner({ children }: { children: ReactNode }) {
           termProject={termProject}
         />
         {children}
-      </motion.div>
+      </M.div>
       <AnimatePresence>
         {panel === "chat" && liveProject && (
           <ChatPanel
@@ -388,12 +414,18 @@ function ShellInner({ children }: { children: ReactNode }) {
   );
 }
 
+// Animation features arrive async — the initial bundle carries only the m
+// components; strict mode keeps a full `motion.` import from sneaking back in.
+const loadMotion = () => import("./motion-features").then((x) => x.default);
+
 export default function Shell({ children }: { children: ReactNode }) {
   return (
     <SWRConfig value={{ fetcher, keepPreviousData: true, revalidateOnFocus: false }}>
-      <Suspense fallback={<div className="topbar" />}>
-        <ShellInner>{children}</ShellInner>
-      </Suspense>
+      <LazyMotion features={loadMotion} strict>
+        <Suspense fallback={<div className="topbar" />}>
+          <ShellInner>{children}</ShellInner>
+        </Suspense>
+      </LazyMotion>
     </SWRConfig>
   );
 }

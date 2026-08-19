@@ -7,7 +7,7 @@
 import { useState } from "react";
 import type React from "react";
 import { SidebarRight, ChevronRight, ChevronDown } from "vercel-geist-icons";
-import { motion } from "motion/react";
+import { m as M } from "motion/react";
 import { SPRING } from "./components/motion";
 import XtermView from "./components/xterm-view";
 
@@ -59,7 +59,7 @@ export default function TerminalPanel({
 
   const off = dock === "right" ? { x: "100%" } : { y: "100%" };
   return (
-    <motion.aside
+    <M.aside
       className={"termside " + dock}
       style={dock === "right" ? { width: size } : { height: size }}
       initial={off}
@@ -99,6 +99,6 @@ export default function TerminalPanel({
           )
         }
       />
-    </motion.aside>
+    </M.aside>
   );
 }

@@ -6,11 +6,10 @@
 
 import { useRef, useState } from "react";
 import type React from "react";
-import { motion } from "motion/react";
+import { m as M } from "motion/react";
 import { SPRING } from "./components/motion";
 import { SidebarRight, PlusCircle, ChevronRight, ChevronDown } from "vercel-geist-icons";
-import { Streamdown } from "streamdown";
-import { MD_COMPONENTS } from "./components/markdown";
+import { Md } from "./components/md";
 import LoadingState from "./components/loading-state";
 import { Check } from "vercel-geist-icons";
 import { ArrowUp } from "vercel-geist-icons";
@@ -186,7 +185,7 @@ export default function ChatPanel({
 
   const off = dock === "right" ? { x: "100%" } : { y: "100%" };
   return (
-    <motion.aside
+    <M.aside
       className={"termside " + dock}
       style={dock === "right" ? { width: size } : { height: size }}
       initial={off}
@@ -269,10 +268,8 @@ export default function ChatPanel({
                             /* Bare markdown, like the editor — the agent's answer
                              is the page, not a card on it. Streamdown renders
                              safely mid-stream (unclosed ** and ``` while
-                             tokens arrive); MD_COMPONENTS is our code block. */
-                            <Streamdown className="chat-md" components={MD_COMPONENTS}>
-                              {m.text}
-                            </Streamdown>
+                             tokens arrive); the code block is ours. */
+                            <Md className="chat-md">{m.text}</Md>
                           ))}
                       </MessageContent>
                     </Message>
@@ -320,6 +317,6 @@ export default function ChatPanel({
           </div>
         </div>
       </div>
-    </motion.aside>
+    </M.aside>
   );
 }
