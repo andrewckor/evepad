@@ -67,8 +67,10 @@ export default function ProjectPicker({
       const body = await r.json();
       if (!r.ok) alert(body.error ?? "failed");
     } finally {
+      // Refresh BEFORE dropping the spinner: the button flips straight from
+      // working to the new state, never through the stale one.
+      await mutate();
       setBusy((b) => ({ ...b, [p.name]: undefined }));
-      mutate();
     }
   };
 
@@ -102,7 +104,9 @@ export default function ProjectPicker({
         )}
         {state ? (
           <Tip label={state}>
-            <span className="devbtn busy">{I.loader}</span>
+            <span className="devbtn busy">
+              <span className="th-spin" />
+            </span>
           </Tip>
         ) : p.live ? (
           <Tip label="Stop local server">

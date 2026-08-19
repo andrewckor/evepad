@@ -98,8 +98,10 @@ function Home() {
       const body = await r.json();
       if (!r.ok) alert(body.error ?? "failed");
     } finally {
+      // Refresh BEFORE dropping the spinner: the button flips straight from
+      // working to the new state, never through the stale one.
+      await mutate();
       setBusy((b) => ({ ...b, [p.name]: undefined }));
-      mutate();
     }
   };
 
@@ -164,7 +166,9 @@ function Home() {
                 <div className="spacer" />
                 {busy[p.name] ? (
                   <Tip label="Working…">
-                    <span className="devbtn busy">{I.loader}</span>
+                    <span className="devbtn busy">
+                      <span className="th-spin" />
+                    </span>
                   </Tip>
                 ) : p.live ? (
                   <Tip label="Stop local server">

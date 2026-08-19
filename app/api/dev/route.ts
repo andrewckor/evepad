@@ -11,7 +11,7 @@ import { promisify } from "node:util";
 import { openSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createServer } from "node:net";
-import { resolveProject } from "@/lib/projects";
+import { resolveProject, invalidateLocalServers } from "@/lib/projects";
 import { remember } from "@/lib/registry";
 import { vercelCommand } from "@/lib/vercel-cli";
 import { errMsg } from "@/lib/utils";
@@ -121,7 +121,10 @@ export async function POST(request: Request) {
     // compile, and report the log path on failure instead of guessing.
     const deadline = Date.now() + 25_000;
     while (Date.now() < deadline) {
-      if (await health(port)) return Response.json({ ok: true, port });
+      if (await health(port)) {
+        invalidateLocalServers();
+        return Response.json({ ok: true, port });
+      }
       await new Promise((r) => setTimeout(r, 700));
     }
     // Include the log tail so the alert says WHY, not just where to look.
@@ -159,6 +162,7 @@ export async function POST(request: Request) {
         process.kill(pid, "SIGTERM");
       } catch {}
     }
+    invalidateLocalServers();
     return Response.json({ ok: true, stopped: pids.length });
   }
 

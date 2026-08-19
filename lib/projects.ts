@@ -88,6 +88,12 @@ async function probe(port: number): Promise<LocalServer | null> {
 let localCache: { at: number; data: LocalServer[] } = { at: 0, data: [] };
 const LOCAL_TTL = 4_000;
 
+// Start/stop just changed reality — the next listing must look, not trust
+// a snapshot taken before the action.
+export function invalidateLocalServers(): void {
+  localCache.at = 0;
+}
+
 export async function localServers() {
   if (Date.now() - localCache.at < LOCAL_TTL) return localCache.data;
   const ports = await listeningPorts();

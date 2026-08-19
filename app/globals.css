@@ -323,8 +323,7 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
   border:1px solid var(--line);border-radius:var(--r-sm);font-size:14px;color:var(--dim);
 }
 .devbtn:hover{background:var(--hover);color:var(--fg);border-color:var(--line3)}
-.devbtn.busy{color:var(--warn);cursor:default}
-.devbtn.busy svg{animation:devspin 1s linear infinite}
+.devbtn.busy{cursor:default}
 @keyframes devspin{to{transform:rotate(360deg)}}
 
 /* Borderless: the bar's actions sit on its own surface and take a hover fill,
