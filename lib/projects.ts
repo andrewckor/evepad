@@ -89,13 +89,18 @@ let localCache: { at: number; data: LocalServer[] } = { at: 0, data: [] };
 const LOCAL_TTL = 4_000;
 
 // Start/stop just changed reality — the next listing must look, not trust
-// a snapshot taken before the action.
+// a snapshot taken before the action. The epoch also disarms scans already
+// in flight: one started before the action would otherwise finish after the
+// invalidation and write pre-action state back into the cache.
+let localEpoch = 0;
 export function invalidateLocalServers(): void {
+  localEpoch++;
   localCache.at = 0;
 }
 
 export async function localServers() {
   if (Date.now() - localCache.at < LOCAL_TTL) return localCache.data;
+  const epoch = localEpoch;
   const ports = await listeningPorts();
   const results = await Promise.all(ports.map(probe));
   const servers = results.filter((s): s is LocalServer => s !== null);
@@ -103,8 +108,8 @@ export async function localServers() {
   // after the server stops.
   for (const s of servers)
     if (s.projectRoot) remember(s.vercelProjectName ?? s.agentName, s.projectRoot);
-  localCache = { at: Date.now(), data: servers };
-  return localCache.data;
+  if (epoch === localEpoch) localCache = { at: Date.now(), data: servers };
+  return servers;
 }
 
 // REST API, not `vercel projects ls` — the CLI costs ~0.9s per spawn and its

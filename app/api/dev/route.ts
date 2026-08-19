@@ -162,6 +162,17 @@ export async function POST(request: Request) {
         process.kill(pid, "SIGTERM");
       } catch {}
     }
+    // SIGTERM is a request, not a fact: eve dev takes a beat to drain and
+    // release the port, and answering before that hands the client a refresh
+    // that still shows the server alive. Wait it out (bounded), escalate once.
+    for (let i = 0; i < 20 && (await health(project.localPort, 400)); i++) {
+      if (i === 10)
+        for (const pid of pids)
+          try {
+            process.kill(pid, "SIGKILL");
+          } catch {}
+      await new Promise((r) => setTimeout(r, 150));
+    }
     invalidateLocalServers();
     return Response.json({ ok: true, stopped: pids.length });
   }
