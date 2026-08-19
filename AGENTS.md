@@ -15,7 +15,7 @@ approximate an icon that doesn't exist in that set.**
   or wrap them in custom `<svg>`.
 - If a concept has no Geist icon, pick the nearest existing one or ship no icon.
   A lookalike SVG is worse than none — it breaks visual parity with Vercel.
-- Detail worth knowing: Vercel uses *two different clocks* — `ClockDashed` in
+- Detail worth knowing: Vercel uses _two different clocks_ — `ClockDashed` in
   the runs table trigger cell, plain `Clock` in turn stat bars. Match their
   usage, not just their set.
 
@@ -43,7 +43,7 @@ The app has light and dark themes, resolved to an explicit
 
 - **Never write a colour literal in a component or in globals.css rules.**
   Use the tokens (`--bg --panel --panel2 --hover --inset --line/--line2/--line3
-  --fg --dim --dim2 --chip --btn/--btn-fg --on-accent --ring --ring-soft` and
+--fg --dim --dim2 --chip --btn/--btn-fg --on-accent --ring --ring-soft` and
   the state colours). If no token fits, add one to BOTH `:root` blocks.
 - Token names must not collide with shadcn's. `--ring` is THEIRS (the focus
   ring); ours is `--hairline`/`--hairline-soft`. A collision inside the same

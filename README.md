@@ -47,6 +47,7 @@ seconds rather than building on your machine.
   for its own window and Dock icon
 
 <!-- npm:skip -->
+
 ## Develop
 
 ```bash

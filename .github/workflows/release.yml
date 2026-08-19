@@ -56,6 +56,11 @@ jobs:
         if: steps.check.outputs.release == 'true'
         run: npm ci
 
+      # A broken bump must fail here, before anything irreversible.
+      - name: Typecheck and lint
+        if: steps.check.outputs.release == 'true'
+        run: npm run typecheck && npm run lint && npm run fmt:check
+
       - name: Build the tarball
         if: steps.check.outputs.release == 'true'
         run: npm run pack

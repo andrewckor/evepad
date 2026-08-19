@@ -20,7 +20,7 @@ comments would otherwise repeat it. The parts that catch people out:
 
 - **Icons come from `vercel-geist-icons`.** Never hand-draw or approximate one.
   If a concept has no Geist icon, use the nearest that exists or ship none.
-- **No colour literals.** Use the tokens; if none fits, add one to *both*
+- **No colour literals.** Use the tokens; if none fits, add one to _both_
   `:root` blocks in `app/globals.css`.
 - **Check both themes.** Light and dark, every time — the switcher is in the
   account menu.

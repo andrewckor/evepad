@@ -22,7 +22,7 @@ const opt = (name) => {
 // Colour only when a terminal is watching, and never against NO_COLOR.
 const tty = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code, s) => (tty ? `\x1b[${code}m${s}\x1b[0m` : s);
-const brand = (s) => paint("1;35", s);   // bold magenta, matching Next's own banner
+const brand = (s) => paint("1;35", s); // bold magenta, matching Next's own banner
 const ok = (s) => paint("32", s);
 const dim = (s) => paint("2", s);
 
@@ -54,18 +54,24 @@ function openBrowser() {
   if (flag("--no-open")) return false;
   // Headless Linux (containers, CI, remote sandboxes) has no browser and often
   // no xdg-open either. Print the URL instead of pretending.
-  if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return false;
-  const cmd = process.platform === "darwin" ? "open"
-    : process.platform === "win32" ? "start"
-    : "xdg-open";
+  if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY)
+    return false;
+  const cmd =
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "start" : "xdg-open";
   try {
-    const child = spawn(cmd, [URL_DIRECT], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
+    const child = spawn(cmd, [URL_DIRECT], {
+      stdio: "ignore",
+      detached: true,
+      shell: process.platform === "win32",
+    });
     // A missing opener emits 'error'; unhandled, that is an uncaught exception
     // that kills the launcher AFTER the server is already up.
     child.on("error", () => {});
     child.unref();
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 const state = await probe();
@@ -97,7 +103,9 @@ const env = {
 // same number `next start` prints, from the same package.
 let nextVersion = "";
 try {
-  nextVersion = JSON.parse(readFileSync(join(pkgDir, "standalone", "node_modules", "next", "package.json"), "utf8")).version;
+  nextVersion = JSON.parse(
+    readFileSync(join(pkgDir, "standalone", "node_modules", "next", "package.json"), "utf8"),
+  ).version;
 } catch {}
 console.log();
 console.log(`  ${brand(`\u25b2 evepad${nextVersion ? ` \u00b7 Next.js ${nextVersion}` : ""}`)}`);
@@ -114,8 +122,10 @@ const server = spawn(process.execPath, [join(pkgDir, "standalone", "server.js")]
   stdio: ["ignore", "ignore", "pipe"],
 });
 
+// oxlint-disable-next-line no-control-regex -- \x1b IS the subject here
 const stripAnsi = (s) => s.replace(/\x1b\[[0-9;]*m/g, "");
-const BANNER = /^\s*(\u25b2\s*Next\.js|[-\u2022]\s*(Local|Network|Environments|Experiments)\b|\u2713\s*(Starting|Ready|Compiled))/;
+const BANNER =
+  /^\s*(\u25b2\s*Next\.js|[-\u2022]\s*(Local|Network|Environments|Experiments)\b|\u2713\s*(Starting|Ready|Compiled))/;
 let tail = "";
 server.stderr.on("data", (chunk) => {
   const lines = (tail + chunk.toString()).split("\n");
@@ -132,7 +142,8 @@ server.on("exit", (code) => {
   // A crash at startup writes to stderr and exits in the same tick; exiting
   // immediately discarded that output, so a failure looked like silence.
   // One turn of the loop lets the piped chunks reach the terminal first.
-  if (!ready && code) console.error(`\n    evepad server exited (code ${code}) before it was ready`);
+  if (!ready && code)
+    console.error(`\n    evepad server exited (code ${code}) before it was ready`);
   setImmediate(() => process.exit(code ?? 0));
 });
 // Ctrl-C escalates. Next shuts down gracefully — it drains open connections —
@@ -142,7 +153,10 @@ server.on("exit", (code) => {
 let stopping = false;
 for (const sig of ["SIGINT", "SIGTERM"]) {
   process.on(sig, () => {
-    if (stopping) { server.kill("SIGKILL"); return; }
+    if (stopping) {
+      server.kill("SIGKILL");
+      return;
+    }
     stopping = true;
     console.log(`\n    ${dim("\u2192")} stopping evepad\u2026`);
     server.kill("SIGTERM");
@@ -152,7 +166,7 @@ for (const sig of ["SIGINT", "SIGTERM"]) {
 
 const t0 = Date.now();
 for (;;) {
-  if (await probe() === "evepad") break;
+  if ((await probe()) === "evepad") break;
   if (Date.now() - t0 > 15_000) {
     console.error("evepad did not come up within 15s");
     server.kill();
@@ -169,7 +183,9 @@ console.log(`    ${ok("\u2713")} ready ${dim(`(server boot ${Date.now() - t0}ms)
 console.log(addresses());
 const openedBrowser = openBrowser();
 if (openedBrowser) {
-  console.log(`    ${dim("\u2192")} opening your browser ${dim("\u2014 Ctrl-C here stops evepad")}`);
+  console.log(
+    `    ${dim("\u2192")} opening your browser ${dim("\u2014 Ctrl-C here stops evepad")}`,
+  );
 } else {
   console.log(`    ${dim("\u2192")} open either URL ${dim("\u2014 Ctrl-C here stops evepad")}`);
 }
