@@ -39,7 +39,6 @@ const ago = (iso) => {
   if (s < 86400) return Math.floor(s / 3600) + "h ago";
   return Math.floor(s / 86400) + " day" + (s < 172800 ? "" : "s") + " ago";
 };
-const statusClass = (s) => (s === "completed" ? "ok" : s === "failed" ? "bad" : "warn");
 
 import { I } from "../../components/icons.jsx";
 import { Streamdown } from "streamdown";
@@ -145,6 +144,32 @@ function Detail({ runId }) {
   const period = q.get("period") ?? DEFAULT_PERIOD;
   const project = q.get("project") ?? "";
   const selectedTurnId = q.get("selectedTurnId");
+  const [sideOpen, setSideOpen] = useState(true);
+  const [sideW, setSideW] = useState(420);
+  const [resizing, setResizing] = useState(false);
+  const detailRef = useRef(null);
+  // Drag from the panel's left edge; clamped so neither side can be squeezed out.
+  const startSideDrag = (e) => {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    // Without this the drag paints a text selection across the panel.
+    document.body.style.userSelect = "none";
+    setResizing(true);
+    // Against the grid's own box, not the window: with the CLI docked the
+    // frame is padded right, and innerWidth overshoots by exactly that much.
+    const box = detailRef.current?.getBoundingClientRect();
+    const right = box?.right ?? window.innerWidth;
+    const full = box?.width ?? window.innerWidth;
+    const move = (ev) => setSideW(Math.min(Math.max(right - ev.clientX, 320), full * 0.8));
+    const up = () => {
+      document.body.style.userSelect = "";
+      setResizing(false);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
 
   // Carry every filter back, or returning from a run silently resets them.
   const backHref = `/?environment=${environment}&period=${period}&project=${encodeURIComponent(project)}`;
@@ -243,7 +268,11 @@ function Detail({ runId }) {
   const turns = run.turns ?? [];
   const selected = turns.find((t) => t.turnId === selectedTurnId) ?? turns[0] ?? null;
 
+  // Clicking the turn you're already on closes the panel; clicking another
+  // one selects it and reopens.
   const selectTurn = (id) => {
+    if (id === selected?.turnId) { setSideOpen((o) => !o); return; }
+    setSideOpen(true);
     const next = new URLSearchParams(q.toString());
     next.set("selectedTurnId", id);
     router.replace(`/run/${runId}?${next.toString()}`);
@@ -269,7 +298,6 @@ function Detail({ runId }) {
   const selFinal = selected ? [...selected.messages].reverse().find((m) => m.type === "message.completed")?.text : null;
 
   const kvRows = [
-    ["Status", <span key="s" className={statusClass(run.session.status)}>{run.session.status}</span>],
     // Vercel shows these as relative times.
     ["Start Time", ago(selected?.startedAt ?? run.session.createdAt)],
     ["End Time", selected?.endedAt ? ago(selected.endedAt) : "—"],
@@ -285,7 +313,13 @@ function Detail({ runId }) {
 
   return (
     <>
-      <div className="detail">
+      <div
+        ref={detailRef}
+        className="detail"
+        data-side={sideOpen ? "1" : "0"}
+        data-resizing={resizing ? "1" : "0"}
+        style={sideOpen ? { gridTemplateColumns: `1fr ${sideW}px` } : undefined}
+      >
         <div className="transcript">
           <div className="float-tabs">
             <button className="tab" data-on={tab === "turns" ? "1" : "0"} onClick={() => setTab("turns")}>Turns</button>
@@ -319,7 +353,7 @@ function Detail({ runId }) {
                       </div>
                     )}
                     <div
-                      className={"turncard" + (t.turnId === selected?.turnId ? " sel" : "")}
+                      className={"turncard" + (sideOpen && t.turnId === selected?.turnId ? " sel" : "")}
                       onClick={() => selectTurn(t.turnId)}
                     >
                       <div className="turnhead">
@@ -345,6 +379,7 @@ function Detail({ runId }) {
         </div>
 
         <div className="side">
+          <div className="side-resize" data-on={resizing ? "1" : "0"} onPointerDown={startSideDrag} title="Drag to resize" />
           <div className="side-title">
             <span className="mono">{selected?.turnId ?? "session"}</span>
             <div className="spacer" />

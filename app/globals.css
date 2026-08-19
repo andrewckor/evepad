@@ -518,7 +518,12 @@ td.num{text-align:right;padding:0 16px}
 .tab[data-on="1"]{background:var(--panel2);color:var(--fg)}
 
 .side-title{display:flex;align-items:center;gap:8px;padding:2px 0 14px;font-size:14px}
-.sec-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.sec-head{
+  display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
+  margin:0 -7px;padding:3px 7px;border-radius:var(--r-sm);
+  transition:background .1s;
+}
+.sec-head:hover{background:var(--hover)}
 .sec-chev{color:var(--dim2);transition:transform .12s;display:inline-flex}
 .sec-chev.open{transform:rotate(180deg)}
 .pills{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
@@ -541,10 +546,27 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
 /* Chrome above is just the 56px topbar (tabs float inside the transcript).
    The two columns scroll independently within the remaining viewport. */
 .detail{display:grid;grid-template-columns:1fr 420px;height:calc(100dvh - 56px);overflow:hidden}
+.detail[data-resizing="1"]{cursor:col-resize}
+.detail[data-side="0"]{grid-template-columns:1fr}
+.detail[data-side="0"] .side{display:none}
 .transcript{padding:18px 32px 28px;overflow-y:auto}
 /* Vercel centers the conversation in a ~700px column. */
 .transcript-inner{max-width:700px;margin:0 auto}
-.side{border-left:1px solid var(--line);padding:20px 22px;overflow-y:auto;background:var(--bg)}
+.side{position:relative;border-left:1px solid var(--line);padding:20px 22px;overflow-y:auto;background:var(--bg)}
+/* Inside the box on purpose: .side scrolls, and overflow-y:auto forces
+   overflow-x to auto too, which clipped a handle hanging off the edge. */
+.side-resize{
+  position:absolute;left:0;top:0;bottom:0;width:6px;z-index:3;
+  cursor:col-resize;user-select:none;touch-action:none;
+}
+/* Wide enough to grab, but it only ever paints the hairline the panel
+   already has — brightened, never thickened. */
+.side-resize::after{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:1px;
+  background:transparent;transition:background .1s;
+}
+.side-resize:hover::after,
+.side-resize[data-on="1"]::after{background:var(--fg)}
 .bubble{
   background:var(--panel2);border-radius:18px;padding:12px 18px;margin-bottom:16px;
   max-width:620px;white-space:pre-wrap;font-size:14px;position:relative;
@@ -558,23 +580,26 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
   margin-bottom:18px;background:var(--bg);cursor:pointer;
   transition:border-color .12s,background .12s;
 }
-.turncard:hover{border-color:var(--line2);background:var(--panel)}
+.turncard:hover{border-color:var(--line2)}
 .turncard.sel{border-color:var(--blue)}
-.turncard.sel:hover{border-color:var(--blue);background:var(--panel)}
+.turncard.sel:hover{border-color:var(--blue)}
+/* Only the header reacts — the body is content, not a control. */
+.turncard:hover .turnhead{background:var(--hover)}
 .turncard:hover .turnhead .dim2{color:var(--fg)}
-.turnhead{display:flex;align-items:center;gap:18px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--dim)}
+.turnhead{display:flex;align-items:center;gap:18px;padding:7px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--dim);transition:background .12s}
 .turnhead .stat{display:inline-flex;align-items:center;gap:6px}
 /* Vercel renders turn-stat glyphs at 12px */
 .turnhead .stat svg{width:12px;height:12px}
 /* pre-wrap belonged to the raw-text era; the body is rendered markdown now. */
 .turnbody{padding:15px 17px;font-size:14px}
 
-.sec{margin-bottom:26px}
+.sec{margin-bottom:22px}
+.sec-head + *{margin-top:8px}
 .sec h3{
-  font-size:13px;font-weight:500;color:var(--fg);margin:0 0 10px;
+  font-size:13px;font-weight:500;color:var(--fg);margin:0;
   display:flex;align-items:center;gap:8px;
 }
-.kv{display:flex;justify-content:space-between;gap:14px;padding:6px 0;font-size:13.5px}
+.kv{display:flex;justify-content:space-between;gap:14px;padding:2.5px 0;font-size:13.5px}
 .kv .k{color:var(--dim)}
 .kv .v{text-align:right;word-break:break-all;font-size:13px}
 .kv .v a:hover,.kv a.v:hover{color:var(--blue)}
