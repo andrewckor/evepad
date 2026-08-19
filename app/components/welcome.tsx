@@ -95,8 +95,12 @@ export function CliSignIn({
     // `demo` is the dev override simulating a signed-out machine; without it
     // the poll would find the real credentials and flip straight back.
     if (found || demo) return;
+    // Leading check, then the interval: a transient false that put us here
+    // corrects in one round-trip instead of waiting out the first tick.
+    check();
     const t = setInterval(check, 1500);
     return () => clearInterval(t);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [found, demo]);
 
   // Pressing play swaps the static box for a live pty seeded with the command.
