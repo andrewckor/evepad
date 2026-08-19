@@ -198,15 +198,6 @@ export default function ChatPanel({
         <span className="dot on" />
         <b>Chat with</b>
         <span className="dim">{project.name}</span>
-        {sessionId && (
-          <a
-            className="dim2 mono"
-            href={`/run/${sessionId}?environment=local&project=${encodeURIComponent(project.name)}`}
-            title="Open this session's run detail"
-          >
-            {sessionId.slice(0, 14)}…
-          </a>
-        )}
         <div className="spacer" />
         <div className="term-actions">
           <button className="dockbtn" onClick={onNewChat} title="Start a new chat session">
@@ -229,6 +220,15 @@ export default function ChatPanel({
           <MessageScroller className="h-full">
             <MessageScrollerViewport>
               <MessageScrollerContent className="px-3 py-2">
+                {sessionId && (
+                  <a
+                    className="chat-runid mono"
+                    href={`/run/${sessionId}?environment=local&project=${encodeURIComponent(project.name)}`}
+                    title="Open this session's run detail"
+                  >
+                    {sessionId.replace(/^wrun_/, "")}
+                  </a>
+                )}
                 {!messages.length && (
                   <div className="chat-empty">
                     <div className="dim">

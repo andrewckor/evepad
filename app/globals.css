@@ -853,6 +853,13 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .chat-md ul,.chat-md ol{margin:4px 0;padding-left:18px}
 /* The transcript already pads; this padded again and sat inset from every
    message under it. */
+/* The run id lives at the top of the transcript, not the header — the header
+   has no room and the id belongs to the conversation it identifies. */
+.chat-runid{
+  display:block;text-align:center;font-size:11px;color:var(--dim2);
+  padding:6px 0 2px;text-decoration:none;
+}
+.chat-runid:hover{color:var(--dim)}
 .chat-empty{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
 .chatbtn[data-on="1"]{background:var(--panel2);color:var(--fg);border-color:var(--line2)}
 .term-head a:hover{color:var(--blue)}
