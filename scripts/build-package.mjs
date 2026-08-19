@@ -1,13 +1,9 @@
-// Assemble the publishable evepad package into dist/ and `npm pack` it.
+// Build the publishable evepad package into dist/ and `npm pack` it.
 //
-// The package is the PREBUILT app: bin/ plus .next/standalone, so `npx evepad`
-// downloads and runs — no build, no full dependency tree. Only two things
-// can't ride inside the tarball and stay real dependencies:
-//   node-pty     — native; installing it fresh gets the right platform binary
-//                  (and its postinstall chmod), where the traced copy ships
-//                  no prebuilds at all
-//   opencode-ai  — a spawned binary, invisible to build tracing; its platform
-//                  optional-deps mean users only download their own binary
+// What ships is the prebuilt app — bin/ plus .next/standalone — so `npx evepad`
+// runs without compiling anything. node-pty and opencode-ai are the exceptions:
+// both are native or spawned binaries, so they stay real dependencies and npm
+// fetches the right one per platform.
 
 import { execSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
@@ -48,15 +44,21 @@ cpSync(join(root, ".next", "standalone"), join(out, "standalone"), { recursive: 
 // leaves both behind on purpose (they're normally a CDN's job).
 cpSync(join(root, ".next", "static"), join(out, "standalone", ".next", "static"), { recursive: true });
 cpSync(join(root, "public"), join(out, "standalone", "public"), { recursive: true });
-// resolved from the package's own dependencies instead — see header.
-// Turbopack traces opencode-ai in where webpack didn't: 137MB of binaries npm
-// installs per-platform anyway.
+// Never bundled — see header. Belt and braces: webpack leaves them alone, but
+// Turbopack traced 137MB of every-platform binaries in.
 for (const dep of ["node-pty", "opencode-ai"]) {
   rmSync(join(out, "standalone", "node_modules", dep), { recursive: true, force: true });
 }
 cpSync(join(root, "bin"), join(out, "bin"), { recursive: true });
-// The npm page is the README — publishing without one shows an empty package.
-cpSync(join(root, "README.md"), join(out, "README.md"));
+// The npm page carries its own title and version, so the centred logo and
+// badges are repo furniture — swap the whole block for a plain heading and
+// drop the repo-only sections. Generated, not a second file that could drift.
+writeFileSync(
+  join(out, "README.md"),
+  readFileSync(join(root, "README.md"), "utf8")
+    .replace(/<div align="center">[\s\S]*?<\/div>\n\n/, "# evepad\n\n")
+    .replace(/<!-- npm:skip -->[\s\S]*?<!-- \/npm:skip -->\n/g, ""),
+);
 // Apache-2.0 §4 requires both to travel with any distribution of the work.
 cpSync(join(root, "LICENSE"), join(out, "LICENSE"));
 cpSync(join(root, "NOTICE"), join(out, "NOTICE"));
@@ -64,27 +66,27 @@ cpSync(join(root, "NOTICE"), join(out, "NOTICE"));
 writeFileSync(join(out, "package.json"), JSON.stringify({
   name: "evepad",
   version: app.version,
-  description: app.description ?? "Agent runs, local and remote",
+  description: app.description,
   license: app.license,
   homepage: "https://github.com/andrewckor/evepad#readme",
   repository: { type: "git", url: "git+https://github.com/andrewckor/evepad.git" },
   bugs: { url: "https://github.com/andrewckor/evepad/issues" },
   keywords: ["eve", "vercel", "agents", "dashboard", "cli", "local"],
   bin: { evepad: "bin/evepad.mjs" },
-  engines: { node: ">=20.9" },
-  // npm strips the exec bit from node-pty's spawn-helper (same reason the
-  // repo's own postinstall exists); resolved by path so hoisting can't break it.
+  engines: { node: ">=24" },
+  // npm strips the exec bit from node-pty's spawn-helper; resolved by path so
+  // hoisting can't move it out from under us.
   scripts: {
+    // This manifest is the one that gets published; the repo's own is private.
+    // If it is ever run from the wrong directory, say so instead of shipping.
+    prepublishOnly: "node -e \"if(!require('fs').existsSync('./standalone/server.js'))throw new Error('run npm run pack — do not publish from the repo root')\"",
     postinstall: "node -e \"try{const{dirname,join}=require('path');const fs=require('fs');const p=join(dirname(require.resolve('node-pty/package.json')),'prebuilds');for(const d of fs.readdirSync(p)){try{fs.chmodSync(join(p,d,'spawn-helper'),0o755)}catch{}}}catch{}\"",
   },
   dependencies: {
     "opencode-ai": app.dependencies["opencode-ai"],
   },
-  // node-pty ships prebuilds for darwin and win32 only; on Linux it compiles
-  // with node-gyp, which needs python3/make/g++ and takes tens of seconds —
-  // or fails outright in a slim container. As a hard dependency that failure
-  // blocks the whole install. Optional means the dashboard installs and runs
-  // everywhere, and only the embedded terminals degrade.
+  // Optional: node-pty has no Linux prebuild, and a compile failure there
+  // should cost you the terminals, not the whole install.
   optionalDependencies: {
     "node-pty": app.dependencies["node-pty"],
   },

@@ -27,12 +27,21 @@ const ok = (s) => paint("32", s);
 const dim = (s) => paint("2", s);
 
 const PORT = Number(opt("--port") ?? process.env.PORT ?? 4680);
-const URL_ = `http://127.0.0.1:${PORT}/`;
+// Both spellings are offered, but only one is used by the tool itself.
+// localhost is dual-stack and the server binds IPv4 only, so the probe and the
+// browser we launch both take the literal address: it is the one that cannot
+// resolve to something else, and it keeps the origin (and therefore stored
+// theme, panel sizes and any installed PWA) stable.
+const URL_LOCAL = `http://localhost:${PORT}`;
+const URL_DIRECT = `http://127.0.0.1:${PORT}`;
+const PROBE_URL = `${URL_DIRECT}/`;
+const addresses = () =>
+  `      ${dim("- Local:")}     ${URL_LOCAL}\n      ${dim("- Loopback:")}  ${URL_DIRECT}`;
 const pkgDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 async function probe() {
   try {
-    const r = await fetch(`${URL_}manifest.webmanifest`, { signal: AbortSignal.timeout(400) });
+    const r = await fetch(`${PROBE_URL}manifest.webmanifest`, { signal: AbortSignal.timeout(400) });
     if (!r.ok) return "other";
     const m = await r.json().catch(() => null);
     return m?.name === "evepad" ? "evepad" : "other";
@@ -50,7 +59,7 @@ function openBrowser() {
     : process.platform === "win32" ? "start"
     : "xdg-open";
   try {
-    const child = spawn(cmd, [URL_], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
+    const child = spawn(cmd, [URL_DIRECT], { stdio: "ignore", detached: true, shell: process.platform === "win32" });
     // A missing opener emits 'error'; unhandled, that is an uncaught exception
     // that kills the launcher AFTER the server is already up.
     child.on("error", () => {});
@@ -62,7 +71,9 @@ function openBrowser() {
 const state = await probe();
 if (state === "evepad") {
   // Already running — this launch is just a way back to the page.
-  console.log(`\n  ${brand("\u25b2 evepad")} ${dim("\u2014 already running, opening it")}\n    ${ok("\u2713")} ${URL_}\n`);
+  console.log(`\n  ${brand("\u25b2 evepad")} ${dim("\u2014 already running, opening it")}`);
+  console.log(addresses());
+  console.log();
   openBrowser();
   process.exit(0);
 }
@@ -154,11 +165,12 @@ for (;;) {
 // a bare "(400ms)" reads as a lie next to their wall clock.
 ready = true;
 console.log();
-console.log(`    ${ok("\u2713")} ready at ${URL_} ${dim(`(server boot ${Date.now() - t0}ms)`)}`);
+console.log(`    ${ok("\u2713")} ready ${dim(`(server boot ${Date.now() - t0}ms)`)}`);
+console.log(addresses());
 const openedBrowser = openBrowser();
 if (openedBrowser) {
   console.log(`    ${dim("\u2192")} opening your browser ${dim("\u2014 Ctrl-C here stops evepad")}`);
 } else {
-  console.log(`    ${dim("\u2192")} open that URL ${dim("\u2014 Ctrl-C here stops evepad")}`);
+  console.log(`    ${dim("\u2192")} open either URL ${dim("\u2014 Ctrl-C here stops evepad")}`);
 }
 console.log();

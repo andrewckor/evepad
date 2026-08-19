@@ -1,24 +1,36 @@
-# evepad
+<div align="center">
+  <img alt="evepad logo" src=".github/assets/evepad.png" height="128">
+  <h1>evepad</h1>
 
-A local dashboard + build harness for [eve](https://vercel.com/docs/eve) agents —
-"a v0 for eve". One surface for the whole loop: create an agent, generate and
-edit its tools by chat (OpenCode under the hood, GLM via the AI Gateway),
-watch the agent graph update live, run it, and inspect every run — local and
-production side by side.
+<a href="https://www.npmjs.com/package/evepad"><img alt="NPM version" src="https://img.shields.io/npm/v/evepad.svg?style=for-the-badge&labelColor=000000"></a>
+<a href="https://github.com/andrewckor/evepad/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/npm/l/evepad.svg?style=for-the-badge&labelColor=000000"></a>
+<a href="https://vercel.com/docs/eve"><img alt="Built for eve" src="https://img.shields.io/badge/built%20for-eve-000000.svg?style=for-the-badge&labelColor=000000"></a>
+
+</div>
+
+**The missing IDE to build and ship [eve](https://vercel.com/docs/eve) agents.**
+
+A local dashboard and build harness for eve agents. One place for the whole
+loop: create an agent → generate and edit its tools by chat (OpenCode via AI
+Gateway) → watch local and production runs → add channels and integrations
+with the eve CLI → deploy to Vercel.
 
 ## Requirements
 
-- **Node 20+** (developed on Node 24)
-- **macOS** is the developed-and-tested platform. It runs on Linux, with two
-  caveats: the folder picker is Mac-only, and the embedded terminals need
-  `node-pty`, which has no Linux prebuild — it compiles with node-gyp
-  (`python3`, `make`, `g++`) and is an *optional* dependency, so without those
-  the app still installs and runs, just without terminals. Headless hosts skip
-  the browser open and print the URL.
+- **Node 24+**
+- **macOS**
 
-That's all. The Vercel CLI is used for sign-in, project linking and env pulls,
-but it doesn't have to be installed — without it, every call runs through
-`npx vercel` instead. Sign in from the app's first-run screen.
+**No API keys.** evepad signs in with your Vercel account and uses each
+project's own credentials.
+
+Nothing else to install — evepad drives these for you, falling back to `npx`
+when they aren't on your PATH:
+
+- **Vercel CLI** — sign-in, project linking, env pulls
+- **eve CLI** — scaffolding, the dev server, channels and tools
+- **OpenCode** — the engine behind the Build chat, shipped with the package
+
+Sign in from the app's first-run screen.
 
 ## Run
 
@@ -26,58 +38,48 @@ but it doesn't have to be installed — without it, every call runs through
 npx evepad
 ```
 
-Opens http://127.0.0.1:4680. The published package ships the app prebuilt, so
-this starts a server rather than building one — nothing compiles on your
-machine. `npm i -g evepad` if you use it often; `evepad --port 4681` to move
-it. Everything else boots lazily on first use (the OpenCode server per
-project, terminals, event hubs).
+Opens http://localhost:4680. The package ships prebuilt, so it starts in
+seconds rather than building on your machine.
 
-Install it as a PWA from the browser (Chrome: Install evepad, Safari: Add to
-Dock) and it gets its own window and Dock icon.
+- `npm i -g evepad` to keep it installed
+- `evepad --port 4681` to run it on a different port
+- Install it as a PWA (Chrome: **Install evepad**, Safari: **Add to Dock**)
+  for its own window and Dock icon
 
+<!-- npm:skip -->
 ## Develop
 
 ```bash
 npm install
-npm run dev          # http://127.0.0.1:5173
-node scripts/pack.mjs # build + assemble the publishable package into dist/
+npm run dev     # http://localhost:5173
+npm run pack    # build the publishable package into dist/
 ```
+
+Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+<!-- /npm:skip -->
 
 ## Connect your agents
 
-- **Existing checkout**: pick the project in the top-left dropdown and press
-  the 📁 button to point evepad at its folder. Press ▶ to start
-  `eve dev` for it.
-- **New agent**: from the Agents homepage, "New agent" scaffolds `eve init`,
-  links a Vercel project, pulls env, and starts the dev server — all behind
-  the scenes (checkouts live in `~/eve-agents`).
-- **Remote runs**: production/preview runs of linked Vercel projects appear
-  automatically; the environment filter is global across the app.
+- Finds local agents already running on your machine.
+- Connects a local folder to its production agent, so you see both sides in
+  one place.
+- Creates new agents and links them to Vercel in one step.
 
 ## The surfaces
 
-- **Agents** (`/`) — every project as a card, with live status.
-- **Agent Runs** (`/runs`) — the Vercel-style dashboard: charts, filters,
-  run table, streaming run detail.
-- **Build** (`/build`) — chat with a real coding agent scoped to the
-  checkout's agent surface, beside a live React Flow graph of tools,
-  schedules (with human-readable cadence), channels and connections.
-  Type `/` for the command palette (`/models`, `/undo`, `/compact`,
-  `/sessions`, custom opencode commands). Bash calls ask for approval
-  in-chat.
-- **Terminal / Chat panels** — dockable `eve dev` TUI and a direct chat
-  with the running agent.
+- **Agents** (`/`) — every agent as a card, with live status.
+- **Agent Runs** (`/runs`) — runs, tokens and cost at a glance, then the full
+  run table and streaming run detail.
+- **Build** (`/build`) — chat with a coding agent scoped to your checkout,
+  beside a live graph of tools, schedules, channels and connections. Type `/`
+  for commands; bash calls ask for approval in-chat.
+- **Chat / CLI** — dockable panels: talk to the running agent, or drop into
+  its `eve dev` terminal.
 
 ## Notes
 
-- The Build engine is a per-project [OpenCode](https://opencode.ai) server
-  (`@opencode-ai/sdk`), booted with that project's `VERCEL_OIDC_TOKEN` so
-  AI Gateway models (GLM 5.2 by default) authenticate with the project's
-  own credentials. Tokens auto-refresh via `vercel env pull`.
-- `workflow` is pinned to the 5.x beta line eve vendors — the 4.x client
-  silently returns empty lists against 5.x agents.
-- Design north star: indistinguishable from Vercel's own dashboard
-  (Geist, measured values, `vercel-geist-icons` only). See `AGENTS.md`.
+- Build runs on [OpenCode](https://opencode.ai), authenticated with your
+  project's own Vercel credentials through the AI Gateway.
 
 ## Notices
 
