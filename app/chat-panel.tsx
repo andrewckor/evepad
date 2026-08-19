@@ -5,6 +5,7 @@
 // the normal local poll, so chatting and observing share one pane.
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import type React from "react";
 import { m as M } from "motion/react";
 import { SPRING } from "./components/motion";
@@ -221,13 +222,15 @@ export default function ChatPanel({
             <MessageScrollerViewport>
               <MessageScrollerContent className="px-3 py-2">
                 {sessionId && (
-                  <a
+                  /* Client-side navigation on purpose: a plain <a> reloads the
+                     app and takes the open chat with it. */
+                  <Link
                     className="chat-runid mono"
                     href={`/run/${sessionId}?environment=local&project=${encodeURIComponent(project.name)}`}
                     title="Open this session's run detail"
                   >
                     {sessionId.replace(/^wrun_/, "")}
-                  </a>
+                  </Link>
                 )}
                 {!messages.length && (
                   <div className="chat-empty">
