@@ -9,7 +9,6 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { I } from "./icons.jsx";
-import ProjectLogo from "./project-logo.jsx";
 import { Badge } from "./badge.jsx";
 import { ChevronUpSmall, ChevronDownSmall } from "vercel-geist-icons";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -107,7 +106,6 @@ export default function ProjectPicker({ value, onChange }) {
       <PopoverTrigger className="pk-trigger" data-none={value && current ? undefined : "1"}>
         {value && current ? (
           <>
-            <ProjectLogo p={current} size={20} />
             <span className={"dot" + (current.live ? " on" : "")} />
             <span className="pk-trigger-name">{current.name}</span>
           </>

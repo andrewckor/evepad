@@ -1,12 +1,11 @@
-import {
-  ArrowLeft, ChevronDownSmall, ChevronRight, MagnifyingGlass, Calendar,
+import { ChevronDownSmall, ChevronRight, ChevronLeftSmall, MagnifyingGlass, Calendar,
   Clock, ClockDashed, Globe, Lightning, Terminal, Message,
   Wrench, Coins, Copy, External,
   Plus, Play, StopCircle, FolderClosed, LoaderCircle,
+  GridSquare,
 } from "vercel-geist-icons";
 
 export const I = {
-  back: <ArrowLeft />,
   chevDown: <ChevronDownSmall />,
   chevRight: <ChevronRight />,
   search: <MagnifyingGlass />,
@@ -15,6 +14,8 @@ export const I = {
   clockDashed: <ClockDashed />, // dashed — table trigger cells
   globe: <Globe />,
   bolt: <Lightning />,
+  chevLeft: <ChevronLeftSmall />,
+  grid: <GridSquare />,
   terminal: <Terminal />,
   message: <Message />,
   wrench: <Wrench />,

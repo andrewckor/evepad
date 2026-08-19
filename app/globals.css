@@ -38,6 +38,7 @@
      there and 5.03 on white. */
   --dim2:#6f6f6f;
   --chip:#fafafa;
+  --tab-on:#e4e4e4;
   --btn:#171717;
   --btn-fg:#fff;
   --btn-hover:#000;
@@ -125,6 +126,7 @@
   --btn-hover:#fff;
   --on-accent:#fff;      /* text on a coloured fill */
   --chip:#141414;        /* the composer card */
+  --tab-on:#242424;      /* selected tab — a step above --hover */
   /* NOT --ring: that name belongs to shadcn's focus ring (#0072f5), which is
      defined further down this same block and silently won — the runs table's
      chevron chip turned blue on hover because of it. */
@@ -248,22 +250,37 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
    label, the way Vercel's own bar does it. The project switcher keeps its
    logo and live dot — that pair is the identity; the name is in the menu it
    opens. */
-@container (max-width: 720px){
+@container (max-width: 900px){
   .btn-label{display:none}
-  .chatbtn{width:36px;padding:0;justify-content:center}
-  .pk-trigger-name{display:none}
-  .pk-trigger .chev-ud{display:none}
+  .chatbtn{width:32px;padding:0;justify-content:center}
+  .navtabs .tab{padding:0 8px}
+  /* Keep a couple of letters and the switcher glyph: a bare dot says an agent
+     is selected but not which one, and nothing says it can be changed. */
+  /* .pk-trigger-scoped so it beats the base max-width, which is defined
+     later in the file — a container query adds no specificity of its own. */
+  .pk-trigger .pk-trigger-name{max-width:3.4ch}
+  .pk-trigger{gap:6px;padding:0 6px 0 8px}
   /* Nothing left to render at this width when there's no project selected. */
   .pk-trigger[data-none="1"]{display:none}
   .crumbstack{max-width:38%}
 }
 /* Tighter still: the breadcrumb slash and the account avatar are the first
    things you can lose without losing a control. */
-@container (max-width: 520px){
+@container (max-width: 640px){
   .crumbstack{display:none}
 }
 .crumb-title{font-size:14px;font-weight:600;color:var(--fg);line-height:1.3}
-.crumb-title a:hover{color:var(--blue)}
+/* Absolute so revealing it can't shift a title that is centred in the bar. */
+.crumb-back{position:relative;display:inline-flex;align-items:center;transition:opacity .12s}
+.crumb-back:hover{opacity:.95}
+.crumb-back-ico{
+  position:absolute;right:100%;margin-right:2px;display:inline-flex;
+  color:var(--dim);opacity:0;transform:translateX(3px);
+  transition:opacity .12s ease,transform .16s cubic-bezier(.23,1,.32,1);
+}
+.crumb-back-ico svg{width:14px;height:14px}
+.crumb-back:hover .crumb-back-ico,
+.crumb-back:focus-visible .crumb-back-ico{opacity:1;transform:translateX(0)}
 .crumb-sub{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--dim2);line-height:1.2}
 .crumb-sub .mono{font-size:11px}
 .crumb-sub .copybtn svg{width:12px;height:12px}
@@ -284,22 +301,20 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
 .seg button[data-on="1"]{background:var(--panel2);color:var(--fg)}
 .seg button+button{border-left:1px solid var(--line)}
 
-.chev-ud{flex-direction:column;line-height:0}
-.chev-ud svg{width:11px;height:11px}
-.chev-ud svg:first-child{margin-bottom:-3px}
+.chev-ud{flex-direction:column;line-height:0;color:var(--dim2);transition:color .1s}
+/* Geist has no single up/down glyph, so it's two chevrons stacked. They're
+   filled paths — size is the only lever on weight — and each sits in a 16
+   viewBox with ~5px of dead space, hence the hard negative overlap. */
+.chev-ud svg{width:15px;height:15px}
+.chev-ud svg:first-child{margin-bottom:-9px}
 
 .cbx{
   width:16px;height:16px;flex:none;border:1px solid var(--line2);border-radius:4px;
   display:inline-flex;align-items:center;justify-content:center;color:var(--on-accent);
 }
 .cbx.on{background:var(--acc);border-color:var(--acc)}
-.envchip{
-  display:inline-block;margin-right:8px;padding:1px 8px;border-radius:999px;
-  border:1px solid var(--line2);color:var(--dim);font-size:11.5px;vertical-align:1px;
-}
-.envchip.loc{color:var(--ok);border-color:rgba(69,222,157,.4)}
-/* production is Vercel-blue, matching their dashboard's env badges */
-.envchip.prod{color:var(--blue);border-color:rgba(82,168,255,.45)}
+/* Only spacing — the badge itself owns the colour. */
+.envchip{margin-right:8px;vertical-align:1px}
 .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--line2)}
 .dot.on{background:var(--green)}
 
@@ -312,11 +327,32 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
 .devbtn.busy svg{animation:devspin 1s linear infinite}
 @keyframes devspin{to{transform:rotate(360deg)}}
 
+/* Borderless: the bar's actions sit on its own surface and take a hover fill,
+   the same treatment as the avatar and the project switcher. */
 .chatbtn{
-  display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 12px;font-size:13.5px;
-  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);color:var(--dim);
+  display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 10px;
+  font-size:13.5px;font-weight:500;
+  border-radius:var(--r-sm);color:var(--dim);
+  transition:background .1s,color .1s;
 }
-.chatbtn:hover{border-color:var(--line2);background:var(--hover);color:var(--fg)}
+.chatbtn:hover{background:var(--hover);color:var(--fg)}
+/* The pair reads as one cluster, so they sit tighter than the bar's gap. */
+.chatbtn + .chatbtn{margin-left:-6px}
+.chatbtn[data-on="1"]{background:var(--hover);color:var(--fg)}
+
+/* Runs | Build — the .float-tabs pill, sized for the top bar. */
+.navtabs{
+  display:inline-flex;gap:2px;flex:none;
+  border:1px solid var(--line2);border-radius:999px;padding:2px;
+}
+.navtabs .tab{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:0 12px 0 9px;height:26px;border-radius:999px;
+  font-size:13px;font-weight:500;color:var(--dim);
+}
+.navtabs .tab svg{width:14px;height:14px;flex:none}
+.navtabs .tab:hover{color:var(--fg)}
+.navtabs .tab[data-on="1"]{background:var(--tab-on);color:var(--fg)}
 
 /* ---- dashboard ---- */
 /* Container, not viewport — same reason as the top bar: docking the chat or
@@ -324,8 +360,42 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
    media query never fires and the two charts stay side by side in 500px. */
 .wrap{padding:24px 16px;max-width:1400px;margin:0 auto;container-type:inline-size}
 
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-@container (max-width:900px){.charts{grid-template-columns:1fr}}
+.charts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+@container (max-width:760px){.charts{grid-template-columns:1fr}}
+/* Number first, shape second: the chart is context for the figure, not the
+   subject, so it takes the right edge and none of the vertical budget. */
+.statcard{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:12px 14px;min-height:66px;
+}
+.stat-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.stat-title{font-size:12.5px;color:var(--dim)}
+.stat-value{font-size:20px;font-weight:500;color:var(--fg);line-height:1.2}
+.stat-sub{font-size:11.5px;color:var(--dim2)}
+.stat-chart{flex:none;width:120px}
+.sparksvg{width:120px;height:34px;display:block}
+.statcard{cursor:default;transition:border-color .1s}
+.statcard:hover{border-color:var(--line2)}
+/* Stacked, so the figures line up as a list rather than a row of pills. */
+.legend-col{flex-direction:column;gap:5px;font-size:12.5px}
+/* shadcn's tooltip is an inverted chip (bg-foreground); this one is a data
+   readout, so it takes the app's own panel surface instead. */
+.stat-pop{
+  padding:9px 11px;min-width:168px;
+  background:var(--panel);color:var(--dim);
+  border:1px solid var(--line2);box-shadow:var(--shadow-menu);
+}
+.stat-pop .legend{color:var(--dim);width:100%}
+.stat-pop .legend b{color:var(--fg)}
+/* Label left, figure right — a column of numbers should line up. */
+.stat-pop .legend-col > span{display:flex;align-items:center;gap:7px;width:100%}
+.stat-pop .legend-col i{margin-right:0}
+.stat-pop .legend-col b{margin-left:auto}
+/* No arrow: it's a rotated square, so a border paints all four edges and the
+   two meant to hide behind the popup show as an outline. Not worth the
+   clip-path for a 10px decoration — the popup sits close enough to read. */
+.stat-pop [data-slot="tooltip-arrow"]{display:none}
 .chartcard{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:16px 18px 10px}
 /* Wraps rather than overlaps: three token series don't fit beside the title in
    a docked-panel width, and a nowrap legend used to run straight through it. */
@@ -426,20 +496,10 @@ td.num{text-align:right;padding:0 16px}
 .rowchev svg{display:inline-block;vertical-align:middle}
 
 /* ---- run detail ---- */
-.backbtn{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:32px;height:32px;border-radius:var(--r-sm);color:var(--dim);flex:none;
-}
-.backbtn:hover{background:var(--hover);color:var(--fg)}
-.backbtn svg{width:16px;height:16px}
 .proj{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:500;padding:6px 10px;border-radius:var(--r-sm)}
 .proj:hover{background:var(--hover)}
 .copybtn{color:var(--dim2);display:inline-flex;padding:3px;border-radius:4px}
 .copybtn:hover{color:var(--fg);background:var(--hover)}
-.badge-env{
-  padding:3px 10px;border-radius:999px;border:1px solid var(--line2);
-  color:var(--dim);font-size:12.5px;
-}
 /* App frame shrinks when the terminal sidebar is open (push, not overlap).
    The transition makes open/close snappy; .noanim disables it during drag so
    resizing tracks the pointer 1:1. */
@@ -810,12 +870,20 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .pk-search [data-slot="command-input"]{font-size:13.5px;color:var(--fg)}
 .pk-search [data-slot="command-input"]::placeholder{color:var(--dim2)}
 .pk-trigger{
-  display:inline-flex;align-items:center;gap:9px;height:36px;padding:0 10px 0 8px;
-  border:1px solid var(--line);border-radius:var(--r-sm);background:var(--bg);
-  font-size:14px;color:var(--fg);line-height:1;
+  display:inline-flex;align-items:center;gap:9px;height:32px;padding:0 8px 0 11px;margin-left:-6px;
+  border-radius:var(--r-sm);
+  font-size:14px;font-weight:500;color:var(--fg);line-height:1;
+  transition:background .1s;
 }
-.pk-trigger:hover{background:var(--hover);border-color:var(--line2)}
-.pk-trigger-name{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pk-trigger:hover{background:var(--hover)}
+.pk-trigger[data-popup-open]{background:var(--hover)}
+.pk-trigger:hover .chev-ud,
+.pk-trigger[data-popup-open] .chev-ud,
+.acc-chev:hover .chev-ud,
+.acc-chev[data-popup-open] .chev-ud{color:var(--fg)}
+/* Capped so a long agent name can't push the left cluster into the centred
+   title — the full name is in the menu it opens. */
+.pk-trigger-name{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pk-pop{width:264px;padding:0;overflow:hidden}
 /* shadcn's Command nests three paddings — Command p-1, CommandGroup p-1,
    CommandItem py-1.5 — which stacked on top of our ring and made this menu
@@ -844,13 +912,16 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   height:24px;padding:0 12px;border-radius:9999px;
   font:500 12px var(--sans);white-space:nowrap;
 }
-.gbadge.sm{height:20px;padding:0 10px;font-size:11px}
+.gbadge.sm{height:20px;padding:0 7px;font-size:11px}
 .gbadge.gray{background:var(--dim2);color:var(--on-accent)}
 .gbadge.green{background:oklch(0.5811 0.1815 146.55);color:var(--on-accent)}
 .gbadge.amber{background:oklch(0.8187 0.1969 76.46);color:#000}
 .gbadge.red{background:oklch(0.5801 0.227 25.12);color:var(--on-accent)}
 .gbadge.blue{background:oklch(0.5151 0.2307 257.85);color:var(--on-accent)}
 .gbadge.green-subtle{color:var(--badge-green);background:color-mix(in oklab, var(--badge-green) 14%, transparent)}
+.gbadge.teal-subtle{color:var(--badge-teal);background:color-mix(in oklab, var(--badge-teal) 14%, transparent)}
+.gbadge.blue-subtle{color:var(--badge-blue);background:color-mix(in oklab, var(--badge-blue) 14%, transparent)}
+.gbadge.amber-subtle{color:var(--badge-amber);background:color-mix(in oklab, var(--badge-amber) 14%, transparent)}
 .gbadge.gray-subtle{color:var(--dim);background:var(--panel2)}
 .gbadge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
 .gbadge .mono{font-size:inherit;color:inherit;opacity:.75}
@@ -893,6 +964,22 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   transition:background .1s,color .1s;
 }
 .acc-trigger:hover{background:var(--hover);color:var(--fg)}
+
+.acc-cluster{display:inline-flex;align-items:center;gap:1px;flex:none}
+/* The avatar IS the home button; the chevron beside it owns the menu. */
+.acc-home{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:var(--r-sm);color:var(--dim);flex:none;
+}
+.acc-home:hover{background:var(--hover);color:var(--fg)}
+
+.acc-chev{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  width:22px;height:28px;border-radius:var(--r-sm);color:var(--dim2);
+  transition:background .1s,color .1s;
+}
+.acc-chev:hover,
+.acc-chev[data-popup-open]{background:var(--hover);color:var(--fg)}
 /* The breadcrumb slash Vercel uses between scope and project. */
 .acc-avatar{
   display:inline-flex;align-items:center;justify-content:center;flex:none;
@@ -941,7 +1028,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    Every popover (dropdown, account, sessions, project switcher) uses these.
    Rows are flush — the hover fill separates them — and any list that scrolls
    gets a hidden bar with faded edges, so a menu never shows a scrollbar. */
-.menu-pop{padding:var(--menu-pad)}
+/* gap:0 undoes the popover's own flex gap — rows are flush here, and it was
+   adding 10px on top of every separator margin. */
+.menu-pop{padding:var(--menu-pad);gap:0}
 .menu-row{
   display:flex;align-items:center;gap:9px;width:100%;
   min-height:var(--menu-row-h);padding:0 8px;
@@ -952,7 +1041,12 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 /* A control row isn't clickable, so it must not take the action hover — and
    this has to sit AFTER the rule above: .acc-row:hover ties on specificity
    and loses on order, which is why the whole Theme row used to light up. */
-.menu-row.acc-row:hover{background:transparent;color:var(--dim)}
+.menu-row.acc-row:hover,
+.menu-row.acc-team:hover{background:transparent;color:var(--dim)}
+.menu-row.acc-team.on:hover{color:var(--fg)}
+/* Shorter than a text row — it holds a 24px control, not a line of text. Same
+   place and same reason as the rule above: .acc-row alone loses on order. */
+.menu-row.acc-row{min-height:30px}
 .menu-row:disabled{opacity:.4;cursor:default;pointer-events:none}
 /* Wrapper exists so a disabled row still has something that receives hover. */
 .menu-row-wrap{display:block;width:100%}

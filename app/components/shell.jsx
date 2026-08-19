@@ -16,6 +16,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { SPRING } from "./motion.js";
 import dynamic from "next/dynamic";
 import ProjectPicker from "./project-picker.jsx";
+import { EnvBadge } from "./badge.jsx";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import AccountMenu from "./account-menu.jsx";
 import ChatPanel from "../chat-panel.jsx";
@@ -23,6 +24,12 @@ import ChatPanel from "../chat-panel.jsx";
 import { I } from "./icons.jsx";
 
 const TerminalPanel = dynamic(() => import("../terminal-panel.jsx"), { ssr: false });
+
+// Ends only — the copy button beside it hands over the whole id.
+const shortRunId = (id) => {
+  const bare = (id ?? "").replace(/^wrun_/, "");
+  return bare.length > 12 ? `${bare.slice(0, 5)}\u2026${bare.slice(-4)}` : bare;
+};
 
 // Hovering the button is the cheapest moment to fetch the terminal's chunks —
 // xterm is the heaviest thing the cockpit lazy-loads (bundle-preload).
@@ -89,7 +96,6 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
   const isDetail = pathname.startsWith("/run/");
   const isHome = pathname === "/";
   const isBuild = pathname === "/build";
-  const fromBuild = q.get("from") === "build";
   const runId = isDetail ? decodeURIComponent(pathname.split("/")[2] ?? "") : null;
 
   const listHref = (patch = {}) => {
@@ -113,45 +119,31 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
     <>
       <div className="topbar">
         <TooltipProvider delay={300}>
-        <AnimatePresence initial={false}>
-          {!isHome && (
-            <motion.div
-              key="back"
-              initial={{ width: 0, opacity: 0, marginRight: -10 }}
-              animate={{ width: 32, opacity: 1, marginRight: 0 }}
-              exit={{ width: 0, opacity: 0, marginRight: -10 }}
-              transition={SPRING}
-              style={{ overflow: "hidden", flexShrink: 0 }}
-            >
-              <Tip label={isDetail ? "Back to Agent Runs" : fromBuild ? "Back to Build" : "Back to Agents"}>
-                <Link
-                  className="backbtn"
-                  href={isDetail ? listHref() : fromBuild ? `/build?project=${encodeURIComponent(project)}&environment=${environment}&period=${period}` : "/"}
-                >{I.back}</Link>
-              </Tip>
-            </motion.div>
-          )}
-        </AnimatePresence>
         <AccountMenu />
         <ProjectPicker value={project} onChange={pickProject} />
-        {isBuild && project && (
-          <Tip label={`Agent runs for ${project}`}>
-            <Link className="chatbtn" href={listHref({ from: "build" })}>
-              {I.clockDashed} <span className="btn-label">Runs</span>
-            </Link>
-          </Tip>
-        )}
-        {!isHome && termProject && !isBuild && (
-          <Tip label={`Build ${termProject.name} — generate tools with AI Gateway`}>
-            <Link
-              className="chatbtn"
-              onMouseEnter={warmBuild}
-              onFocus={warmBuild}
-              href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
-            >
-              {I.bolt} <span className="btn-label">Build</span>
-            </Link>
-          </Tip>
+        {/* Two views of one agent, so they read as a mode rather than as two
+            buttons that swap places depending on where you already are. */}
+        {!isHome && termProject && (
+          <div className="navtabs">
+            {/* Labelled even when the label is showing: below 900px these
+                collapse to bare icons and the tooltip is all there is. */}
+            <Tip label="Runs">
+              <Link className="tab" data-on={isBuild ? "0" : "1"} href={listHref()}>
+                {I.clockDashed} <span className="btn-label">Runs</span>
+              </Link>
+            </Tip>
+            <Tip label="Build">
+              <Link
+                className="tab"
+                data-on={isBuild ? "1" : "0"}
+                onMouseEnter={warmBuild}
+                onFocus={warmBuild}
+                href={`/build?project=${encodeURIComponent(termProject.name)}&environment=${environment}&period=${period}`}
+              >
+                {I.bolt} <span className="btn-label">Build</span>
+              </Link>
+            </Tip>
+          </div>
         )}
         <div className="spacer" />
         <div className="crumbstack">
@@ -159,7 +151,9 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
               box — so the run-id subtitle still pushes it up smoothly, while
               swapping "Agent Runs" for "Build" no longer squeezes the width. */}
           <motion.div layout="position" transition={SPRING} className="crumb-title">
-            {isDetail ? <Link href={listHref()}>Agent Runs</Link> : <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>}
+            {isDetail
+              ? <Link className="crumb-back" href={listHref()}><span className="crumb-back-ico">{I.chevLeft}</span>Agent Runs</Link>
+              : <span>{isHome ? "Agents" : isBuild ? "Build" : "Agent Runs"}</span>}
           </motion.div>
           {/* popLayout pulls the exiting subtitle out of flow immediately, so
               the title measures its new position on that same render and
@@ -175,27 +169,27 @@ function TopNav({ panel, setPanel, liveProject, termProject }) {
                 exit={{ opacity: 0, y: 5 }}
                 transition={SPRING}
               >
-                <span className="mono">{runId?.replace(/^wrun_/, "")}</span>
+                <EnvBadge env={environment} />
+                <span className="mono" title={runId ?? ""}>{shortRunId(runId)}</span>
                 <button className="copybtn" title="Copy run id" onClick={() => navigator.clipboard?.writeText(runId ?? "")}>{I.copy}</button>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
         {!isHome && liveProject && (
-          <Tip label={`Chat with ${liveProject.name} on :${liveProject.localPort}`}>
+          <Tip label={panel === "chat" ? "Close chat" : "Chat with your agent"}>
             <button className="chatbtn" data-on={panel === "chat" ? "1" : "0"} onClick={() => setPanel((p) => (p === "chat" ? null : "chat"))}>
               {I.message} <span className="btn-label">Chat</span>
             </button>
           </Tip>
         )}
         {!isHome && termProject && (
-          <Tip label={`Open a terminal running eve dev for ${termProject.name}`}>
+          <Tip label={panel === "terminal" ? "Close the eve CLI" : "Open the eve CLI"}>
             <button className="chatbtn" data-on={panel === "terminal" ? "1" : "0"} onMouseEnter={warmTerminal} onFocus={warmTerminal} onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))}>
-              {I.terminal} <span className="btn-label">Terminal</span>
+              {I.terminal} <span className="btn-label">CLI</span>
             </button>
           </Tip>
         )}
-        {isDetail && <span className="badge-env">{environment}</span>}
         </TooltipProvider>
       </div>
 
