@@ -58,6 +58,9 @@
   /* The dark-mode green measures 1.94:1 on the pale tint; Geist uses the
      darker end of the ramp for light-mode status text. */
   --badge-green:oklch(0.485 0.145 148.29);
+  --badge-teal:oklch(0.520 0.098 195.00);
+  --badge-blue:oklch(57.61% .2508 258.23);
+  --badge-amber:oklch(0.560 0.130 76.46);
   /* Loading bars need to read as absent content, not as nothing at all: the
      panel2 grey measured 1.12:1 on white. Geist gray-200. */
   --skeleton:#e6e6e6;
@@ -69,7 +72,7 @@
   /* Geist blue-900, not the #0072f5 accent: --blue is text (link hovers, the
      prod chip, code keywords) and the accent measures 4.26 on --panel. Fills
      still use --acc, where that brightness is correct. */
-  --blue:#0068d6;
+  --blue:oklch(57.61% .2508 258.23);   /* Geist blue-700 */
   --ok:#0a7f45;
   --green:#0a7f45;
   --bad:#d1373c;
@@ -106,7 +109,7 @@
      and closer to Geist's own secondary greys, which never go below #8f8f8f
      for real text. */
   --dim2:#7a7a7a;
-  --blue:#52a8ff;
+  --blue:oklch(57.61% .2321 258.23);   /* Geist blue-700 */
   --acc:#0072f5;
   --purple:#bf7af0;
   --ok:#45de9d;
@@ -148,6 +151,9 @@
   --menu-pad:7px;
   --menu-row-h:34px;
   --badge-green:oklch(0.731 0.2158 148.29);
+  --badge-teal:oklch(0.760 0.105 195.00);
+  --badge-blue:oklch(57.61% .2321 258.23);
+  --badge-amber:oklch(0.800 0.150 76.46);
   --skeleton:#111;
   --agent-pill:#fff;
   --agent-pill-fg:#000;
