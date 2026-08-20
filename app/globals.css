@@ -648,8 +648,13 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
 
 .tl{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:12.5px}
 .tl .nm{font-family:var(--mono);width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tl .bar{flex:1;height:8px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;position:relative;overflow:hidden}
-.tl .bar i{position:absolute;top:0;bottom:0;background:var(--green);display:block}
+/* Waterfall track: a hairline with end ticks (Vercel's), the call drawn as a
+   small green segment at its offset in the turn's time window. */
+.tl .bar{flex:1;height:12px;position:relative}
+.tl .bar::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--line2)}
+.tl .bar::after{content:"";position:absolute;right:0;top:1px;bottom:1px;width:1px;background:var(--line3)}
+.tl .bar > b{position:absolute;left:0;top:1px;bottom:1px;width:1px;background:var(--line3)}
+.tl .bar i{position:absolute;top:1px;bottom:1px;min-width:4px;background:var(--green);border-radius:2px;display:block}
 .tl .ms{width:64px;text-align:right;color:var(--dim);font-family:var(--mono)}
 
 .tool{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:10px 13px;margin:10px 0}

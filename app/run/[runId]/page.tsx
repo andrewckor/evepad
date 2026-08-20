@@ -135,14 +135,18 @@ function DetailSkeleton() {
 }
 
 // One tool call rendered Vercel-style inside the Timeline: summary row with a
-// green duration bar, then Input/Output JSON blocks.
+// waterfall segment on a shared time axis (the turn's window), so calls
+// CASCADE left-to-right in execution order, then Input/Output JSON blocks.
 // Collapsed by default like Vercel's, with a gray inline preview of the input
 // args after the tool name; click to expand the full Input/Output JSON.
-function TimelineCall({ call, maxMs }: { call: ToolCall; maxMs: number }) {
+function TimelineCall({ call, t0, span }: { call: ToolCall; t0: number; span: number }) {
   const [open, setOpen] = useState(false);
   const preview = call.input
     ? JSON.stringify(call.input).replace(/[{}"]/g, "").slice(0, 14) + "…"
     : "";
+  const start = call.startedAt ? Date.parse(call.startedAt) : t0;
+  const left = Math.min(Math.max(((start - t0) / span) * 100, 0), 98);
+  const width = Math.min(((call.durationMs ?? 0) / span) * 100, 100 - left);
   return (
     <div className="tlitem">
       <div className="tl" onClick={() => setOpen((o) => !o)} style={{ cursor: "pointer" }}>
@@ -151,7 +155,8 @@ function TimelineCall({ call, maxMs }: { call: ToolCall; maxMs: number }) {
           {call.toolName} <span className="dim2">{preview}</span>
         </span>
         <span className="bar">
-          <i style={{ width: `${Math.max(((call.durationMs ?? 0) / maxMs) * 100, 4)}%` }} />
+          <b />
+          <i style={{ left: `${left}%`, width: `${width}%` }} />
         </span>
         <span className="ms">{dur(call.durationMs)}</span>
       </div>
@@ -384,7 +389,18 @@ function Detail({ runId }: { runId: string }) {
   );
 
   const calls = (selected?.steps ?? []).flatMap((s) => s.calls);
-  const maxCall = Math.max(...calls.map((c) => c.durationMs ?? 0), 1);
+  // Shared axis for the waterfall: the earliest call starts the window, the
+  // latest end closes it.
+  const callT0 = Math.min(...calls.map((c) => (c.startedAt ? Date.parse(c.startedAt) : Infinity)));
+  const callEnd = Math.max(
+    ...calls.map((c) =>
+      c.endedAt
+        ? Date.parse(c.endedAt)
+        : (c.startedAt ? Date.parse(c.startedAt) : 0) + (c.durationMs ?? 0),
+    ),
+    callT0 + 1,
+  );
+  const callSpan = Number.isFinite(callT0) ? callEnd - callT0 : 1;
   const selInput = selected?.messages.find((m) => m.type === "message.received")?.text ?? null;
   const selFinal = selected
     ? [...selected.messages].reverse().find((m) => m.type === "message.completed")?.text
@@ -630,7 +646,12 @@ function Detail({ runId }: { runId: string }) {
               ) : (
                 <>
                   {calls.map((c) => (
-                    <TimelineCall key={c.callId} call={c} maxMs={maxCall} />
+                    <TimelineCall
+                      key={c.callId}
+                      call={c}
+                      t0={Number.isFinite(callT0) ? callT0 : 0}
+                      span={callSpan}
+                    />
                   ))}
                   {!calls.length && <div className="dim2 mono">no tool calls</div>}
                   {selFinal && (
