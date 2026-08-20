@@ -44,8 +44,7 @@ export type TermProject = Pick<Project, "name" | "localPath"> &
 const SCROLLBACK_MAX = 256 * 1024;
 const DEFAULT_MODEL = "zai/glm-5.2";
 
-const terms = ((globalThis as { __eveCockpitTerms?: Map<string, Term> }).__eveCockpitTerms ??=
-  new Map());
+const terms = ((globalThis as { __evepadTerms?: Map<string, Term> }).__evepadTerms ??= new Map());
 
 const isFree = (port: number) =>
   new Promise<boolean>((res) => {
@@ -250,7 +249,10 @@ export async function startTerm(
       `b(){ printf '\\n\\033[1;35m\u25b2\\033[0m %s\\n' "$1"; }`,
       `k(){ printf '\\033[32m\u2713\\033[0m %s \\033[2m(%ss)\\033[0m\\n' "$1" "$2"; }`,
       `t=$SECONDS; b "scaffolding ${n}\u2026"`,
-      `npx --yes eve@latest init ${n} --model ${model}`,
+      // AI_AGENT flips eve's coding-agent detection: init prints next steps
+      // and EXITS instead of opening the interactive handoff menu, which
+      // would park the chain until a human picked "Exit".
+      `AI_AGENT=1 npx --yes eve@latest init ${n} --model ${model}`,
       `k "scaffolded ${n}" $((SECONDS-t))`,
       `cd ${n}`,
       `t=$SECONDS; b "creating Vercel project\u2026"`,
@@ -294,8 +296,8 @@ export async function startTerm(
     // node_modules under cwd, and the launcher puts opencode on PATH instead.
     const localBin = join(process.cwd(), "node_modules", ".bin", "opencode");
     cmd = existsSync(localBin) ? localBin : "opencode";
-    // Attach the TUI to the cockpit's shared OpenCode server: same sessions as
-    // Build chat, and the cockpit can inject prompts via tui.appendPrompt.
+    // Attach the TUI to evepad's shared OpenCode server: same sessions as
+    // Build chat, and evepad can inject prompts via tui.appendPrompt.
     const url = await opencodeServerUrl(project.localPath);
     args = ["attach", url, "--dir", project.localPath];
     mode = "opencode";
