@@ -4,7 +4,7 @@
 // cockpit's proxy routes; the resulting session shows up in the runs table via
 // the normal local poll, so chatting and observing share one pane.
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import type React from "react";
@@ -86,6 +86,16 @@ export default function ChatPanel({
   };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState(seed ?? "");
+  const taRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Sized as an effect so a long seed (or clearing after send) resizes too.
+  useEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
+  }, [input]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false); // a turn is in flight
   // Durable workflows: a reset or completed run is over — its chat is

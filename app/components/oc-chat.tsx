@@ -239,6 +239,18 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
   const [modelKey, setModelKey] = useState<string | null>(null);
   const [agentName, setAgentName] = useState<string | null>(null); // null = server default
   const [palIndex, setPalIndex] = useState(0);
+
+  // Grow to five lines, then scroll — as an effect, not an onChange, so text
+  // arriving from the palette or a graph action resizes the box too, and
+  // clearing after send shrinks it back. The cap is read from the computed
+  // line-height rather than hardcoded.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
+  }, [input]);
   const [installing, setInstalling] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
@@ -1168,16 +1180,7 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
             ref={inputRef}
             rows={1}
             value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              // Grow to five lines, then scroll. The cap is read from the
-              // computed line-height rather than hardcoded, so it stays five
-              // lines if the type ever changes.
-              const el = e.target;
-              const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
-              el.style.height = "auto";
-              el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
-            }}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKey}
             placeholder={
               busy ? "working… (you can queue the next message)" : `Ask or change ${project}…`
