@@ -585,8 +585,14 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
 /* Only the header reacts — the body is content, not a control. */
 .turncard:hover .turnhead{background:var(--hover)}
 .turncard:hover .turnhead .dim2{color:var(--fg)}
-.turnhead{display:flex;align-items:center;gap:18px;padding:7px 16px;border-bottom:1px solid var(--line);font-size:13px;color:var(--dim);transition:background .12s}
-.turnhead .stat{display:inline-flex;align-items:center;gap:6px}
+/* Narrow cards WRAP the stats to new lines (Vercel's own behavior) — none
+   are hidden. The chevron is pinned right and vertically centered, outside
+   the wrapping flow, so its edge distance never moves. Gaps track the CARD's
+   width (cqw), not the viewport's. */
+.turncard{container-type:inline-size}
+.turnhead{display:flex;flex-wrap:wrap;align-items:center;gap:6px clamp(8px,2cqw,18px);padding:7px 36px 7px 16px;position:relative;border-bottom:1px solid var(--line);font-size:13px;color:var(--dim);transition:background .12s}
+.turnhead .stat{display:inline-flex;align-items:center;gap:6px;flex:none}
+.turnhead > .dim2{position:absolute;right:13px;top:50%;transform:translateY(-50%)}
 /* Vercel renders turn-stat glyphs at 12px */
 .turnhead .stat svg{width:12px;height:12px}
 /* pre-wrap belonged to the raw-text era; the body is rendered markdown now. */
