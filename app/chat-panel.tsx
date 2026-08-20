@@ -88,6 +88,18 @@ export default function ChatPanel({
   const [input, setInput] = useState(seed ?? "");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false); // a turn is in flight
+  // Durable workflows: a reset or completed run is over — its chat is
+  // read-only and new messages need a new session.
+  const [ended, setEnded] = useState(false);
+  const markEnded = () => {
+    setEnded(true);
+    setWaiting(false);
+    const note = "*This chat's workflow ended — it can't continue. Start a new chat.*";
+    if (log.current[log.current.length - 1]?.text !== note) {
+      log.current.push({ role: "assistant", text: note, done: true });
+      setMessages([...log.current]);
+    }
+  };
   const streamStarted = useRef(false);
   const streamAbort = useRef<AbortController | null>(null);
   // Resume watermark: eve replays the session's whole event history when a
@@ -98,7 +110,7 @@ export default function ChatPanel({
 
   // Chat history = this agent's local runs; every conversation IS a run, so
   // the runs API is already the session list — titles, timestamps and all.
-  const { data: histData } = useSWR<{
+  const { data: histData, mutate: refreshHistory } = useSWR<{
     sessions?: { runId: string; title: string; createdAt: string }[];
   }>(`/api/runs?environment=local&project=${encodeURIComponent(project.name)}&period=7d`, getJson, {
     keepPreviousData: true,
@@ -115,10 +127,12 @@ export default function ChatPanel({
     streamAbort.current?.abort();
     streamStarted.current = false;
     replayCutoff.current = Date.now();
+    let status = "";
     try {
       const d = await fetchJson(
         `/api/run/${encodeURIComponent(runId)}?environment=local&project=${encodeURIComponent(project.name)}`,
       );
+      status = d.session?.status ?? "";
       log.current = (d.turns ?? []).flatMap(
         (t: { messages?: { type: string; text: string | null }[] }) =>
           (t.messages ?? [])
@@ -132,9 +146,26 @@ export default function ChatPanel({
     } catch {
       log.current = [];
     }
+    const over = status === "completed" || status === "failed";
+    setEnded(false);
     setMessages([...log.current]);
     setSessionId(runId);
-    startStream(runId);
+    if (over) markEnded();
+    else startStream(runId);
+  };
+
+  const sessionAct = (action: "cancel" | "reset") =>
+    fetchJson("/api/chat/act", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ port: project.localPort, sessionId, action }),
+    });
+
+  // Stops the in-flight turn; the session lives on. The stream's own
+  // turn.cancelled event clears `waiting`, this only sends the order.
+  const cancelTurn = () => {
+    if (!sessionId || !waiting) return;
+    sessionAct("cancel").catch(() => {});
   };
 
   // One long-lived NDJSON reader per session; events mutate the last assistant bubble.
@@ -170,6 +201,18 @@ export default function ChatPanel({
         }
         applyEvent(e);
       }
+    }
+    // The server closed the stream. For a durable workflow that usually means
+    // the run ended (reset from the run page, or completed) — confirm before
+    // locking, so a transient disconnect doesn't kill a healthy chat.
+    if (!ctrl.signal.aborted) {
+      try {
+        const d = await fetchJson(
+          `/api/run/${encodeURIComponent(sid)}?environment=local&project=${encodeURIComponent(project.name)}&fresh=1`,
+        );
+        const st = d.session?.status;
+        if (st === "completed" || st === "failed") markEnded();
+      } catch {}
     }
   };
 
@@ -219,7 +262,7 @@ export default function ChatPanel({
 
   const send = async () => {
     const text = input.trim();
-    if (!text || waiting) return;
+    if (!text || waiting || ended) return;
     setInput("");
     log.current.push({ role: "user", text });
     setMessages([...log.current]);
@@ -237,6 +280,13 @@ export default function ChatPanel({
     });
     const body = await r.json();
     if (!r.ok) {
+      // The workflow ended under us (reset from the run page, or completed):
+      // durable workflows can't continue — lock the chat and say so.
+      if (body.code === "session_not_active") {
+        streamAbort.current?.abort();
+        markEnded();
+        return;
+      }
       log.current.push({ role: "assistant", text: `⚠ ${body.error ?? "send failed"}`, done: true });
       setMessages([...log.current]);
       setWaiting(false);
@@ -245,6 +295,9 @@ export default function ChatPanel({
     if (!sessionId && body.sessionId) {
       setSessionId(body.sessionId);
       startStream(body.sessionId);
+      // The new run needs a moment to appear in the runs API — then the
+      // session pill can pick up its title.
+      setTimeout(() => refreshHistory(), 2_000);
     }
   };
 
@@ -388,37 +441,45 @@ export default function ChatPanel({
           </MessageScroller>
         </MessageScrollerProvider>
       </div>
-      <div className="chat-composer">
-        <div className="oc-card">
-          <textarea
-            rows={1}
-            value={input}
-            onChange={(e) => {
-              setInput(e.target.value);
-              const el = e.target;
-              const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
-              el.style.height = "auto";
-              el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            placeholder={waiting ? "waiting for the agent…" : `Message ${project.name}…`}
-            className="oc-ta"
-            disabled={waiting}
-            autoFocus
-          />
-          <div className="oc-card-row">
-            <span />
-            <button className="oc-send" onClick={send} disabled={waiting || !input.trim()}>
-              <ArrowUp />
-            </button>
+      {!ended && (
+        <div className="chat-composer">
+          <div className="oc-card">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                const el = e.target;
+                const line = parseFloat(getComputedStyle(el).lineHeight) || 21;
+                el.style.height = "auto";
+                el.style.height = Math.min(el.scrollHeight, line * 5) + "px";
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={waiting ? "waiting for the agent…" : `Message ${project.name}…`}
+              className="oc-ta"
+              disabled={waiting}
+              autoFocus
+            />
+            <div className="oc-card-row">
+              <span />
+              {waiting ? (
+                <button className="oc-send stop" onClick={cancelTurn} title="Cancel this turn">
+                  <span className="oc-stopsq" />
+                </button>
+              ) : (
+                <button className="oc-send" onClick={send} disabled={!input.trim()}>
+                  <ArrowUp />
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </M.aside>
   );
 }

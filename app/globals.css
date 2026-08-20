@@ -339,7 +339,7 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
 .chatbtn + .chatbtn{margin-left:-6px}
 .chatbtn[data-on="1"]{background:var(--hover);color:var(--fg)}
 
-/* Runs | Build — the .float-tabs pill, sized for the top bar. */
+/* Runs | Build — topbar mode pill. */
 .navtabs{
   display:inline-flex;gap:2px;flex:none;
   border:1px solid var(--line2);border-radius:999px;padding:2px;
@@ -504,19 +504,53 @@ td.num{text-align:right;padding:0 16px}
    resizing tracks the pointer 1:1. */
 .frame{min-height:100dvh}
 
-/* floating tab pills over the message area */
-.float-tabs{
-  position:sticky;top:10px;z-index:5;
-  display:flex;gap:2px;width:fit-content;margin:0 auto 30px;
-  background:color-mix(in srgb,var(--panel) 72%,transparent);backdrop-filter:blur(10px);
-  border:1px solid var(--line2);border-radius:999px;padding:3px;
+/* Turns | Metadata: a sticky header bar the transcript scrolls under —
+   Geist switch on the left, run controls on the right. */
+.tabsrow{
+  position:sticky;top:0;z-index:5;
+  display:flex;align-items:center;
+  margin:0 0 20px;padding:10px 0;
+  background:var(--bg);border-bottom:1px solid var(--line);
 }
-.float-tabs .tab{border-radius:999px}
+/* Geist Switch, measured on vercel.com/geist/switch: container radius 6px
+   with 4px padding, active segment radius 4px with a subtle fill. The 4px
+   inner radius is theirs, not one of our tokens. */
+.seg{
+  display:flex;width:fit-content;
+  background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--r-sm);padding:3px;
+}
+.seg-tab{
+  padding:3px 10px;border-radius:4px;font-size:12.5px;color:var(--dim);
+  transition:background .1s,color .1s;
+}
+.seg-tab:hover{color:var(--fg)}
+.seg-tab[data-on="1"]{background:var(--panel2);color:var(--fg)}
 .tab{padding:6px 14px;border-radius:var(--r-sm);font-size:13.5px;color:var(--dim)}
 .tab:hover{color:var(--fg)}
 .tab[data-on="1"]{background:var(--panel2);color:var(--fg)}
 
 .side-title{display:flex;align-items:center;gap:8px;padding:2px 0 14px;font-size:14px}
+/* Vercel's run metadata card: striped key/value rows in a bordered card. */
+.metacard{
+  border:1px solid var(--line);border-radius:var(--r-md);
+  padding:6px;margin-bottom:24px;font-size:14px;
+}
+.metarow{
+  display:flex;align-items:center;justify-content:space-between;
+  height:38px;padding:0 12px;border-radius:var(--r-sm);
+}
+.metarow:nth-child(odd){background:var(--panel)}
+.metarow span:first-child{color:var(--dim)}
+/* Squared, labelled controls — these do things, unlike the icon chips. */
+.runctl{
+  display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  font-size:12px;color:var(--dim);
+}
+.runctl:hover{background:var(--hover);color:var(--fg);border-color:var(--line3)}
+.runctl svg{width:12px;height:12px}
+.runctl .oc-stopsq{width:9px;height:9px}
 .sec-head{
   display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
   margin:0 -7px;padding:3px 7px;border-radius:var(--r-sm);

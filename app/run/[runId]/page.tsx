@@ -238,10 +238,27 @@ function Detail({ runId }: { runId: string }) {
     keepPreviousData: true,
   });
 
+  // cancel/reset go straight to the local eve server (the run IS the
+  // session); a refetch shortly after picks up the status change.
+  const runAct = (action: "cancel" | "reset") =>
+    fetch("/api/chat/act", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ project, sessionId: runId, action }),
+    })
+      .catch(() => {})
+      .finally(() => setTimeout(() => mutate(), 800));
+
   // Subscribe to the run's user stream (production/preview): each new chunk
   // nudges one fresh snapshot refetch, debounced so bursts coalesce.
   const open =
     run?.session?.status && run.session.status !== "completed" && run.session.status !== "failed";
+  // A turn is in flight when the run is open and the event log's tail isn't a
+  // terminal event. endedAt alone lies: a CANCELLED turn never receives one.
+  const lastTurn = run?.turns?.[run.turns.length - 1];
+  const lastEvent = run?.events?.[run.events.length - 1]?.type ?? "";
+  const settled = ["turn.completed", "turn.cancelled", "session.waiting", "session.idle"];
+  const streaming = Boolean(open && lastTurn && !lastTurn.endedAt && !settled.includes(lastEvent));
   useEffect(() => {
     if (isLocal || !open) return;
     let disposed = false;
@@ -390,27 +407,69 @@ function Detail({ runId }: { runId: string }) {
         style={sideOpen ? { gridTemplateColumns: `1fr ${sideW}px` } : undefined}
       >
         <div className="transcript">
-          <div className="float-tabs">
-            <button
-              className="tab"
-              data-on={tab === "turns" ? "1" : "0"}
-              onClick={() => setTab("turns")}
-            >
-              Turns
-            </button>
-            <button
-              className="tab"
-              data-on={tab === "metadata" ? "1" : "0"}
-              onClick={() => setTab("metadata")}
-            >
-              Metadata
-            </button>
+          <div className="tabsrow">
+            <div className="seg">
+              <button
+                className="seg-tab"
+                data-on={tab === "turns" ? "1" : "0"}
+                onClick={() => setTab("turns")}
+              >
+                Turns
+              </button>
+              <button
+                className="seg-tab"
+                data-on={tab === "metadata" ? "1" : "0"}
+                onClick={() => setTab("metadata")}
+              >
+                Metadata
+              </button>
+            </div>
+            <div className="spacer" />
+            {isLocal && open && (
+              <button
+                className="runctl"
+                title="End this run's workflow"
+                onClick={() => runAct("reset")}
+              >
+                Reset run
+              </button>
+            )}
           </div>
           <div className="transcript-inner">
             {run.note && <div className="note">{run.note}</div>}
 
             {tab === "metadata" ? (
               <>
+                {/* Vercel's run metadata card, minus Deployment (local runs
+                    have none): Model, Trigger, Duration, Status, Cost. */}
+                <div className="metacard">
+                  {(
+                    [
+                      ["Model", String(ta["$eve.model"] ?? "—")],
+                      [
+                        "Trigger",
+                        String(a["$eve.trigger"] ?? "—").replace(/^./, (c) => c.toUpperCase()),
+                      ],
+                      ["Duration", dur(run.turns.reduce((n, t) => n + (t.durationMs ?? 0), 0))],
+                      ["Status", String(run.session.status ?? "—")],
+                      [
+                        "Cost",
+                        money(
+                          run.turns.reduce(
+                            (n, t) =>
+                              n + t.steps.reduce((m, st) => m + (st.usage?.costUsd ?? 0), 0),
+                            0,
+                          ),
+                        ),
+                      ],
+                    ] as Array<[string, string]>
+                  ).map(([k, v]) => (
+                    <div className="metarow" key={k}>
+                      <span>{k}</span>
+                      <span>{v}</span>
+                    </div>
+                  ))}
+                </div>
                 <div className="sec">
                   <h3>Session attributes</h3>
                   <Json value={a} />
@@ -493,13 +552,17 @@ function Detail({ runId }: { runId: string }) {
           <div className="side-title">
             <span className="mono">{selected?.turnId ?? "session"}</span>
             <div className="spacer" />
-            <button
-              className="copybtn"
-              title="Copy run id"
-              onClick={() => navigator.clipboard?.writeText(runId)}
-            >
-              {I.copy}
-            </button>
+            {/* Same rule as the chat's square stop: only while a turn is
+                actually in flight. */}
+            {isLocal && streaming && (
+              <button
+                className="runctl"
+                title="Cancel the in-flight turn"
+                onClick={() => runAct("cancel")}
+              >
+                <span className="oc-stopsq" /> Cancel
+              </button>
+            )}
           </div>
 
           <Section title="Metadata">
