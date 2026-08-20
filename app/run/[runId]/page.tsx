@@ -16,8 +16,7 @@ const DEFAULT_PERIOD = "12h";
 const ago = (t: string | Date) => agoShared(t, "long");
 
 import { I } from "@/app/components/icons";
-import { Streamdown } from "streamdown";
-import { MD_COMPONENTS } from "@/app/components/markdown";
+import { Md } from "@/app/components/md";
 import type { RunDetail, Turn, ToolCall } from "@/lib/types";
 import type { ReactNode } from "react";
 
@@ -471,9 +470,7 @@ function Detail({ runId }: { runId: string }) {
                         </div>
                         {final && (
                           <div className="turnbody">
-                            <Streamdown className="chat-md prose-md" components={MD_COMPONENTS}>
-                              {final}
-                            </Streamdown>
+                            <Md className="chat-md prose-md">{final}</Md>
                           </div>
                         )}
                       </div>
@@ -524,9 +521,7 @@ function Detail({ runId }: { runId: string }) {
               {inputView === "Raw" ? (
                 <Json value={selInput} />
               ) : (
-                <Streamdown className="chat-md prose-md" components={MD_COMPONENTS}>
-                  {selInput}
-                </Streamdown>
+                <Md className="chat-md prose-md">{selInput}</Md>
               )}
             </Section>
           )}
@@ -546,9 +541,7 @@ function Detail({ runId }: { runId: string }) {
                   {!calls.length && <div className="dim2 mono">no tool calls</div>}
                   {selFinal && (
                     <div style={{ marginTop: 10 }}>
-                      <Streamdown className="chat-md prose-md" components={MD_COMPONENTS}>
-                        {selFinal}
-                      </Streamdown>
+                      <Md className="chat-md prose-md">{selFinal}</Md>
                     </div>
                   )}
                 </>
