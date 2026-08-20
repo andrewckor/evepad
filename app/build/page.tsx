@@ -580,7 +580,10 @@ function Build() {
       keepPreviousData: true,
     },
   );
-  const info = raw?.compiling ? null : raw;
+  // compiling with a manifest attached is a background REFRESH (the route
+  // serves the last snapshot while `eve info` reruns) — keep the graph up.
+  // Only a cold 202, which has no name yet, means there is nothing to draw.
+  const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
 
   const { nodes, edges } = useMemo(() => toGraph(info, GRAPH_ACTIONS), [info]);
