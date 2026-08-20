@@ -108,24 +108,29 @@ function Pills({
   );
 }
 
-// Shape-matched skeleton: same layout as the loaded page, so nothing jumps.
+// Shape-matched skeleton: same layout as the loaded page, so nothing jumps —
+// the real tabsrow (spacing and border included) with a switch-sized block,
+// and the same centered 700px column the transcript uses.
 function DetailSkeleton() {
   return (
-    <>
-      <div className="detail">
-        <div className="transcript">
+    <div className="detail">
+      <div className="transcript">
+        <div className="tabsrow">
+          <div className="sk" style={{ width: 148, height: 30 }} />
+        </div>
+        <div className="transcript-inner">
           <div className="sk bubble" />
           <div className="sk turn" />
           <div className="sk turn" style={{ opacity: 0.6 }} />
         </div>
-        <div className="side">
-          {[90, 70, 80, 60, 75, 65].map((w, i) => (
-            <div key={i} className="sk line" style={{ width: `${w}%`, marginBottom: 12 }} />
-          ))}
-          <div className="sk turn" style={{ marginTop: 22 }} />
-        </div>
       </div>
-    </>
+      <div className="side">
+        {[90, 70, 80, 60, 75, 65].map((w, i) => (
+          <div key={i} className="sk line" style={{ width: `${w}%`, marginBottom: 12 }} />
+        ))}
+        <div className="sk turn" style={{ marginTop: 22 }} />
+      </div>
+    </div>
   );
 }
 
