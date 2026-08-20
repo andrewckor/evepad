@@ -37,7 +37,7 @@ export default function ThemeSwitcher() {
   // render mismatches SSR, so it lands in state after mount.
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect
-    setPref(document.documentElement.dataset.themePref || "system");
+    setPref(document.documentElement.dataset.themePref || "dark");
   }, []);
 
   // Following the OS means listening to it — a stored "system" that resolved

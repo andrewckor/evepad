@@ -20,7 +20,7 @@ export const metadata = {
 // data-theme and there's no media query duplicating the stored preference.
 const THEME_BOOT = `
 try {
-  var p = localStorage.getItem("eve-cockpit:theme") || "system";
+  var p = localStorage.getItem("eve-cockpit:theme") || "dark";
   var dark = p === "dark" || (p === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
   document.documentElement.dataset.themePref = p;
