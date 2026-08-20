@@ -6,10 +6,22 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import type React from "react";
 import { m as M } from "motion/react";
 import { SPRING } from "./components/motion";
-import { SidebarRight, PlusCircle, ChevronRight, ChevronDown } from "vercel-geist-icons";
+import {
+  SidebarRight,
+  ChevronRight,
+  ChevronDown,
+  ChevronDownSmall,
+  Plus,
+} from "vercel-geist-icons";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { MenuLabel, MenuList } from "./components/menu";
+import { getJson, fetchJson } from "@/lib/fetch";
+import { ago } from "@/lib/format";
 import { Md } from "./components/md";
 import LoadingState from "./components/loading-state";
 import { Check } from "vercel-geist-icons";
@@ -77,15 +89,66 @@ export default function ChatPanel({
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [waiting, setWaiting] = useState(false); // a turn is in flight
   const streamStarted = useRef(false);
-  const continuation = useRef<string | null>(null); // follow-ups must echo the latest continuationToken
+  const streamAbort = useRef<AbortController | null>(null);
+  // Resume watermark: eve replays the session's whole event history when a
+  // stream connects; the transcript is already hydrated from the run detail,
+  // so older events are dropped.
+  const replayCutoff = useRef(0);
+  const [sessOpen, setSessOpen] = useState(false);
+
+  // Chat history = this agent's local runs; every conversation IS a run, so
+  // the runs API is already the session list — titles, timestamps and all.
+  const { data: histData } = useSWR<{
+    sessions?: { runId: string; title: string; createdAt: string }[];
+  }>(`/api/runs?environment=local&project=${encodeURIComponent(project.name)}&period=7d`, getJson, {
+    keepPreviousData: true,
+  });
+  const history = histData?.sessions ?? [];
+  const currentTitle = history.find((h) => h.runId === sessionId)?.title ?? "New chat";
+
+  // Resume: rebuild the transcript from the run detail (message.received /
+  // message.completed pairs), then keep talking on the same session id — the
+  // eve API keys the conversation on the session alone.
+  const resume = async (runId: string) => {
+    setSessOpen(false);
+    if (runId === sessionId || waiting) return;
+    streamAbort.current?.abort();
+    streamStarted.current = false;
+    replayCutoff.current = Date.now();
+    try {
+      const d = await fetchJson(
+        `/api/run/${encodeURIComponent(runId)}?environment=local&project=${encodeURIComponent(project.name)}`,
+      );
+      log.current = (d.turns ?? []).flatMap(
+        (t: { messages?: { type: string; text: string | null }[] }) =>
+          (t.messages ?? [])
+            .filter((mm) => mm.text && ["message.received", "message.completed"].includes(mm.type))
+            .map((mm): ChatMessage => ({
+              role: mm.type === "message.received" ? "user" : "assistant",
+              text: mm.text ?? "",
+              done: true,
+            })),
+      );
+    } catch {
+      log.current = [];
+    }
+    setMessages([...log.current]);
+    setSessionId(runId);
+    startStream(runId);
+  };
 
   // One long-lived NDJSON reader per session; events mutate the last assistant bubble.
   const startStream = (sid: string) => streamLoop(sid).catch(() => {}); // abort on unmount is expected
   const streamLoop = async (sid: string) => {
     if (streamStarted.current) return;
     streamStarted.current = true;
+    // One live stream at a time: switching sessions aborts the old reader, or
+    // its events would keep landing in the new transcript.
+    const ctrl = new AbortController();
+    streamAbort.current = ctrl;
     const res = await fetch(
       `/api/chat/stream?port=${project.localPort}&sessionId=${encodeURIComponent(sid)}`,
+      { signal: ctrl.signal },
     );
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
@@ -115,8 +178,10 @@ export default function ChatPanel({
   // under React StrictMode (dev double-invokes updaters to surface impurity),
   // which duplicated each assistant reply.
   const log = useRef<ChatMessage[]>([]);
-  const applyEvent = (e: { type?: string; data?: Record<string, any> }) => {
+  const applyEvent = (e: { type?: string; data?: Record<string, any>; meta?: { at?: string } }) => {
     const d = e.data ?? {};
+    const at = Date.parse(e.meta?.at ?? "");
+    if (at && at < replayCutoff.current) return;
     const msgs = log.current;
     const last = msgs[msgs.length - 1];
     const assistant = (): ChatMessage => {
@@ -143,7 +208,6 @@ export default function ChatPanel({
           if (t.callId === d.result?.callId) t.status = d.status ?? "completed";
     }
     setMessages([...msgs]);
-    if (typeof d.continuationToken === "string") continuation.current = d.continuationToken;
     if (
       e.type === "session.waiting" ||
       e.type === "turn.completed" ||
@@ -163,15 +227,15 @@ export default function ChatPanel({
     const r = await fetch("/api/chat", {
       method: "POST",
       headers: { "content-type": "application/json" },
+      // No continuationToken: eve keys the conversation on the session id and
+      // REJECTS a token on /session/:id posts (it broke every follow-up).
       body: JSON.stringify({
         port: project.localPort,
         sessionId,
         message: text,
-        continuationToken: continuation.current,
       }),
     });
     const body = await r.json();
-    if (body.continuationToken) continuation.current = body.continuationToken;
     if (!r.ok) {
       log.current.push({ role: "assistant", text: `⚠ ${body.error ?? "send failed"}`, done: true });
       setMessages([...log.current]);
@@ -201,9 +265,6 @@ export default function ChatPanel({
         <span className="dim term-title">{project.name}</span>
         <div className="spacer" />
         <div className="term-actions">
-          <button className="dockbtn" onClick={onNewChat} title="Start a new chat session">
-            <PlusCircle />
-          </button>
           <button
             className="dockbtn"
             onClick={() => onDock(dock === "right" ? "bottom" : "right")}
@@ -215,6 +276,44 @@ export default function ChatPanel({
             {dock === "right" ? <ChevronRight /> : <ChevronDown />}
           </button>
         </div>
+      </div>
+      {/* Session tabs, borrowed from the Build editor: the current chat as a
+          pill that opens the history (local runs ARE the chats), plus a +
+          for a fresh one. */}
+      <div className="chat-tabs">
+        <Popover open={sessOpen} onOpenChange={setSessOpen}>
+          <PopoverTrigger className="oc-session-trigger">
+            <span className="oc-session-name">{currentTitle.slice(0, 40)}</span>
+            <span className="oc-session-chev">
+              <ChevronDownSmall />
+            </span>
+          </PopoverTrigger>
+          <PopoverContent align="start" className="oc-sesspop menu-pop">
+            <MenuLabel>Chats</MenuLabel>
+            <MenuList scroll max={320}>
+              {history.length === 0 && <div className="menu-row dim2">No chats yet</div>}
+              {history.map((h) => (
+                <button
+                  key={h.runId}
+                  className={"menu-row" + (h.runId === sessionId ? " on" : "")}
+                  onClick={() => resume(h.runId)}
+                >
+                  <span className="menu-row-label">{h.title || h.runId}</span>
+                  <span className="menu-row-trail oc-ago">{ago(h.createdAt)}</span>
+                </button>
+              ))}
+            </MenuList>
+          </PopoverContent>
+        </Popover>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="oc-newchat"
+          title="Start a new chat session"
+          onClick={onNewChat}
+        >
+          <Plus />
+        </Button>
       </div>
       <div className="chat-body">
         <MessageScrollerProvider autoScroll>
