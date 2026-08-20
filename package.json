@@ -3,7 +3,12 @@
   "version": "0.7.3",
   "private": true,
   "description": "Local dashboard and build harness for eve agents",
+  "homepage": "https://github.com/andrewckor/evepad#readme",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewckor/evepad.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1 --port 5173",

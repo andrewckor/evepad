@@ -50,3 +50,8 @@ yarn-error.log*
 
 # eve agent artifacts, if an agent is ever colocated in this repo
 .eve/
+
+# vendored agent skills — third-party content (docs, images) pinned by
+# skills-lock.json; reinstallable, not ours to redistribute
+/.agents/
+/.claude/skills/
