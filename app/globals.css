@@ -509,7 +509,9 @@ td.num{text-align:right;padding:0 16px}
 .tabsrow{
   position:sticky;top:0;z-index:5;
   display:flex;align-items:center;
-  margin:0 0 20px;padding:10px 0;
+  /* Top padding lines the switch up with the sidebar's turn id; the gap
+     under the switch equals the gap under the border. */
+  margin:0 0 14px;padding:16px 0 14px;
   background:var(--bg);border-bottom:1px solid var(--line);
 }
 /* Geist Switch, measured on vercel.com/geist/switch: container radius 6px
@@ -542,6 +544,7 @@ td.num{text-align:right;padding:0 16px}
 }
 .metarow:nth-child(odd){background:var(--panel)}
 .metarow span:first-child{color:var(--dim)}
+.run-ended{text-align:center;font-size:13px;color:var(--dim2);font-style:italic;padding:18px 0}
 /* Squared, labelled controls — these do things, unlike the icon chips. */
 .runctl{
   display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;
@@ -582,7 +585,7 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
 .detail[data-resizing="1"]{cursor:col-resize}
 .detail[data-side="0"]{grid-template-columns:1fr}
 .detail[data-side="0"] .side{display:none}
-.transcript{padding:18px 32px 28px;overflow-y:auto}
+.transcript{padding:0 32px 28px;overflow-y:auto}
 /* Vercel centers the conversation in a ~700px column. */
 .transcript-inner{max-width:700px;margin:0 auto}
 .side{position:relative;border-left:1px solid var(--line);padding:20px 22px;overflow-y:auto;background:var(--bg)}

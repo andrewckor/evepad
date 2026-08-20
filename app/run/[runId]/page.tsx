@@ -240,14 +240,21 @@ function Detail({ runId }: { runId: string }) {
 
   // cancel/reset go straight to the local eve server (the run IS the
   // session); a refetch shortly after picks up the status change.
-  const runAct = (action: "cancel" | "reset") =>
-    fetch("/api/chat/act", {
+  const [resetting, setResetting] = useState(false);
+  const runAct = (action: "cancel" | "reset") => {
+    if (action === "reset") setResetting(true);
+    return fetch("/api/chat/act", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ project, sessionId: runId, action }),
     })
       .catch(() => {})
-      .finally(() => setTimeout(() => mutate(), 800));
+      .finally(() =>
+        setTimeout(() => {
+          mutate().finally(() => setResetting(false));
+        }, 800),
+      );
+  };
 
   // Subscribe to the run's user stream (production/preview): each new chunk
   // nudges one fresh snapshot refetch, debounced so bursts coalesce.
@@ -429,9 +436,10 @@ function Detail({ runId }: { runId: string }) {
               <button
                 className="runctl"
                 title="End this run's workflow"
+                disabled={resetting}
                 onClick={() => runAct("reset")}
               >
-                Reset run
+                {resetting ? "Resetting…" : "Reset run"}
               </button>
             )}
           </div>
@@ -445,12 +453,27 @@ function Detail({ runId }: { runId: string }) {
                 <div className="metacard">
                   {(
                     [
-                      ["Model", String(ta["$eve.model"] ?? "—")],
+                      [
+                        "Model",
+                        String(
+                          run.childRuns.find((c) => c.attributes["$eve.model"])?.attributes[
+                            "$eve.model"
+                          ] ?? "—",
+                        ),
+                      ],
                       [
                         "Trigger",
                         String(a["$eve.trigger"] ?? "—").replace(/^./, (c) => c.toUpperCase()),
                       ],
-                      ["Duration", dur(run.turns.reduce((n, t) => n + (t.durationMs ?? 0), 0))],
+                      [
+                        "Duration",
+                        (() => {
+                          const lastAt = run.events[run.events.length - 1]?.at;
+                          return lastAt
+                            ? dur(Date.parse(lastAt) - Date.parse(String(run.session.createdAt)))
+                            : "—";
+                        })(),
+                      ],
                       ["Status", String(run.session.status ?? "—")],
                       [
                         "Cost",
@@ -537,6 +560,9 @@ function Detail({ runId }: { runId: string }) {
                   );
                 })}
                 {!turns.length && !run.note && <div className="empty">No turns recorded.</div>}
+                {!open && turns.length > 0 && (
+                  <div className="run-ended">This workflow has ended.</div>
+                )}
               </>
             )}
           </div>
