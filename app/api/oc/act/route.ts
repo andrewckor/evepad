@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       case "new": {
         const created = await client.session.create({
           query,
-          body: { title: `cockpit: ${project.name}` },
+          body: { title: `evepad: ${project.name}` },
           throwOnError: true,
         });
         return Response.json({ id: created.data.id, title: created.data.title });

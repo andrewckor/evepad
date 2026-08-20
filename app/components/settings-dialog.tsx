@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-// Settings — everything the cockpit holds that isn't a project's own code.
+// Settings — everything evepad holds that isn't a project's own code.
 // Deliberately honest about what it can change: the Vercel account and the
 // local checkouts are owned by the CLI and the registry, so they're shown with
 // the command that changes them rather than faked into editable fields.
@@ -54,7 +54,7 @@ export default function SettingsDialog({
   onSignedOut?: () => void;
 }) {
   // Two-step, because this signs the Vercel CLI out of the whole machine —
-  // the cockpit has no session of its own to end, so a stray click would sign
+  // evepad has no session of its own to end, so a stray click would sign
   // you out of your terminal too.
   const { data: settings, mutate: refetchSettings } = useSWR("/api/settings", fetcher);
   const [picking, setPicking] = useState(false);

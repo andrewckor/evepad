@@ -7,7 +7,7 @@
 // asks — the root cause of every "working but shows nothing" wedge.
 //
 // Guardrails come from OpenCode's own permission system: edits allowed inside
-// the project, bash asks (the cockpit UI renders approval toasts),
+// the project, bash asks (evepad UI renders approval toasts),
 // external_directory denied.
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
@@ -54,7 +54,7 @@ const exec = promisify(execFile);
 const DEFAULT_PROVIDER = "vercel";
 const DEFAULT_MODEL = "zai/glm-5.2";
 
-const g = ((globalThis as { __eveCockpitOpencode?: Partial<OcGlobal> }).__eveCockpitOpencode ??=
+const g = ((globalThis as { __evepadOpencode?: Partial<OcGlobal> }).__evepadOpencode ??=
   {}) as OcGlobal;
 g.servers ??= new Map();
 g.hubs ??= new Map();
@@ -312,7 +312,7 @@ async function ensureServer(dir: string, oidc: string): Promise<ReadyEntry> {
     throw e;
   }
 
-  // Never orphan opencode servers: close them all when the cockpit dies.
+  // Never orphan opencode servers: close them all when evepad dies.
   if (!g.cleanupInstalled) {
     g.cleanupInstalled = true;
     const shutdown = () => {

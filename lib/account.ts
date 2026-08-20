@@ -1,4 +1,4 @@
-// Who the cockpit is logged in as, straight from the Vercel CLI's own
+// Who evepad is logged in as, straight from the Vercel CLI's own
 // credentials — the same token and currentTeam that pick which projects show
 // up. Read-only: switching accounts or teams is `vercel login` / `vercel
 // switch`, and mirroring those here would just be a second source of truth.

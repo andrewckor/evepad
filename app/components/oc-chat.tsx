@@ -757,7 +757,7 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
     }
   };
 
-  // Graph buttons (and anything else in the cockpit) can hand us text.
+  // Graph buttons (and anything else in evepad) can hand us text.
   useEffect(() => {
     const h = (e: Event) => {
       const { text, submit } = (e as CustomEvent<{ text?: string; submit?: boolean }>).detail ?? {};
@@ -1040,7 +1040,7 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
                 {!booting && !msgs.length && (
                   <div className="chat-empty">
                     <div className="dim">
-                      Build chat for <b>{project}</b> — OpenCode under the hood, cockpit UI on top.
+                      Build chat for <b>{project}</b> — OpenCode under the hood, evepad UI on top.
                       Ask, change code, or type <span className="mono">/</span> for commands (
                       <span className="mono">/undo</span>,<span className="mono"> /models</span>,{" "}
                       <span className="mono">/compact</span>…).

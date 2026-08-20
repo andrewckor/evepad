@@ -39,7 +39,7 @@ approximate an icon that doesn't exist in that set.**
 
 The app has light and dark themes, resolved to an explicit
 `data-theme="light|dark"` on `<html>` before first paint (boot script in
-`app/layout.jsx`; preference in `localStorage["eve-cockpit:theme"]`).
+`app/layout.jsx`; preference in `localStorage["evepad:theme"]`).
 
 - **Never write a colour literal in a component or in globals.css rules.**
   Use the tokens (`--bg --panel --panel2 --hover --inset --line/--line2/--line3

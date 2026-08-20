@@ -8,7 +8,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { cacheDir } from "./cache-dir";
 import { knownPath, remember, allKnown } from "./registry";
 import type { LocalServer, Project } from "./types";
 
@@ -273,7 +273,7 @@ export async function listProjects(): Promise<Project[]> {
     byName.set(s.vercelProjectName ?? s.agentName, s);
   }
 
-  // Only eve agents belong in the cockpit. Local servers are eve by definition
+  // Only eve agents belong in evepad. Local servers are eve by definition
   // (they answered /eve/v1/info); remote projects qualify by framework.
   const merged: Project[] = remote.map((p) => {
     const s = (p.id ? byId.get(p.id) : undefined) ?? byName.get(p.name) ?? null;
@@ -352,7 +352,7 @@ export async function listProjects(): Promise<Project[]> {
 // 401s without one — the WORKFLOW_VERCEL_PROJECT/TEAM env vars are not enough.
 // For projects with no local checkout, cache a link directory per project.
 // `vercel link` against an existing project only reads; it creates nothing remote.
-const LINK_CACHE = join(process.env.HOME ?? tmpdir(), ".cache", "eve-cockpit", "links");
+const LINK_CACHE = join(cacheDir(), "links");
 
 export async function ensureLinkDir(project: Project): Promise<string> {
   if (project.localPath) return project.localPath;

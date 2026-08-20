@@ -5,8 +5,9 @@
 import { readFileSync, writeFileSync, mkdirSync, statSync, accessSync, constants } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
+import { cacheDir } from "./cache-dir";
 
-const PATH = join(homedir(), ".cache", "eve-cockpit", "settings.json");
+const PATH = join(cacheDir(), "settings.json");
 export const DEFAULT_WORKSPACE = join(homedir(), "eve-agents");
 
 let mem: Record<string, unknown> | null = null;

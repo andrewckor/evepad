@@ -1,7 +1,7 @@
 "use client";
 
-// Chat panel for a locally running agent. Talks to the eve HTTP API through the
-// cockpit's proxy routes; the resulting session shows up in the runs table via
+// Chat panel for a locally running agent. Talks to the eve HTTP API through
+// evepad's proxy routes; the resulting session shows up in the runs table via
 // the normal local poll, so chatting and observing share one pane.
 
 import { useEffect, useRef, useState } from "react";

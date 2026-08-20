@@ -1,6 +1,6 @@
 "use client";
 
-// First run. The cockpit reads agents from Vercel and edits them from folders
+// First run. evepad reads agents from Vercel and edits them from folders
 // on this Mac, so a new user can be stuck in exactly two places: not signed in
 // to Vercel, or signed in with nothing to show. Both used to render as
 // "Looking for agents…" forever — a spinner for a state that will never

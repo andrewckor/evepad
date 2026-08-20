@@ -13,8 +13,9 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
+import { cacheDir } from "./cache-dir";
 
-const REG_PATH = join(process.env.HOME ?? "/tmp", ".cache", "eve-cockpit", "registry.json");
+const REG_PATH = join(cacheDir(), "registry.json");
 
 type RegistryEntry = {
   path: string;
@@ -84,7 +85,7 @@ export function remember(name: string, path: string) {
 // Every remembered project whose checkout still exists. Vanished paths are
 // pruned on read so the registry can't serve stale entries. The org link is
 // re-read from disk each time — relinking a checkout updates ownership
-// without any cockpit bookkeeping.
+// without any evepad bookkeeping.
 // Drop a mapping — the folder moved, or it was pointed at the wrong one.
 // The project itself is untouched; only this machine forgets where it is.
 export function forget(name: string): boolean {

@@ -2,7 +2,7 @@
 
 // Embedded terminal drawer running the real eve dev TUI — the same one you get
 // in a normal shell, so chatting with the agent, watching logs, and its slash
-// commands all work. xterm.js renders; a pty on the cockpit server hosts.
+// commands all work. xterm.js renders; a pty on evepad server hosts.
 
 import { useState } from "react";
 import type React from "react";

@@ -33,7 +33,7 @@ const shortRunId = (id: string | null | undefined): string => {
 };
 
 // Hovering the button is the cheapest moment to fetch the terminal's chunks —
-// xterm is the heaviest thing the cockpit lazy-loads (bundle-preload).
+// xterm is the heaviest thing evepad lazy-loads (bundle-preload).
 let buildWarmed = false;
 let lastBootKick = 0;
 const warmBuild = (name?: string) => {
@@ -72,12 +72,12 @@ const DEFAULT_PERIOD = "12h";
 // The environment preference lives in localStorage under the key the Runs page
 // writes (see app/runs/page.jsx). Read defensively: this runs on the server
 // during SSR, where there is no storage.
-const ENV_KEY = "eve-cockpit:env2";
+const ENV_KEY = "evepad:env2";
 const ENV_DEFAULT = "local,preview,production";
 function readEnvPref() {
   if (typeof window === "undefined") return ENV_DEFAULT;
   try {
-    return localStorage.getItem(ENV_KEY) || ENV_DEFAULT;
+    return localStorage.getItem(ENV_KEY) || localStorage.getItem("eve-cockpit:env2") || ENV_DEFAULT;
   } catch {
     return ENV_DEFAULT;
   }

@@ -1,5 +1,5 @@
 // Signing out. Signing IN is the CLI's job — `vercel login` owns the device
-// flow and writes the credentials every other route reads, so the cockpit
+// flow and writes the credentials every other route reads, so evepad
 // watches for them (see /api/account) rather than running a second auth path
 // of its own that could drift from the CLI's.
 
@@ -13,7 +13,7 @@ export async function POST(request: Request) {
   if (action !== "logout") return Response.json({ error: "unknown action" }, { status: 400 });
 
   // `vercel logout` clears the CLI's credentials for the whole machine, not
-  // just this app — the cockpit has no session of its own to end.
+  // just this app — evepad has no session of its own to end.
   const code = await new Promise<number>((resolve) => {
     const [vc, ...pre] = vercelCommand() as [string, ...string[]];
     const child = spawn(vc, [...pre, "logout"], { stdio: "ignore" });

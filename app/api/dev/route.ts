@@ -2,7 +2,7 @@
 //
 // start: spawns `npm exec -- eve dev --no-ui` detached in the project's checkout
 //        (path from live detection or the registry), on a free port, logging to
-//        ~/.cache/eve-cockpit/logs/<name>.log. Returns once /eve/v1/health answers.
+//        ~/.cache/evepad/logs/<name>.log. Returns once /eve/v1/health answers.
 // stop:  kills whatever is listening on the server's port — but only after
 //        verifying it actually answers /eve/v1/info, so we never kill a stranger.
 
@@ -12,12 +12,13 @@ import { openSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createServer } from "node:net";
 import { resolveProject, invalidateLocalServers } from "@/lib/projects";
+import { cacheDir } from "@/lib/cache-dir";
 import { remember } from "@/lib/registry";
 import { vercelCommand } from "@/lib/vercel-cli";
 import { errMsg } from "@/lib/utils";
 
 const exec = promisify(execFile);
-const LOG_DIR = join(process.env.HOME ?? "/tmp", ".cache", "eve-cockpit", "logs");
+const LOG_DIR = join(cacheDir(), "logs");
 
 const isFree = (port: number) =>
   new Promise<boolean>((res) => {
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       return Response.json(
         {
           error:
-            "No known checkout for this project. Run `eve dev` in it once so the cockpit learns its path.",
+            "No known checkout for this project. Run `eve dev` in it once so evepad learns its path.",
         },
         { status: 409 },
       );
@@ -138,7 +139,7 @@ export async function POST(request: Request) {
     } catch {}
     return Response.json(
       {
-        error: `Server did not become healthy on :${port}.\n\n${tail}\n\n(full log: ~/.cache/eve-cockpit/logs/${project.name}.log)`,
+        error: `Server did not become healthy on :${port}.\n\n${tail}\n\n(full log: ~/.cache/evepad/logs/${project.name}.log)`,
       },
       { status: 502 },
     );

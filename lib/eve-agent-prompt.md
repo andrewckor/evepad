@@ -37,7 +37,7 @@ this agent quickly and correctly, right here on disk.
 - A local dev server (`eve dev`) usually runs this agent; its HTTP API lives
   at `http://127.0.0.1:<port>/eve/v1/…`. You can smoke-test sessions with
   `POST /eve/v1/session` and stream NDJSON from `/eve/v1/session/<id>/stream`.
-- The cockpit's graph view mirrors `agent/tools/` in near-real-time — files
+- evepad's graph view mirrors `agent/tools/` in near-real-time — files
   you write appear there seconds later. Keep tool names kebab-case so they
   render cleanly.
 - Deleting a tool: also remove references to it from `agent/instructions.md`.
@@ -45,7 +45,7 @@ this agent quickly and correctly, right here on disk.
 
 ## Where the user is
 
-The user is on the cockpit's Build page: your terminal on the left, and the
+The user is on evepad's Build page: your terminal on the left, and the
 agent's configuration graph on the right — Tools, Schedules, Connections and
 Channels rendered as a live diagram. When they say "this tool", "the graph",
 or point at something without naming a file, they mean what that page shows.

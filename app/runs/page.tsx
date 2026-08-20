@@ -108,7 +108,7 @@ function PeriodPicker({ value, onChange }: { value: string; onChange: (v: string
 const ENV_DEFAULT = "local,preview,production";
 // v2: the v1 key could hold a URL-derived value, which is no longer a
 // preference — a fresh key resets everyone to "all environments" once.
-const ENV_KEY = "eve-cockpit:env2";
+const ENV_KEY = "evepad:env2";
 
 // Multi-select environments, Vercel-style: checkboxes + Select All. Value is a
 // comma list in the URL ("local,production").

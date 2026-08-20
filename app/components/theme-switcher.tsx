@@ -13,7 +13,7 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { DesktopDevice, Sun, Moon } from "vercel-geist-icons";
 
-const KEY = "eve-cockpit:theme";
+const KEY = "evepad:theme";
 const OPTIONS = [
   ["system", "System", <DesktopDevice key="s" />],
   ["light", "Light", <Sun key="l" />],

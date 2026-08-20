@@ -1,7 +1,7 @@
 "use client";
 
 // Build — the OpenCode TUI on the agent's checkout, beside a live map.
-// Left: the real OpenCode terminal (attached to the cockpit's shared server,
+// Left: the real OpenCode terminal (attached to evepad's shared server,
 // GLM via the AI Gateway preset). Right: React Flow graph in Vercel's layout —
 // Tools box + category pills converging into the agent pill, channels below.
 // Edits land on disk, so generated tools appear as graph rows moments later;

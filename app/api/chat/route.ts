@@ -1,6 +1,6 @@
 // Forward a chat message to a locally running eve dev server.
 // Create: POST /eve/v1/session  ·  Follow-up: POST /eve/v1/session/:id
-// Proxied because the eve server doesn't send CORS headers for the cockpit origin.
+// Proxied because the eve server doesn't send CORS headers for evepad origin.
 
 const PORT_RE = /^\d{4,5}$/;
 const SID_RE = /^[A-Za-z0-9_-]{10,80}$/;

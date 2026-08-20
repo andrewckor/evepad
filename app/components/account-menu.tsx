@@ -1,6 +1,6 @@
 "use client";
 
-// The Vercel account this cockpit is reading from, in the top bar's scope
+// The Vercel account evepad is reading from, in the top bar's scope
 // slot — left of the project switcher, the way the dashboard reads
 // "team / project". No sidebar: the account is not a place you go, it's the
 // scope everything else is inside.
