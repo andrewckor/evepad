@@ -7,6 +7,18 @@
 // running instance and just opens the page: the port is FIXED by default so
 // an installed PWA keeps pointing at the same app.
 
+// FIRST, before anything: the standalone Next server needs the global
+// fetch/Request APIs (Node 18+), and the app targets 24 — on an old Node it
+// dies with a bare ReferenceError stack. npm's engines check only WARNS, so
+// this gate is the real one. Everything below must stay PARSEABLE by old
+// Node (no new syntax) or the gate never gets a chance to run.
+const nodeMajor = Number(process.versions.node.split(".")[0]);
+if (nodeMajor < 24) {
+  console.error(`\n  evepad needs Node 24 or newer \u2014 this is Node ${process.versions.node}.`);
+  console.error("  Upgrade at https://nodejs.org, or: nvm install 24 \u00b7 brew install node\n");
+  process.exit(1);
+}
+
 import { spawn } from "node:child_process";
 import { Readable } from "node:stream";
 import { mkdirSync } from "node:fs";
@@ -119,8 +131,6 @@ let managedOcBin = null;
 try {
   const manifest = JSON.parse(readFileSync(join(pkgDir, "package.json"), "utf8"));
   ocVersion = manifest.opencodeVersion;
-} catch {}
-try {
 } catch {}
 const managedDir = ocVersion ? join(homedir(), ".evepad", "opencode", ocVersion) : null;
 // Two layouts: package/bin (direct tarball extract) or node_modules/.bin
