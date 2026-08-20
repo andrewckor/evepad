@@ -28,7 +28,8 @@ when they aren't on your PATH:
 
 - **Vercel CLI** — sign-in, project linking, env pulls
 - **eve CLI** — scaffolding, the dev server, channels and tools
-- **OpenCode** — the engine behind the Build chat, shipped with the package
+- **OpenCode** — the engine behind the Build chat, downloaded once on first
+  run and version-locked to the app
 
 Sign in from the app's first-run screen.
 
@@ -38,8 +39,9 @@ Sign in from the app's first-run screen.
 npx evepad
 ```
 
-Opens http://localhost:4680. The package ships prebuilt, so it starts in
-seconds rather than building on your machine.
+Opens http://localhost:4680. The package ships prebuilt — the first run
+downloads the Build editor once (~44MB), and every run after that starts in
+under a second.
 
 - `npm i -g evepad` to keep it installed
 - `evepad --port 4681` to run it on a different port
