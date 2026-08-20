@@ -56,7 +56,7 @@ export default function ProjectPicker({
   const devAction = async (e: SyntheticEvent, p: Project, action: DevAction) => {
     e.stopPropagation();
     e.preventDefault();
-    const label = { start: "starting", stop: "stopping", locate: "picking folder" }[action];
+    const label = { start: "Starting…", stop: "Stopping…", locate: "Choosing folder…" }[action];
     setBusy((b) => ({ ...b, [p.name]: label }));
     try {
       const r = await fetch("/api/dev", {

@@ -35,6 +35,12 @@ import { getJson as fetcher } from "@/lib/fetch";
 import { ago as agoShared } from "@/lib/format";
 
 // Cards floor at "1m ago" — "12s ago" churns for no information.
+const BUSY_LABEL: Record<string, string> = {
+  start: "Starting…",
+  stop: "Stopping…",
+  locate: "Choosing folder…",
+};
+
 const ago = (ts: number | null | undefined) => {
   if (!ts) return "";
   const s = agoShared(ts);
@@ -182,7 +188,7 @@ function Home() {
                 <b>{p.name}</b>
                 <div className="spacer" />
                 {busy[p.name] ? (
-                  <Tip label="Working…">
+                  <Tip label={BUSY_LABEL[busy[p.name] ?? ""] ?? "Working…"}>
                     <span className="devbtn busy">
                       <span className="th-spin" />
                     </span>
