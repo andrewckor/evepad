@@ -120,9 +120,6 @@ function Home() {
   if (!data || !account) {
     return (
       <div className="wrap">
-        <div className="home-head">
-          <h1>Agents</h1>
-        </div>
         <div className="home-loading">
           <LoadingState label="Loading agents" elapsed={false} />
         </div>
@@ -135,9 +132,6 @@ function Home() {
   if (firstRun) {
     return (
       <div className="wrap">
-        <div className="home-head">
-          <h1>Agents</h1>
-        </div>
         {/* Forcing signed-out forces the account away too, or the screen
             offers a confirmation for credentials it claims not to have. */}
         <Welcome
