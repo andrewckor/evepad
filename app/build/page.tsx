@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash, FolderPlus, Question } from "vercel-geist-icons";
 import OcChat from "@/app/components/oc-chat";
 import InstructionsPane from "@/app/components/instructions-pane";
+import EvalsPane from "@/app/components/evals-pane";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
 const AgentGraph = dynamic(() => import("../components/agent-graph"), {
@@ -599,7 +600,7 @@ function Build() {
     return <NoCheckout project={project} onLinked={refetchInfo} />;
   }
 
-  const [pane, setPane] = useState<"graph" | "instructions">("graph");
+  const [pane, setPane] = useState<"graph" | "instructions" | "evals">("graph");
 
   return (
     <div className="buildpage">
@@ -630,9 +631,18 @@ function Build() {
           >
             Instructions
           </button>
+          <button
+            className="tab"
+            data-on={pane === "evals" ? "1" : "0"}
+            onClick={() => setPane("evals")}
+          >
+            Evals
+          </button>
         </div>
         {pane === "instructions" ? (
           <InstructionsPane project={project} />
+        ) : pane === "evals" ? (
+          <EvalsPane project={project} />
         ) : (
           <>
             {infoLoading && <ManifestLoader />}
