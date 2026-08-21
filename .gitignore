@@ -55,3 +55,6 @@ yarn-error.log*
 # skills-lock.json; reinstallable, not ours to redistribute
 /.agents/
 /.claude/skills/
+
+# playwright mcp session artifacts
+.playwright-mcp/
