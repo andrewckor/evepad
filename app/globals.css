@@ -1235,6 +1235,9 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .set-label{font-size:13px;color:var(--dim)}
 .set-value{font-size:13px;color:var(--fg);text-align:right;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .set-hint{display:block;font-size:11px;color:var(--dim2);margin-top:2px}
+/* inline input+button row (failure webhook) */
+.set-inline{display:flex;gap:6px;align-items:center}
+.set-input{width:230px;height:26px;font-size:12.5px}
 .set-link{
   display:flex;align-items:center;gap:10px;padding:7px 0;
   border-bottom:1px solid var(--line);font-size:13px;

@@ -59,11 +59,29 @@ export function workspaceError(dir: string | null | undefined): string | null {
 export function setWorkspace(dir: string): string {
   if (!dir || typeof dir !== "string") return getWorkspace();
   const next = { ...load(), workspace: dir };
+  writeSettings(next);
+  return dir;
+}
+
+// Failure-alert webhook. Empty string clears it; anything non-http(s) is
+// rejected here so the alert relay never becomes a fetch of some odd scheme.
+export function getAlertWebhook(): string {
+  const w = load().alertWebhook;
+  return typeof w === "string" ? w : "";
+}
+
+export function setAlertWebhook(url: string): string | null {
+  const v = typeof url === "string" ? url.trim() : "";
+  if (v && !/^https?:\/\//i.test(v)) return "Webhook must be an http(s) URL.";
+  writeSettings({ ...load(), alertWebhook: v });
+  return null;
+}
+
+function writeSettings(next: Record<string, unknown>): void {
   mkdirSync(dirname(PATH), { recursive: true });
   writeFileSync(PATH, JSON.stringify(next, null, 2));
   mem = next;
   try {
     memMtime = statSync(PATH).mtimeMs;
   } catch {}
-  return dir;
 }
