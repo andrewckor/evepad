@@ -3,6 +3,7 @@ import type React from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Shell from "./components/shell";
+import FailureWatcher from "./components/failure-watcher";
 import { Toaster } from "@/components/ui/toast";
 export const metadata = {
   title: "evepad",
@@ -47,6 +48,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* The Shell (topbar, pickers, chat, terminal) mounts once and survives
             all route changes — pages below it only swap their content. */}
         <Shell>{children}</Shell>
+        {/* Production-failure watcher: one poll for the agent in view. */}
+        <FailureWatcher />
         {/* Outside the Shell so a toast outlives any panel that raised it.
             The manager is module-scoped, so this needs no children — raising a
             toast anywhere goes through the same instance. */}

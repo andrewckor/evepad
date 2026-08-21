@@ -11,6 +11,7 @@ import { useState } from "react";
 import useSWR, { mutate as mutateGlobal } from "swr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 import type { Account, Project } from "@/lib/types";
@@ -83,6 +84,19 @@ export default function SettingsDialog({
   const [confirmOut, setConfirmOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
+  // Webhook edits are local until saved: a half-typed URL shouldn't fire.
+  const [webhookDraft, setWebhookDraft] = useState<string | null>(null);
+  const webhookValue = webhookDraft ?? settings?.alertWebhook ?? "";
+  const saveWebhook = async () => {
+    await fetch("/api/settings", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ alertWebhook: webhookValue }),
+    });
+    setWebhookDraft(null);
+    refetchSettings();
+  };
+
   const signOut = async () => {
     setSigningOut(true);
     try {
@@ -146,6 +160,32 @@ export default function SettingsDialog({
               >
                 {account?.tokenSource ?? "none"}
               </Row>
+            </div>
+
+            <div className="set-section">
+              <div className="set-section-title">Alerts</div>
+              <Row label="Failure webhook" hint="POSTed when a production run fails">
+                <div className="set-inline">
+                  <Input
+                    value={webhookValue}
+                    onChange={(e) => setWebhookDraft(e.target.value)}
+                    placeholder="https://hooks…"
+                    className="set-input"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={webhookDraft === null}
+                    onClick={saveWebhook}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </Row>
+              <div className="set-empty">
+                While evepad is open, failed production runs of the agent in view raise a toast —
+                the webhook carries them beyond it.
+              </div>
             </div>
 
             <div className="set-section">
