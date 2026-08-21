@@ -811,6 +811,17 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .inst{position:absolute;inset:0;display:flex;flex-direction:column;padding-top:50px}
 .inst-head{display:flex;align-items:center;gap:8px;padding:0 16px 10px;border-bottom:1px solid var(--line);margin:0 0 12px}
 .inst-md{padding:0 20px 20px;font-size:13.5px;line-height:1.55;overflow:auto}
+/* Evals pane — same chrome, a list plus the runner's raw output */
+.eval-list{flex:0 1 auto;min-height:0;overflow:auto;padding:0 16px 12px}
+.eval-row{display:flex;align-items:center;gap:10px;height:34px;border-bottom:1px solid var(--line3);font-size:12.5px}
+.eval-row span:last-child:not(.eval-tag){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eval-tag{color:var(--dim2);border:1px solid var(--line2);border-radius:999px;padding:1px 8px;font-size:10.5px;margin-left:auto}
+.eval-tag + .eval-tag{margin-left:0}
+.eval-out{
+  flex:1 1 60%;min-height:0;margin:0 16px 16px;padding:14px;
+  background:var(--inset);border:1px solid var(--line2);border-radius:var(--r-sm);
+  color:var(--fg);font-size:11.5px;line-height:1.5;white-space:pre-wrap;overflow:auto;
+}
 .inst-ta{
   flex:1;margin:0 16px 16px;padding:14px;resize:none;
   background:var(--inset);border:1px solid var(--line2);border-radius:var(--r-sm);

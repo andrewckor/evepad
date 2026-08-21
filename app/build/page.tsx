@@ -18,6 +18,7 @@ import { Copy, Pencil, Trash, FolderPlus, Question, Play } from "vercel-geist-ic
 import { toast } from "@/components/ui/toast";
 import OcChat from "@/app/components/oc-chat";
 import InstructionsPane from "@/app/components/instructions-pane";
+import EvalsPane from "@/app/components/evals-pane";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
 const AgentGraph = dynamic(() => import("../components/agent-graph"), {
@@ -624,7 +625,7 @@ function Build() {
   const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
   const [runningSchedule, setRunningSchedule] = useState<string | null>(null);
-  const [pane, setPane] = useState<"graph" | "instructions">("graph");
+  const [pane, setPane] = useState<"graph" | "instructions" | "evals">("graph");
 
   // Run-now dispatches through the local server's own schedule route, so what
   // executes is byte-for-byte what the cron would run. The toast links to the
@@ -751,9 +752,18 @@ function Build() {
           >
             Instructions
           </button>
+          <button
+            className="tab"
+            data-on={pane === "evals" ? "1" : "0"}
+            onClick={() => setPane("evals")}
+          >
+            Evals
+          </button>
         </div>
         {pane === "instructions" ? (
           <InstructionsPane project={project} />
+        ) : pane === "evals" ? (
+          <EvalsPane project={project} />
         ) : (
           <>
             {infoLoading && <ManifestLoader />}

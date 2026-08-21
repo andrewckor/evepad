@@ -19,8 +19,15 @@ import { vercelCommand } from "./vercel-cli";
 import { deployArgs, deployTermKey, isDeployVariant } from "./deploy-command";
 import type { Project } from "./types";
 
-export type TermVariant = "eve" | "opencode" | "login" | "create" | "deploy" | "deploy-preview";
-type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "deploy";
+export type TermVariant =
+  | "eve"
+  | "opencode"
+  | "login"
+  | "create"
+  | "eval"
+  | "deploy"
+  | "deploy-preview";
+type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "eval" | "deploy";
 
 // A subscriber is the write side of one SSE connection.
 type TermSubscriber = { enqueue: (buf: Buffer) => void; close: () => void };
@@ -78,6 +85,8 @@ const termKey = (name: string, variant?: TermVariant) =>
         ? `${name}:opencode`
         : isDeployVariant(variant)
           ? deployTermKey(name, variant)
+          : variant === "eval"
+            ? `${name}:eval`
           : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
@@ -336,6 +345,13 @@ export async function startTerm(
     cmd = vc!;
     args = pre;
     mode = "deploy";
+  } else if (variant === "eval") {
+    // The framework's own eval runner on the checkout — evepad surfaces it,
+    // it doesn't reimplement it. Evals are non-interactive; a fixed 100-col
+    // pty keeps the console reporter's wrapping stable.
+    cmd = "npm";
+    args = ["exec", "--", "eve", "eval"];
+    mode = "eval";
     env = userEnv();
   } else {
     cmd = "npm";
@@ -349,8 +365,8 @@ export async function startTerm(
 
   const pty = ptySpawn(cmd, args, {
     name: "xterm-256color",
-    cols: clampDim(size.cols, 20, 500, 120),
-    rows: clampDim(size.rows, 5, 200, 32),
+    cols: clampDim(size.cols, 20, 500, variant === "eval" ? 100 : 120),
+    rows: clampDim(size.rows, 5, 200, variant === "eval" ? 34 : 32),
     cwd: project.localPath,
     env,
   });
