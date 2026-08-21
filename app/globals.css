@@ -359,7 +359,8 @@ tbody tr:hover .rowchev span{background:var(--hairline)}
    media query never fires and the two charts stay side by side in 500px. */
 .wrap{padding:24px 16px;max-width:1400px;margin:0 auto;container-type:inline-size}
 
-.charts{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.charts{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+@container (max-width:980px){.charts{grid-template-columns:repeat(2,1fr)}}
 @container (max-width:760px){.charts{grid-template-columns:1fr}}
 /* Number first, shape second: the chart is context for the figure, not the
    subject, so it takes the right edge and none of the vertical budget. */

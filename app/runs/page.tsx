@@ -34,7 +34,8 @@ const periodLabel = (v: string) => PERIODS.find(([k]) => k === v)?.[1] ?? v;
 import type { RunSession, Project } from "@/lib/types";
 import type { ReactNode } from "react";
 import type { ListRunsResult } from "@/lib/data";
-import { money, kt, ago } from "@/lib/format";
+import { money, kt, ago, dur } from "@/lib/format";
+import { runHealth } from "@/lib/runs-health";
 import { getJson as fetcher } from "@/lib/fetch";
 
 // The live credential toast, so every SWR poll updates it in place instead of
@@ -161,11 +162,19 @@ function EnvPicker({
 
 // ---- charts ---------------------------------------------------------------
 
-type Bucket = { runs: number; input: number; output: number; cached: number; cost: number };
+type Bucket = {
+  runs: number;
+  failed: number;
+  input: number;
+  output: number;
+  cached: number;
+  cost: number;
+};
 
 function buckets(sessions: RunSession[], n = 48): Bucket[] {
   const out = Array.from({ length: n }, () => ({
     runs: 0,
+    failed: 0,
     input: 0,
     output: 0,
     cached: 0,
@@ -180,6 +189,7 @@ function buckets(sessions: RunSession[], n = 48): Bucket[] {
     const i = Math.min(n - 1, Math.floor(((new Date(s.createdAt).getTime() - min) / span) * n));
     const b = out[i]!;
     b.runs += 1;
+    if (s.status === "failed") b.failed += 1;
     b.input += s.inputTokens;
     b.output += s.outputTokens;
     b.cached += s.cacheReadTokens;
@@ -452,6 +462,9 @@ function Dashboard() {
     return [...by].map(([env, v]) => ({ label: env, value: money(v), color: "var(--ok)" }));
   }, [sessions]);
 
+  // Reliability: failures and latency over the same window the other cards read.
+  const health = useMemo(() => runHealth(sessions), [sessions]);
+
   const projectName = data?.project?.name ?? project;
   // Each session knows which environment it came from — links must use THAT,
   // not the (possibly multi) filter value.
@@ -535,6 +548,7 @@ function Dashboard() {
             <div className="sk statcard" />
             <div className="sk statcard" />
             <div className="sk statcard" />
+            <div className="sk statcard" />
           </div>
         ) : (
           <div className="charts">
@@ -564,6 +578,28 @@ function Dashboard() {
               </StatCard>
               <StatCard title="Cost" value={money(totals.cost)} breakdown={costByEnv}>
                 <Sparkline data={b} pick={(d) => d.cost} color="var(--ok)" fill />
+              </StatCard>
+              <StatCard
+                title="Reliability"
+                value={
+                  health.failed ? `${health.failed} failed` : sessions.length ? "All passed" : "—"
+                }
+                sub={`${health.rate}% failed · median ${dur(health.medianMs)}`}
+                breakdown={[
+                  {
+                    label: "Completed",
+                    value: String(health.completed),
+                    color: "var(--ok)",
+                  },
+                  { label: "Failed", value: String(health.failed), color: "var(--bad)" },
+                  {
+                    label: "Cancelled",
+                    value: String(health.cancelled),
+                    color: "var(--dim2)",
+                  },
+                ]}
+              >
+                <Sparkline data={b} pick={(d) => d.failed} color="var(--red)" fill />
               </StatCard>
             </TooltipProvider>
           </div>
