@@ -17,6 +17,7 @@
     "pack": "node scripts/build-package.mts",
     "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null || true",
     "typecheck": "tsc --noEmit",
+    "test": "node --test '**/*.test.ts'",
     "lint": "oxlint --deny-warnings",
     "lint:fix": "oxlint --fix",
     "fmt": "oxfmt",
