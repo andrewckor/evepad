@@ -14,6 +14,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Copy, Pencil, Trash, FolderPlus, Question } from "vercel-geist-icons";
 import OcChat from "@/app/components/oc-chat";
+import InstructionsPane from "@/app/components/instructions-pane";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
 const AgentGraph = dynamic(() => import("../components/agent-graph"), {
@@ -598,6 +599,8 @@ function Build() {
     return <NoCheckout project={project} onLinked={refetchInfo} />;
   }
 
+  const [pane, setPane] = useState<"graph" | "instructions">("graph");
+
   return (
     <div className="buildpage">
       <div className="buildcol chatmode">
@@ -612,14 +615,36 @@ function Build() {
       </div>
 
       <div className="buildflow">
-        {infoLoading && <ManifestLoader />}
-        {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
-        {info?.eveVersion && (
-          <span className="eve-ver mono" title="Installed eve framework version">
-            eve v{info.eveVersion}
-          </span>
+        <div className="navtabs buildtabs">
+          <button
+            className="tab"
+            data-on={pane === "graph" ? "1" : "0"}
+            onClick={() => setPane("graph")}
+          >
+            Graph
+          </button>
+          <button
+            className="tab"
+            data-on={pane === "instructions" ? "1" : "0"}
+            onClick={() => setPane("instructions")}
+          >
+            Instructions
+          </button>
+        </div>
+        {pane === "instructions" ? (
+          <InstructionsPane project={project} />
+        ) : (
+          <>
+            {infoLoading && <ManifestLoader />}
+            {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
+            {info?.eveVersion && (
+              <span className="eve-ver mono" title="Installed eve framework version">
+                eve v{info.eveVersion}
+              </span>
+            )}
+            {info && <AgentGraph nodes={nodes} edges={edges} />}
+          </>
         )}
-        {info && <AgentGraph nodes={nodes} edges={edges} />}
       </div>
     </div>
   );
