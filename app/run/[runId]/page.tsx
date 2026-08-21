@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect, use, Suspense } from "react";
+import { useState, useRef, useEffect, useMemo, use, Suspense } from "react";
 import type React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 
-import { fetchJson as fetcher } from "@/lib/fetch";
+import { fetchJson, fetchJson as fetcher } from "@/lib/fetch";
+import { toast } from "@/components/ui/toast";
+import { firstPromptOf } from "@/lib/run-prompt";
 import { money, kt, dur, ago as agoShared } from "@/lib/format";
 
 // Only used to round-trip the filter back to the dashboard; keep in sync with page.jsx.
@@ -266,6 +268,42 @@ function Detail({ runId }: { runId: string }) {
       );
   };
 
+  // A failed run can't be retried in place — the workflow is over — so a
+  // re-run is a new session seeded with this one's first message.
+  const firstPrompt = useMemo(() => firstPromptOf(run?.turns ?? []), [run]);
+  const [rerunning, setRerunning] = useState(false);
+  const rerunFailed = async () => {
+    if (!firstPrompt) return;
+    setRerunning(true);
+    try {
+      const r = await fetchJson<{ sessionId: string | null }>("/api/chat/act", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ project, action: "rerun", message: firstPrompt }),
+      });
+      toast.add({
+        title: "Re-running from this prompt",
+        description: r.sessionId ? "A new session started." : undefined,
+        actionProps: r.sessionId
+          ? {
+              children: "View run",
+              onClick: () =>
+                router.push(
+                  `/run/${r.sessionId}?environment=local&project=${encodeURIComponent(project)}`,
+                ),
+            }
+          : undefined,
+      });
+    } catch (e) {
+      toast.add({
+        title: "Could not re-run",
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setRerunning(false);
+    }
+  };
+
   // Subscribe to the run's user stream (production/preview): each new chunk
   // nudges one fresh snapshot refetch, debounced so bursts coalesce.
   const open =
@@ -453,6 +491,16 @@ function Detail({ runId }: { runId: string }) {
               </button>
             </div>
             <div className="spacer" />
+            {isLocal && run.session.status === "failed" && firstPrompt && (
+              <button
+                className="runctl"
+                title="Start a new session with this run's prompt"
+                disabled={rerunning}
+                onClick={rerunFailed}
+              >
+                {rerunning ? "Starting…" : "Re-run"}
+              </button>
+            )}
             {isLocal && open && (
               <button
                 className="runctl"
