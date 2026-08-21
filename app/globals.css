@@ -662,6 +662,9 @@ pre.json{background:var(--panel);border:1px solid var(--line);border-radius:var(
    class. var(--dim) measures 5.50:1 light / 7.66:1 dark on the panel. */
 pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12px;color:var(--dim);line-height:1.5}
 .empty{color:var(--dim);padding:70px 20px;text-align:center;font-size:14px}
+/* Inline text link inside an empty state — a button that reads as a link. */
+.linklike{border:none;background:none;padding:0;color:var(--blue);font:inherit;cursor:pointer}
+.linklike:hover{text-decoration:underline}
 .home-loading{display:flex;justify-content:center;padding:80px 20px}
 .err{border:1px solid var(--bad);border-radius:var(--r);padding:12px 15px;color:var(--bad);margin-bottom:16px;font-size:13.5px}
 .note{border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;color:var(--dim);margin-bottom:16px;font-size:13.5px}
@@ -770,6 +773,18 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
    terminal/chat sheet, not the viewport — a 1600px window can still leave it
    25px wide, which is what turned these overlays into clipped slivers. */
 .buildflow{position:relative;background:var(--bg);container-type:inline-size}
+/* Graph | Instructions — the same pill the topbar uses for Runs | Build. */
+.buildtabs{position:absolute;top:12px;left:12px;z-index:5;background:var(--bg)}
+/* instructions.md pane — fills the column under the floating tab pill */
+.inst{position:absolute;inset:0;display:flex;flex-direction:column;padding-top:50px}
+.inst-head{display:flex;align-items:center;gap:8px;padding:0 16px 10px;border-bottom:1px solid var(--line);margin:0 0 12px}
+.inst-md{padding:0 20px 20px;font-size:13.5px;line-height:1.55;overflow:auto}
+.inst-ta{
+  flex:1;margin:0 16px 16px;padding:14px;resize:none;
+  background:var(--inset);border:1px solid var(--line2);border-radius:var(--r-sm);
+  color:var(--fg);font-family:var(--mono);font-size:12.5px;line-height:1.6;
+}
+.inst-ta:focus{outline:none;border-color:var(--dim2)}
 .eve-ver{
   position:absolute;top:12px;right:14px;z-index:5;
   font-size:11.5px;color:var(--dim2);border:1px solid var(--line);
