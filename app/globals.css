@@ -1849,6 +1849,15 @@ button:disabled { cursor: default; }
 }
 .react-flow__node.gpill:hover{border-color:var(--line3)}
 .react-flow__node.gpill.empty{color:var(--dim)}
+/* Empty pills are add-affordances: button styled as the pill's own label,
+   with a plus that only speaks on hover so an idle graph stays quiet. */
+.pill-add{border:none;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.pill-add svg{width:13px;height:13px;color:var(--dim2);transition:color .12s}
+.pill-add:hover{color:var(--fg)}
+.pill-add:hover svg{color:var(--fg)}
+.pill-plus{border:none;background:none;padding:2px;margin:-2px -6px -2px 6px;color:var(--dim2);cursor:pointer;border-radius:999px;display:inline-flex}
+.pill-plus:hover{color:var(--fg);background:var(--hover)}
+.pill-plus svg{width:12px;height:12px}
 .react-flow__node.gagent{
   width:auto;height:auto;box-shadow:none;border:none;
   background:var(--agent-pill);border-radius:999px;padding:10px 22px;cursor:default;
