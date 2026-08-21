@@ -12,7 +12,7 @@ import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Copy, Pencil, Trash, FolderPlus, Question } from "vercel-geist-icons";
+import { Copy, Pencil, Trash, FolderPlus, Question, Plus } from "vercel-geist-icons";
 import OcChat from "@/app/components/oc-chat";
 import InstructionsPane from "@/app/components/instructions-pane";
 import EvalsPane from "@/app/components/evals-pane";
@@ -116,8 +116,11 @@ type GraphActions = {
   explainSchedule: (n: string) => void;
   editSchedule: (n: string) => void;
   removeSchedule: (n: string) => void;
+  addSchedule: () => void;
   explainConnection: (n: string) => void;
   editConnection: (n: string) => void;
+  addConnection: () => void;
+  addChannel: () => void;
   explainChannel: (ch: { name: string; kind: string; routes: number }) => void;
 };
 
@@ -320,17 +323,46 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
   const cats = [
     ...(schedules.length
       ? []
-      : [{ id: "cat:schedules", label: "0 Schedules", x: -290, w: 132, empty: true }]),
+      : [
+          {
+            id: "cat:schedules",
+            label: "0 Schedules",
+            x: -290,
+            w: 132,
+            empty: true,
+            add: "schedule" as const,
+          },
+        ]),
     ...(connections.length
       ? []
-      : [{ id: "cat:connections", label: "0 Connections", x: 290, w: 150, empty: true }]),
+      : [
+          {
+            id: "cat:connections",
+            label: "0 Connections",
+            x: 290,
+            w: 150,
+            empty: true,
+            add: "connection" as const,
+          },
+        ]),
   ];
   for (const c of cats) {
     nodes.push({
       id: c.id,
       position: { x: c.x - c.w / 2, y: srcBottom - 38 },
       style: { width: c.w },
-      data: { label: <div className="pill-label">{c.label}</div> },
+      data: {
+        label: (
+          // An empty pill is the affordance: clicking it asks Build to scaffold
+          // the first one — the same path every other graph action takes.
+          <button
+            className="pill-label pill-add"
+            onClick={() => (c.add === "schedule" ? actions.addSchedule() : actions.addConnection())}
+          >
+            <Plus /> {c.label}
+          </button>
+        ),
+      },
       className: "gpill" + (c.empty ? " empty" : ""),
       sourcePosition: "bottom" as import("@xyflow/react").Position,
       targetPosition: "top" as import("@xyflow/react").Position,
@@ -372,6 +404,10 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
       label: (
         <div className="pill-label">
           {channels.length} Channel{channels.length === 1 ? "" : "s"}
+          {/* Channels always accept another; the + asks Build to scaffold it. */}
+          <button className="pill-plus" title="Add a channel" onClick={() => actions.addChannel()}>
+            <Plus />
+          </button>
         </div>
       ),
     },
@@ -500,11 +536,14 @@ const GRAPH_ACTIONS: GraphActions = {
   editSchedule: (n) => oc(`Edit agent/schedules/${n}.ts: `, false),
   removeSchedule: (n) =>
     oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`),
+  addSchedule: () => oc("Add a new schedule under agent/schedules/ — ", false),
   explainConnection: (n) =>
     oc(
       `What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${connectionPathOf(n)}. Answer briefly.`,
     ),
   editConnection: (n) => oc(`Edit ${connectionPathOf(n)}: `, false),
+  addConnection: () => oc("Add a new connection under agent/connections/ — ", false),
+  addChannel: () => oc("Add a new channel under agent/channels/ — ", false),
   explainChannel: (ch) =>
     oc(
       `What is the ${ch.name} channel? It's ${ch.kind} with ${ch.routes} route${ch.routes === 1 ? "" : "s"} — ` +
