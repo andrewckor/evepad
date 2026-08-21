@@ -16,10 +16,11 @@ import { freshOidc, opencodeServerUrl } from "./opencode";
 import { isAgentName } from "./agent-name";
 import { workspaceError } from "./settings";
 import { vercelCommand } from "./vercel-cli";
+import { deployArgs } from "./deploy-command";
 import type { Project } from "./types";
 
-export type TermVariant = "eve" | "opencode" | "login" | "create";
-type TermMode = "attach" | "full" | "opencode" | "login" | "create";
+export type TermVariant = "eve" | "opencode" | "login" | "create" | "deploy" | "deploy-preview";
+type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "deploy";
 
 // A subscriber is the write side of one SSE connection.
 type TermSubscriber = { enqueue: (buf: Buffer) => void; close: () => void };
@@ -75,7 +76,9 @@ const termKey = (name: string, variant?: TermVariant) =>
       ? "__create"
       : variant === "opencode"
         ? `${name}:opencode`
-        : name;
+        : variant === "deploy" || variant === "deploy-preview"
+          ? `${name}:deploy`
+          : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
   return terms.get(termKey(name, variant)) ?? null;
@@ -288,7 +291,7 @@ export async function startTerm(
     args: string[],
     port: number | null = null,
     mode: TermMode;
-  const env = { ...process.env, TERM: "xterm-256color" } as Record<string, string>;
+  let env = { ...process.env, TERM: "xterm-256color" } as Record<string, string>;
   if (variant === "opencode") {
     // The real OpenCode TUI on the checkout, defaulted to the AI Gateway so
     // it codes on the project's own creds (GLM free) out of the box.
@@ -317,6 +320,14 @@ export async function startTerm(
       },
     });
     env.PATH = `${join(process.cwd(), "node_modules", ".bin")}:${env.PATH ?? ""}`;
+  } else if (variant === "deploy" || variant === "deploy-preview") {
+    // Deploys run where the user can watch them — the same honesty as the
+    // create variant. --prod promotes; preview leaves the aliases alone.
+    const [vc, ...pre] = deployArgs(variant, vercelCommand());
+    cmd = vc!;
+    args = pre;
+    mode = "deploy";
+    env = userEnv();
   } else {
     cmd = "npm";
     port = project.live ? (project.localPort ?? null) : await freePort();
@@ -341,6 +352,7 @@ export async function startTerm(
     port,
     mode,
     serverUrl: variant === "opencode" ? (args[1] ?? null) : null,
+    filter: variant === "deploy" ? vercelNoise : undefined,
   });
 
   terms.set(key, term);

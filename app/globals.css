@@ -1905,3 +1905,15 @@ button:disabled { cursor: default; }
 .fd-line.add .fd-t{color:var(--ok)}
 .fd-line.del .fd-t{color:var(--bad)}
 .oc-patch{margin:8px 0}
+
+/* deploy window — settings-dialog chrome, streaming body */
+.deploy-ok,.deploy-fail{display:flex;align-items:center;gap:7px;margin:14px 0 0;font-size:13.5px}
+.deploy-ok{color:var(--ok)}
+.deploy-fail{color:var(--bad)}
+.deploy-ok svg{width:14px;height:14px;flex:none}
+.deploy-ok a{color:inherit}
+.deploy-out{
+  height:260px;overflow:auto;padding:10px 12px;
+  background:var(--panel);border:1px solid var(--line2);border-radius:6px;
+  color:var(--fg);font-size:11.5px;line-height:1.5;white-space:pre-wrap;
+}
