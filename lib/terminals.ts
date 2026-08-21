@@ -18,8 +18,8 @@ import { workspaceError } from "./settings";
 import { vercelCommand } from "./vercel-cli";
 import type { Project } from "./types";
 
-export type TermVariant = "eve" | "opencode" | "login" | "create";
-type TermMode = "attach" | "full" | "opencode" | "login" | "create";
+export type TermVariant = "eve" | "opencode" | "login" | "create" | "eval";
+type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "eval";
 
 // A subscriber is the write side of one SSE connection.
 type TermSubscriber = { enqueue: (buf: Buffer) => void; close: () => void };
@@ -75,7 +75,9 @@ const termKey = (name: string, variant?: TermVariant) =>
       ? "__create"
       : variant === "opencode"
         ? `${name}:opencode`
-        : name;
+        : variant === "eval"
+          ? `${name}:eval`
+          : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
   return terms.get(termKey(name, variant)) ?? null;
@@ -288,7 +290,7 @@ export async function startTerm(
     args: string[],
     port: number | null = null,
     mode: TermMode;
-  const env = { ...process.env, TERM: "xterm-256color" } as Record<string, string>;
+  let env = { ...process.env, TERM: "xterm-256color" } as Record<string, string>;
   if (variant === "opencode") {
     // The real OpenCode TUI on the checkout, defaulted to the AI Gateway so
     // it codes on the project's own creds (GLM free) out of the box.
@@ -317,6 +319,14 @@ export async function startTerm(
       },
     });
     env.PATH = `${join(process.cwd(), "node_modules", ".bin")}:${env.PATH ?? ""}`;
+  } else if (variant === "eval") {
+    // The framework's own eval runner on the checkout — evepad surfaces it,
+    // it doesn't reimplement it. Evals are non-interactive; a fixed 100-col
+    // pty keeps the console reporter's wrapping stable.
+    cmd = "npm";
+    args = ["exec", "--", "eve", "eval"];
+    mode = "eval";
+    env = userEnv();
   } else {
     cmd = "npm";
     port = project.live ? (project.localPort ?? null) : await freePort();
@@ -329,8 +339,8 @@ export async function startTerm(
 
   const pty = ptySpawn(cmd, args, {
     name: "xterm-256color",
-    cols: clampDim(size.cols, 20, 500, 120),
-    rows: clampDim(size.rows, 5, 200, 32),
+    cols: clampDim(size.cols, 20, 500, variant === "eval" ? 100 : 120),
+    rows: clampDim(size.rows, 5, 200, variant === "eval" ? 34 : 32),
     cwd: project.localPath,
     env,
   });
