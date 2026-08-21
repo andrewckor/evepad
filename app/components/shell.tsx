@@ -19,6 +19,7 @@ import ProjectPicker from "./project-picker";
 import { EnvBadge } from "./badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import AccountMenu from "./account-menu";
+import DeployMenu from "./deploy-menu";
 const ChatPanel = dynamic(() => import("@/app/chat-panel"), { ssr: false });
 
 import { I } from "./icons";
@@ -156,6 +157,7 @@ function TopNav({
         <TooltipProvider delay={300}>
           <AccountMenu />
           <ProjectPicker value={project} onChange={pickProject} />
+          {/* Project-level actions live here so they're reachable from any view. */}
           {/* Two views of one agent, so they read as a mode rather than as two
             buttons that swap places depending on where you already are. */}
           {!isHome && termProject && (
@@ -234,6 +236,7 @@ function TopNav({
               </button>
             </Tip>
           )}
+          {!isHome && termProject && <DeployMenu project={termProject.name} />}
           {!isHome && termProject && (
             <Tip label={panel === "terminal" ? "Close the eve CLI" : "Open the eve CLI"}>
               <button

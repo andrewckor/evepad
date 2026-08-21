@@ -12,6 +12,7 @@ import { Badge } from "./components/badge";
 import ProjectLogo from "./components/project-logo";
 import { Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import DeployMenu from "./components/deploy-menu";
 import Welcome from "./components/welcome";
 import LoadingState from "./components/loading-state";
 import NewAgentDialog from "./components/new-agent-dialog";
@@ -181,6 +182,7 @@ function Home() {
                 <ProjectLogo p={p} />
                 <b>{p.name}</b>
                 <div className="spacer" />
+                {p.localPath && !busy[p.name] && <DeployMenu project={p.name} />}
                 {busy[p.name] ? (
                   <Tip label={BUSY_LABEL[busy[p.name] ?? ""] ?? "Working…"}>
                     <span className="devbtn busy">
