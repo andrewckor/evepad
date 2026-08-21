@@ -7,12 +7,13 @@
 // Edits land on disk, so generated tools appear as graph rows moments later;
 // the graph's buttons inject prompts straight into the TUI.
 
-import { useMemo, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useMemo, useState, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
-import { Copy, Pencil, Trash, FolderPlus, Question } from "vercel-geist-icons";
+import { Copy, Pencil, Trash, FolderPlus, Question, Play } from "vercel-geist-icons";
+import { toast } from "@/components/ui/toast";
 import OcChat from "@/app/components/oc-chat";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
@@ -21,7 +22,7 @@ const AgentGraph = dynamic(() => import("../components/agent-graph"), {
   loading: () => <ManifestLoader label="Loading graph…" sub="Preparing the canvas" />,
 });
 
-import { fetchJson as fetcher } from "@/lib/fetch";
+import { fetchJson, getJson as fetcher } from "@/lib/fetch";
 
 const SlackIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18">
@@ -114,6 +115,7 @@ type GraphActions = {
   explainSchedule: (n: string) => void;
   editSchedule: (n: string) => void;
   removeSchedule: (n: string) => void;
+  runSchedule: (n: string) => void;
   explainConnection: (n: string) => void;
   editConnection: (n: string) => void;
   explainChannel: (ch: { name: string; kind: string; routes: number }) => void;
@@ -231,6 +233,14 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
                   <i className="sched-when">{humanCron(sc.cron) ?? "—"}</i>
                 </button>
                 <span className="box-actions">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    title={`Run ${sc.name} now`}
+                    onClick={() => actions.runSchedule(sc.name)}
+                  >
+                    <Play />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -480,7 +490,9 @@ function ManifestLoader({
 const oc = (text: string, submit = true) =>
   window.dispatchEvent(new CustomEvent("oc:send", { detail: { text, submit } }));
 
-const GRAPH_ACTIONS: GraphActions = {
+// Text-only graph actions live at module scope so their identities never
+// change; the project-aware ones (runSchedule) merge in inside Build.
+const GRAPH_ACTIONS: Omit<GraphActions, "runSchedule"> = {
   explain: (t) =>
     oc(`What does agent/tools/${t}.ts do? Show the important part of the code briefly.`),
   edit: (t) => oc(`Edit agent/tools/${t}.ts: `, false),
@@ -562,6 +574,7 @@ function NoCheckout({
 
 function Build() {
   const q = useSearchParams();
+  const router = useRouter();
   const project = q.get("project") ?? "";
 
   const {
@@ -586,7 +599,51 @@ function Build() {
   const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
 
-  const { nodes, edges } = useMemo(() => toGraph(info, GRAPH_ACTIONS), [info]);
+  // Run-now dispatches through the local server's own schedule route, so what
+  // executes is byte-for-byte what the cron would run. The toast links to the
+  // session it started; older executions live in Runs under the Schedule
+  // trigger facet.
+  const runSchedule = useCallback(
+    async (name: string) => {
+      try {
+        const r = await fetchJson<{ sessionIds: string[] }>("/api/schedule/run", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ project, schedule: name }),
+        });
+        const id = r.sessionIds[0];
+        toast.add({
+          title: `Dispatched ${name}`,
+          description:
+            r.sessionIds.length > 1
+              ? `${r.sessionIds.length} sessions started.`
+              : "Running on the local server now.",
+          actionProps: id
+            ? {
+                children: "View run",
+                onClick: () =>
+                  router.push(
+                    `/run/${id}?environment=local&project=${encodeURIComponent(project)}`,
+                  ),
+              }
+            : undefined,
+        });
+      } catch (e) {
+        toast.add({
+          title: `Could not run ${name}`,
+          description: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
+    [project, router],
+  );
+
+  const actions = useMemo<GraphActions>(
+    () => ({ ...GRAPH_ACTIONS, runSchedule: (n) => void runSchedule(n) }),
+    [runSchedule],
+  );
+
+  const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);
 
   if (!project)
     return <div className="empty">Pick an agent first — Build works on its folder here.</div>;
