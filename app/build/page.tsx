@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Copy, Pencil, Trash, FolderPlus, Question, Play } from "vercel-geist-icons";
 import { toast } from "@/components/ui/toast";
 import OcChat from "@/app/components/oc-chat";
+import InstructionsPane from "@/app/components/instructions-pane";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
 const AgentGraph = dynamic(() => import("../components/agent-graph"), {
@@ -623,6 +624,7 @@ function Build() {
   const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
   const [runningSchedule, setRunningSchedule] = useState<string | null>(null);
+  const [pane, setPane] = useState<"graph" | "instructions">("graph");
 
   // Run-now dispatches through the local server's own schedule route, so what
   // executes is byte-for-byte what the cron would run. The toast links to the
@@ -734,17 +736,39 @@ function Build() {
       </div>
 
       <div className="buildflow">
-        {infoLoading && <ManifestLoader />}
-        {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
-        {info?.eveVersion && (
-          <span className="eve-ver mono" title="Installed eve framework version">
-            eve v{info.eveVersion}
-          </span>
-        )}
-        {info && (
-          <TooltipProvider delay={150}>
-            <AgentGraph nodes={nodes} edges={edges} />
-          </TooltipProvider>
+        <div className="navtabs buildtabs">
+          <button
+            className="tab"
+            data-on={pane === "graph" ? "1" : "0"}
+            onClick={() => setPane("graph")}
+          >
+            Graph
+          </button>
+          <button
+            className="tab"
+            data-on={pane === "instructions" ? "1" : "0"}
+            onClick={() => setPane("instructions")}
+          >
+            Instructions
+          </button>
+        </div>
+        {pane === "instructions" ? (
+          <InstructionsPane project={project} />
+        ) : (
+          <>
+            {infoLoading && <ManifestLoader />}
+            {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
+            {info?.eveVersion && (
+              <span className="eve-ver mono" title="Installed eve framework version">
+                eve v{info.eveVersion}
+              </span>
+            )}
+            {info && (
+              <TooltipProvider delay={150}>
+                <AgentGraph nodes={nodes} edges={edges} />
+              </TooltipProvider>
+            )}
+          </>
         )}
       </div>
     </div>
