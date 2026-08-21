@@ -19,6 +19,7 @@ import ProjectPicker from "./project-picker";
 import { EnvBadge } from "./badge";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import AccountMenu from "./account-menu";
+import GitChip from "./git-chip";
 const ChatPanel = dynamic(() => import("@/app/chat-panel"), { ssr: false });
 
 import { I } from "./icons";
@@ -156,6 +157,8 @@ function TopNav({
         <TooltipProvider delay={300}>
           <AccountMenu />
           <ProjectPicker value={project} onChange={pickProject} />
+          {/* The checkout's git state rides with the project it belongs to. */}
+          {!isHome && termProject && <GitChip project={termProject.name} />}
           {/* Two views of one agent, so they read as a mode rather than as two
             buttons that swap places depending on where you already are. */}
           {!isHome && termProject && (
