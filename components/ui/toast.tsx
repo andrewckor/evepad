@@ -8,9 +8,10 @@ import { Button } from "@/components/ui/button";
 // Deliberate edit that must survive a `shadcn add` re-run: lucide icons are
 // swapped for Geist ones — the app's hard rule is vercel-geist-icons only.
 import { CrossSmall, CheckCircleFill, InformationFill, WarningFill } from "vercel-geist-icons";
-import { Spinner } from "@/components/ui/spinner";
 
-const toast = ToastPrimitive.createToastManager();
+type ToastData = { href?: string; preview?: boolean; runId?: string };
+
+const toast = ToastPrimitive.createToastManager<ToastData>();
 
 function ToastProvider({ ...props }: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />;
@@ -150,7 +151,26 @@ function ToastIcon({ type }: { type: string | undefined }) {
   }
 
   if (type === "loading") {
-    icon = <Spinner aria-hidden="true" />;
+    icon = (
+      <svg viewBox="0 0 16 16" role="status" aria-label="Loading" className="size-4 animate-spin">
+        <circle
+          cx="8"
+          cy="8"
+          r="6"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity="0.25"
+          strokeWidth="2"
+        />
+        <path
+          d="M8 2a6 6 0 0 1 6 6"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeWidth="2"
+        />
+      </svg>
+    );
   }
 
   if (!icon) {
@@ -160,7 +180,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
   return (
     <span
       data-slot="toast-icon"
-      className="shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4"
+      className="mt-0.5 shrink-0 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4"
     >
       {icon}
     </span>
@@ -170,19 +190,52 @@ function ToastIcon({ type }: { type: string | undefined }) {
 function ToastList() {
   const { toasts } = ToastPrimitive.useToastManager();
 
-  return toasts.map((toastItem) => (
-    <Toast key={toastItem.id} toast={toastItem}>
-      <ToastContent>
-        <ToastIcon type={toastItem.type} />
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <ToastTitle />
-          <ToastDescription />
-        </div>
-        <ToastAction />
-        <ToastClose />
-      </ToastContent>
-    </Toast>
-  ));
+  return toasts.map((toastItem) => {
+    const href = toastItem.data?.href;
+    const open = () => {
+      if (href) window.location.assign(href);
+    };
+    return (
+      <Toast
+        key={toastItem.id}
+        toast={toastItem}
+        data-preview={toastItem.data?.preview ? "" : undefined}
+        className={cn(href && "cursor-pointer", toastItem.data?.preview && "overflow-hidden")}
+        onClick={(event) => {
+          if (href && !(event.target as HTMLElement).closest("button")) open();
+        }}
+      >
+        {toastItem.data?.preview ? (
+          <ToastContent className="relative block min-h-32 overflow-hidden p-4">
+            <div className="flex items-start gap-3">
+              <ToastIcon type={toastItem.type} />
+              <div className="min-w-0 flex-1">
+                <ToastTitle />
+                {toastItem.data?.runId && (
+                  <div className="-mt-px font-mono text-[11px] text-[var(--blue)]">
+                    {toastItem.data.runId.replace(/^wrun_/, "")}
+                  </div>
+                )}
+              </div>
+              <ToastAction className="self-start" />
+              <ToastClose className="self-start" />
+            </div>
+            <ToastDescription className="absolute right-4 bottom-0 left-4 h-16 overflow-hidden rounded-t-md bg-muted px-3 py-2 text-sm leading-5 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-9 after:bg-linear-to-t after:from-muted after:to-transparent after:content-['']" />
+          </ToastContent>
+        ) : (
+          <ToastContent>
+            <ToastIcon type={toastItem.type} />
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <ToastTitle />
+              <ToastDescription />
+            </div>
+            <ToastAction />
+            <ToastClose />
+          </ToastContent>
+        )}
+      </Toast>
+    );
+  });
 }
 
 function Toaster({ children, toastManager = toast, ...props }: ToastPrimitive.Provider.Props) {

@@ -681,6 +681,18 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 [data-slot="toast-content"]{gap:20px}
 [data-slot="toast-title"]{color:var(--fg)}
 [data-slot="toast-description"]{color:var(--dim)}
+[data-slot="toast"][data-preview] [data-slot="toast-description"]{transition:height .25s ease-out}
+[data-slot="toast"][data-preview] [data-slot="toast-description"]::after{transition:height .25s ease-out}
+[data-slot="toast"][data-preview]{
+  height:136px !important;
+  transition-property:transform,opacity,height;
+  transition-duration:.5s,.5s,.25s;
+  transition-timing-function:cubic-bezier(.22,1,.36,1),cubic-bezier(.22,1,.36,1),ease-out;
+  transition-delay:0s;
+}
+[data-slot="toast"][data-preview]:hover{height:150px !important}
+[data-slot="toast"][data-preview]:hover [data-slot="toast-description"]{height:80px}
+[data-slot="toast"][data-preview]:hover [data-slot="toast-description"]::after{height:48px}
 [data-slot="toast-action"]{
   background:var(--btn);color:var(--btn-fg);border-color:transparent;
 }

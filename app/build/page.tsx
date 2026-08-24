@@ -8,10 +8,12 @@
 // the graph's buttons inject prompts straight into the TUI.
 
 import { useMemo, useState, useCallback, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import type React from "react";
+import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Pencil, Trash, FolderPlus, Question, Play } from "vercel-geist-icons";
 import { toast } from "@/components/ui/toast";
 import OcChat from "@/app/components/oc-chat";
@@ -116,10 +118,20 @@ type GraphActions = {
   editSchedule: (n: string) => void;
   removeSchedule: (n: string) => void;
   runSchedule: (n: string) => void;
+  runningSchedule: string | null;
   explainConnection: (n: string) => void;
   editConnection: (n: string) => void;
   explainChannel: (ch: { name: string; kind: string; routes: number }) => void;
 };
+
+function Tip({ label, children }: { label: string; children: React.ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
   if (!info) return { nodes: [], edges: [] };
@@ -233,39 +245,52 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
                   <i className="sched-when">{humanCron(sc.cron) ?? "—"}</i>
                 </button>
                 <span className="box-actions">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title={`Run ${sc.name} now`}
-                    onClick={() => actions.runSchedule(sc.name)}
-                  >
-                    <Play />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title="Copy name"
-                    onClick={() => navigator.clipboard?.writeText(sc.name)}
-                  >
-                    <Copy />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    title={`Edit agent/schedules/${sc.name}.ts`}
-                    onClick={() => actions.editSchedule(sc.name)}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="del"
-                    title={`Delete ${sc.name}`}
-                    onClick={() => actions.removeSchedule(sc.name)}
-                  >
-                    <Trash />
-                  </Button>
+                  <Tip label={actions.runningSchedule === sc.name ? "Starting" : "Run now"}>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={actions.runningSchedule === sc.name ? "Starting" : "Run now"}
+                      disabled={actions.runningSchedule === sc.name}
+                      onClick={() => actions.runSchedule(sc.name)}
+                    >
+                      {actions.runningSchedule === sc.name ? (
+                        <span className="th-spin" />
+                      ) : (
+                        <Play />
+                      )}
+                    </Button>
+                  </Tip>
+                  <Tip label="Copy name">
+                    <Button
+                      aria-label="Copy name"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => navigator.clipboard?.writeText(sc.name)}
+                    >
+                      <Copy />
+                    </Button>
+                  </Tip>
+                  <Tip label="Edit">
+                    <Button
+                      aria-label="Edit"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => actions.editSchedule(sc.name)}
+                    >
+                      <Pencil />
+                    </Button>
+                  </Tip>
+                  <Tip label="Delete">
+                    <Button
+                      aria-label="Delete"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="del"
+                      onClick={() => actions.removeSchedule(sc.name)}
+                    >
+                      <Trash />
+                    </Button>
+                  </Tip>
                 </span>
               </div>
             ))}
@@ -492,7 +517,7 @@ const oc = (text: string, submit = true) =>
 
 // Text-only graph actions live at module scope so their identities never
 // change; the project-aware ones (runSchedule) merge in inside Build.
-const GRAPH_ACTIONS: Omit<GraphActions, "runSchedule"> = {
+const GRAPH_ACTIONS: Omit<GraphActions, "runSchedule" | "runningSchedule"> = {
   explain: (t) =>
     oc(`What does agent/tools/${t}.ts do? Show the important part of the code briefly.`),
   edit: (t) => oc(`Edit agent/tools/${t}.ts: `, false),
@@ -574,7 +599,6 @@ function NoCheckout({
 
 function Build() {
   const q = useSearchParams();
-  const router = useRouter();
   const project = q.get("project") ?? "";
 
   const {
@@ -598,6 +622,7 @@ function Build() {
   // Only a cold 202, which has no name yet, means there is nothing to draw.
   const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
+  const [runningSchedule, setRunningSchedule] = useState<string | null>(null);
 
   // Run-now dispatches through the local server's own schedule route, so what
   // executes is byte-for-byte what the cron would run. The toast links to the
@@ -605,6 +630,7 @@ function Build() {
   // trigger facet.
   const runSchedule = useCallback(
     async (name: string) => {
+      setRunningSchedule(name);
       try {
         const r = await fetchJson<{ sessionIds: string[] }>("/api/schedule/run", {
           method: "POST",
@@ -612,35 +638,72 @@ function Build() {
           body: JSON.stringify({ project, schedule: name }),
         });
         const id = r.sessionIds[0];
-        toast.add({
-          title: `Dispatched ${name}`,
-          description:
-            r.sessionIds.length > 1
+        const href = id
+          ? `/run/${id}?environment=local&project=${encodeURIComponent(project)}`
+          : undefined;
+        const toastId = toast.add({
+          title: (
+            <>
+              Dispatched <strong>{name}</strong>
+            </>
+          ),
+          type: id ? "loading" : undefined,
+          description: id
+            ? "Starting run…"
+            : r.sessionIds.length > 1
               ? `${r.sessionIds.length} sessions started.`
               : "Running on the local server now.",
-          actionProps: id
+          timeout: 10_000,
+          data: { href, preview: Boolean(id), runId: id ?? undefined },
+          actionProps: href
             ? {
                 children: "View run",
-                onClick: () =>
-                  router.push(
-                    `/run/${id}?environment=local&project=${encodeURIComponent(project)}`,
-                  ),
+                className: "self-start",
+                onClick: () => window.location.assign(href),
               }
             : undefined,
         });
+        if (id) {
+          void (async () => {
+            for (let attempt = 0; attempt < 5; attempt++) {
+              try {
+                const run = await fetchJson<{
+                  turns?: Array<{ messages?: Array<{ type?: string; text?: string }> }>;
+                }>(`/api/run/${id}?environment=local&project=${encodeURIComponent(project)}`);
+                const preview = run.turns
+                  ?.flatMap((turn) => turn.messages ?? [])
+                  .find(
+                    (message) => message.type === "message.received" && message.text?.trim(),
+                  )?.text;
+                if (preview) {
+                  toast.update(toastId, {
+                    type: "success",
+                    description: preview.replace(/\s+/g, " ").slice(0, 120),
+                  });
+                  return;
+                }
+              } catch {
+                // A just-created local session may not have reached the run store yet.
+              }
+              await new Promise((resolve) => setTimeout(resolve, 400));
+            }
+          })();
+        }
       } catch (e) {
         toast.add({
           title: `Could not run ${name}`,
           description: e instanceof Error ? e.message : String(e),
         });
+      } finally {
+        setRunningSchedule(null);
       }
     },
-    [project, router],
+    [project],
   );
 
   const actions = useMemo<GraphActions>(
-    () => ({ ...GRAPH_ACTIONS, runSchedule: (n) => void runSchedule(n) }),
-    [runSchedule],
+    () => ({ ...GRAPH_ACTIONS, runningSchedule, runSchedule: (n) => void runSchedule(n) }),
+    [runSchedule, runningSchedule],
   );
 
   const { nodes, edges } = useMemo(() => toGraph(info, actions), [info, actions]);
@@ -676,7 +739,11 @@ function Build() {
             eve v{info.eveVersion}
           </span>
         )}
-        {info && <AgentGraph nodes={nodes} edges={edges} />}
+        {info && (
+          <TooltipProvider delay={150}>
+            <AgentGraph nodes={nodes} edges={edges} />
+          </TooltipProvider>
+        )}
       </div>
     </div>
   );
