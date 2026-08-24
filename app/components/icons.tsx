@@ -20,6 +20,7 @@ import {
   FolderClosed,
   LoaderCircle,
   GridSquare,
+  CloudUpload,
 } from "vercel-geist-icons";
 
 export const I = {
@@ -44,6 +45,7 @@ export const I = {
   stop: <StopCircle />,
   folder: <FolderClosed />,
   loader: <LoaderCircle />,
+  upload: <CloudUpload />,
 };
 
 export const triggerIcon = (t: string | null | undefined) =>

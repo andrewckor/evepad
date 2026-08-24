@@ -16,10 +16,11 @@ import { freshOidc, opencodeServerUrl } from "./opencode";
 import { isAgentName } from "./agent-name";
 import { workspaceError } from "./settings";
 import { vercelCommand } from "./vercel-cli";
+import { deployArgs, deployTermKey, isDeployVariant } from "./deploy-command";
 import type { Project } from "./types";
 
-export type TermVariant = "eve" | "opencode" | "login" | "create";
-type TermMode = "attach" | "full" | "opencode" | "login" | "create";
+export type TermVariant = "eve" | "opencode" | "login" | "create" | "deploy" | "deploy-preview";
+type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "deploy";
 
 // A subscriber is the write side of one SSE connection.
 type TermSubscriber = { enqueue: (buf: Buffer) => void; close: () => void };
@@ -75,7 +76,9 @@ const termKey = (name: string, variant?: TermVariant) =>
       ? "__create"
       : variant === "opencode"
         ? `${name}:opencode`
-        : name;
+        : isDeployVariant(variant)
+          ? deployTermKey(name, variant)
+          : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
   return terms.get(termKey(name, variant)) ?? null;
@@ -129,6 +132,11 @@ function makeTerm({
   pty.onExit(({ exitCode }) => {
     term.exited = true;
     const bye = Buffer.from(`\r\n\x1b[90m[process exited ${exitCode}]\x1b[0m\r\n`);
+    // Into the scrollback as well as the fan-out: a viewer that attaches after
+    // the exit (a deploy that failed in 200ms, a window reopened later) replays
+    // the transcript and must see how it ended, not a log that trails off.
+    term.scrollback.push(bye);
+    term.scrollbackBytes += bye.length;
     for (const sub of term.subscribers) {
       try {
         sub.enqueue(bye);
@@ -174,6 +182,10 @@ export async function startTerm(
 ): Promise<Term> {
   const key = termKey(project.name, variant);
   const existing = terms.get(key);
+  // A deploy is also its durable transcript. "Start" means ensure that target
+  // has a session, not redeploy every time a viewer mounts; an explicit
+  // restart action removes it first when the user chooses Redeploy.
+  if (existing && isDeployVariant(variant)) return existing;
   if (existing && !existing.exited) {
     // An opencode TUI is only alive if the server it attached to still is —
     // after a server reboot the old pty renders fine but every prompt fails
@@ -288,7 +300,7 @@ export async function startTerm(
     args: string[],
     port: number | null = null,
     mode: TermMode;
-  const env = { ...process.env, TERM: "xterm-256color" } as Record<string, string>;
+  let env = { ...process.env, TERM: "xterm-256color" } as Record<string, string>;
   if (variant === "opencode") {
     // The real OpenCode TUI on the checkout, defaulted to the AI Gateway so
     // it codes on the project's own creds (GLM free) out of the box.
@@ -317,6 +329,14 @@ export async function startTerm(
       },
     });
     env.PATH = `${join(process.cwd(), "node_modules", ".bin")}:${env.PATH ?? ""}`;
+  } else if (variant === "deploy" || variant === "deploy-preview") {
+    // Deploys run where the user can watch them — the same honesty as the
+    // create variant. --prod promotes; preview leaves the aliases alone.
+    const [vc, ...pre] = deployArgs(variant, vercelCommand());
+    cmd = vc!;
+    args = pre;
+    mode = "deploy";
+    env = userEnv();
   } else {
     cmd = "npm";
     port = project.live ? (project.localPort ?? null) : await freePort();
@@ -341,6 +361,7 @@ export async function startTerm(
     port,
     mode,
     serverUrl: variant === "opencode" ? (args[1] ?? null) : null,
+    filter: variant === "deploy" || variant === "deploy-preview" ? vercelNoise : undefined,
   });
 
   terms.set(key, term);
