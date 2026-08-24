@@ -43,8 +43,15 @@ export default function DeployModal({
   // with fresh state and the terminal replays the pty's scrollback.
   const [startError, setStartError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const verdict = readDeployOutput(lines);
+  const restart = () => {
+    setLines([]);
+    setStartError(null);
+    setStarted(false);
+    setAttempt((value) => value + 1);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,11 +66,13 @@ export default function DeployModal({
 
           {open && (
             <XtermView
+              key={attempt}
               project={project}
               variant={target}
               className="deploy-term"
               fontSize={11.5}
               autoFocus={false}
+              startAction={attempt ? "restart" : "start"}
               onStatus={(info) => {
                 setStartError(info.error ?? null);
                 setStarted(!info.error);
@@ -73,26 +82,39 @@ export default function DeployModal({
           )}
 
           <div className="set-footer deploy-footer">
-            {startError ? (
-              <span className="deploy-fail">{startError}</span>
-            ) : !started || verdict.state === "running" ? (
-              <LoadingState label="Deploying…" elapsed={false} />
-            ) : verdict.state === "success" ? (
-              <span className="deploy-ok">
-                <Check /> Deployed
-              </span>
-            ) : (
-              <span className="deploy-fail">Deployment failed — the log above says why.</span>
-            )}
-            {verdict.state === "success" && verdict.url && (
-              <Button
-                nativeButton={false}
-                render={<a href={verdict.url} target="_blank" rel="noreferrer" />}
-              >
-                Open deployment
-                <External />
-              </Button>
-            )}
+            <div className="deploy-status" role="status" aria-live="polite" aria-atomic="true">
+              {startError ? (
+                <span className="deploy-fail">{startError}</span>
+              ) : !started || verdict.state === "running" ? (
+                <LoadingState label="Deploying…" elapsed={false} />
+              ) : verdict.state === "success" ? (
+                <span className="deploy-ok">
+                  <Check aria-hidden="true" /> Deployed
+                </span>
+              ) : (
+                <span className="deploy-fail">Deployment failed — the log above says why.</span>
+              )}
+            </div>
+            <div className="deploy-actions">
+              {(startError || (started && verdict.state !== "running")) && (
+                <Button variant="outline" onClick={restart}>
+                  {startError
+                    ? "Retry"
+                    : target === "deploy"
+                      ? "Redeploy to Production"
+                      : "Redeploy Preview"}
+                </Button>
+              )}
+              {verdict.state === "success" && verdict.url && (
+                <Button
+                  nativeButton={false}
+                  render={<a href={verdict.url} target="_blank" rel="noreferrer" />}
+                >
+                  Open Deployment
+                  <External aria-hidden="true" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </DialogContent>

@@ -8,5 +8,8 @@ export function deployArgs(variant: DeployTarget, cli: readonly string[] = ["ver
   return [...cli, "deploy", ...(variant === "deploy" ? ["--prod"] : [])];
 }
 
+export const deployTermKey = (project: string, variant: DeployTarget): string =>
+  `${project}:${variant}`;
+
 export const isDeployVariant = (variant: string | null | undefined): variant is DeployTarget =>
   variant === "deploy" || variant === "deploy-preview";

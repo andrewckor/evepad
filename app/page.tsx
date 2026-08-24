@@ -171,18 +171,53 @@ function Home() {
         <div className="agentgrid">
           <NewAgentCard onOpen={() => setNewOpen(true)} />
           {projects.map((p) => (
-            <div
-              key={p.name}
-              className="agentcard"
-              onClick={() => open(p)}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="agentrow">
-                <ProjectLogo p={p} />
-                <b>{p.name}</b>
-                <div className="spacer" />
-                {p.localPath && !busy[p.name] && <DeployMenu project={p.name} />}
+            <article key={p.name} className="agentcard">
+              <button
+                type="button"
+                className="agentcard-main"
+                onClick={() => open(p)}
+                aria-label={`Open runs for ${p.name}`}
+              >
+                <div className="agentrow">
+                  <ProjectLogo p={p} />
+                  <b>{p.name}</b>
+                </div>
+                <div className="agentmeta">
+                  {p.live ? (
+                    <>
+                      <Badge variant="green-subtle" size="sm" dot title="Local server running">
+                        Running <span className="mono">:{p.localPort}</span>
+                      </Badge>
+                      {p.model && (
+                        <span className="cardfact mono dim2" title="Agent model">
+                          <Sparkles /> {p.model}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* One fact only: is this agent's code on this Mac. Whether
+                        it's deployed is already answered by the production URL
+                        row below, and "Linked" tried to say both at once — the
+                        same word Vercel uses for linking a project. */}
+                      <Badge
+                        variant="gray-subtle"
+                        size="sm"
+                        title={
+                          p.localPath
+                            ? `Folder on this Mac: ${p.localPath}`
+                            : "No folder on this Mac — open Build to choose one"
+                        }
+                      >
+                        {p.localPath ? "On this Mac" : "Remote only"}
+                      </Badge>
+                      {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
+                    </>
+                  )}
+                </div>
+              </button>
+              <div className="agent-actions">
+                {p.localPath && !busy[p.name] && <DeployMenu project={p.name} compact />}
                 {busy[p.name] ? (
                   <Tip label={BUSY_LABEL[busy[p.name] ?? ""] ?? "Working…"}>
                     <span className="devbtn busy">
@@ -191,55 +226,37 @@ function Home() {
                   </Tip>
                 ) : p.live ? (
                   <Tip label="Stop local server">
-                    <span className="devbtn stop" onClick={(e) => devAction(e, p, "stop")}>
+                    <button
+                      type="button"
+                      className="devbtn stop"
+                      aria-label="Stop local server"
+                      onClick={(e) => devAction(e, p, "stop")}
+                    >
                       {I.stop}
-                    </span>
+                    </button>
                   </Tip>
                 ) : p.localPath ? (
                   <Tip label="Start local server">
-                    <span className="devbtn play" onClick={(e) => devAction(e, p, "start")}>
+                    <button
+                      type="button"
+                      className="devbtn play"
+                      aria-label="Start local server"
+                      onClick={(e) => devAction(e, p, "start")}
+                    >
                       {I.play}
-                    </span>
+                    </button>
                   </Tip>
                 ) : (
                   <Tip label="Choose local folder">
-                    <span className="devbtn locate" onClick={(e) => devAction(e, p, "locate")}>
-                      {I.folder}
-                    </span>
-                  </Tip>
-                )}
-              </div>
-              <div className="agentmeta">
-                {p.live ? (
-                  <>
-                    <Badge variant="green-subtle" size="sm" dot title="Local server running">
-                      Running <span className="mono">:{p.localPort}</span>
-                    </Badge>
-                    {p.model && (
-                      <span className="cardfact mono dim2" title="Agent model">
-                        <Sparkles /> {p.model}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    {/* One fact only: is this agent's code on this Mac. Whether
-                      it's deployed is already answered by the production URL
-                      row below, and "Linked" tried to say both at once — the
-                      same word Vercel uses for linking a project. */}
-                    <Badge
-                      variant="gray-subtle"
-                      size="sm"
-                      title={
-                        p.localPath
-                          ? `Folder on this Mac: ${p.localPath}`
-                          : "No folder on this Mac — open Build to choose one"
-                      }
+                    <button
+                      type="button"
+                      className="devbtn locate"
+                      aria-label="Choose local folder"
+                      onClick={(e) => devAction(e, p, "locate")}
                     >
-                      {p.localPath ? "On this Mac" : "Remote only"}
-                    </Badge>
-                    {p.updatedAt && <span className="dim2">{ago(p.updatedAt)}</span>}
-                  </>
+                      {I.folder}
+                    </button>
+                  </Tip>
                 )}
               </div>
               <div className="agentmeta agenturl">
@@ -250,14 +267,13 @@ function Home() {
                     target="_blank"
                     rel="noreferrer"
                     title="Open deployment"
-                    onClick={(e) => e.stopPropagation() /* don't also open the card's runs view */}
                     style={{ overflow: "hidden", textOverflow: "ellipsis" }}
                   >
                     <Globe /> {p.productionUrl.replace(/^https?:\/\//, "")}
                   </a>
                 )}
               </div>
-            </div>
+            </article>
           ))}
         </div>
       </TooltipProvider>

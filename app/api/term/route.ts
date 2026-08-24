@@ -2,6 +2,7 @@
 
 import { resolveProject } from "@/lib/projects";
 import { errMsg } from "@/lib/utils";
+import { isDeployVariant } from "@/lib/deploy-command";
 // Imported lazily: terminals need node-pty, an optional dependency that has no
 // Linux prebuild. A missing pty must degrade to "terminals unavailable", not
 // take down the routes that merely sit next to it.
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
   const body = await request.json();
   const { project: name, action, data, cols, rows, variant } = body;
 
-  if (action === "start") {
+  if (action === "start" || action === "restart") {
     // The login terminal isn't a project's — and it's exactly the terminal you
     // need when resolveProject() can't work, because the credential that lists
     // projects is the thing that's broken.
@@ -36,6 +37,11 @@ export async function POST(request: Request) {
           : await resolveProject(name);
     if (!project) return Response.json({ error: "unknown project" }, { status: 404 });
     try {
+      if (action === "restart") {
+        if (!isDeployVariant(variant))
+          return Response.json({ error: "only deployments can be restarted" }, { status: 400 });
+        stopTerm(project.name, variant);
+      }
       const term = await startTerm(project, variant, { cols, rows });
       return Response.json({ ok: true, mode: term.mode, port: term.port });
     } catch (e) {
@@ -64,5 +70,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  return Response.json({ error: "action must be start, stop, input, or resize" }, { status: 400 });
+  return Response.json(
+    { error: "action must be start, restart, stop, input, or resize" },
+    { status: 400 },
+  );
 }

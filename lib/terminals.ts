@@ -16,7 +16,7 @@ import { freshOidc, opencodeServerUrl } from "./opencode";
 import { isAgentName } from "./agent-name";
 import { workspaceError } from "./settings";
 import { vercelCommand } from "./vercel-cli";
-import { deployArgs } from "./deploy-command";
+import { deployArgs, deployTermKey, isDeployVariant } from "./deploy-command";
 import type { Project } from "./types";
 
 export type TermVariant = "eve" | "opencode" | "login" | "create" | "deploy" | "deploy-preview";
@@ -76,8 +76,8 @@ const termKey = (name: string, variant?: TermVariant) =>
       ? "__create"
       : variant === "opencode"
         ? `${name}:opencode`
-        : variant === "deploy" || variant === "deploy-preview"
-          ? `${name}:deploy`
+        : isDeployVariant(variant)
+          ? deployTermKey(name, variant)
           : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
@@ -182,6 +182,10 @@ export async function startTerm(
 ): Promise<Term> {
   const key = termKey(project.name, variant);
   const existing = terms.get(key);
+  // A deploy is also its durable transcript. "Start" means ensure that target
+  // has a session, not redeploy every time a viewer mounts; an explicit
+  // restart action removes it first when the user chooses Redeploy.
+  if (existing && isDeployVariant(variant)) return existing;
   if (existing && !existing.exited) {
     // An opencode TUI is only alive if the server it attached to still is —
     // after a server reboot the old pty renders fine but every prompt fails

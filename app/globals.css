@@ -723,13 +723,23 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .home-head h1{font-size:20px;font-weight:600;margin:0}
 .agentgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:18px}
 .agentcard{
+  position:relative;
   display:flex;flex-direction:column;gap:9px;text-align:left;
   background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);
-  padding:16px;cursor:pointer;transition:border-color .12s,background .12s;
+  padding:16px;transition:border-color .12s,background .12s;
 }
 .agentcard:hover{border-color:var(--line2);background:var(--panel)}
 .agentcard.new{align-items:flex-start}
 .agentcard.new:hover{background:var(--line);border-color:var(--line2)}
+.agentcard-main{
+  display:flex;flex-direction:column;gap:9px;width:100%;text-align:left;color:inherit;
+}
+.agentcard-main:focus-visible{outline:2px solid var(--line3);outline-offset:4px;border-radius:var(--r-sm)}
+.agentcard-main .agentrow{padding-right:76px}
+.agent-actions{
+  position:absolute;top:16px;right:16px;
+  display:flex;align-items:center;gap:9px;
+}
 .newplus{font-size:18px;color:var(--dim2);line-height:1;display:inline-flex}
 .agentrow{display:flex;align-items:center;gap:9px;width:100%}
 .agentlogo{
@@ -1801,7 +1811,8 @@ summary,
 [data-slot="select-trigger"]:not([disabled]),
 [data-slot="select-item"],
 .devbtn,
-.agentcard,
+.agentcard-main,
+.agentcard.new,
 tbody tr[data-href], tbody tr,
 .box-name,
 .tl {
@@ -1916,13 +1927,17 @@ button:disabled { cursor: default; }
 .deploy-term .xterm{height:100%}
 /* The footer is a status line, so it sits on the rule's rhythm at 13.5px and
    only grows a button once there is a deployment to open. */
-.deploy-footer{min-height:61px}
+.deploy-footer{min-height:61px;flex-wrap:wrap}
+.deploy-status{min-width:0}
+.deploy-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .deploy-ok,.deploy-fail{display:inline-flex;align-items:center;gap:7px;font-size:13.5px}
 .deploy-ok{color:var(--ok)}
 .deploy-fail{color:var(--bad)}
-.deploy-ok svg{width:14px;height:14px;flex:none}
+.deploy-ok svg{flex:none}
 .deploy-footer .loadstate-label{font-size:13.5px}
 
 /* Isolates the deploy menu's popover anchor spans from the topbar's flex
    layout so opening the menu never shifts its siblings. */
+.deploy-control{display:inline-flex;align-items:center}
+.deploy-control.compact .chatbtn{width:28px;height:28px;padding:0;justify-content:center}
 .deploy-slot{display:inline-flex;align-items:center;position:relative}

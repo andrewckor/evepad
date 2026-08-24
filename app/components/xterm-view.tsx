@@ -36,6 +36,7 @@ export default function XtermView({
   // the folder). Body-only: never part of the identity of the terminal.
   extra,
   autoFocus = true,
+  startAction = "start",
   onStatus,
   onData,
   onExit,
@@ -48,6 +49,7 @@ export default function XtermView({
   // Off for terminals the user only watches (a deploy): a dialog that yanks
   // focus into a canvas the moment it opens loses its Escape-to-close.
   autoFocus?: boolean;
+  startAction?: "start" | "restart";
   onStatus?: (info: TermStatus) => void;
   // Every chunk the terminal paints, as text, for a caller that needs to READ
   // the transcript (a deploy reading its own URL) without a second stream.
@@ -66,6 +68,7 @@ export default function XtermView({
     let fit: import("@xterm/addon-fit").FitAddon | undefined;
     let abort: AbortController | undefined;
     let themeSync: MutationObserver | undefined;
+    let resizeSync: ResizeObserver | undefined;
     const body = (fields: Record<string, unknown>) =>
       JSON.stringify({ project, variant, ...extra, ...fields });
 
@@ -108,7 +111,7 @@ export default function XtermView({
       const start = await fetch("/api/term", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: body({ action: "start", cols: xterm.cols, rows: xterm.rows }),
+        body: body({ action: startAction, cols: xterm.cols, rows: xterm.rows }),
       });
       const info = await start.json();
       if (disposed) return;
@@ -125,11 +128,11 @@ export default function XtermView({
           body: body({ action: "resize", cols: xterm!.cols, rows: xterm!.rows }),
         });
       sendResize();
-      const ro = new ResizeObserver(() => {
+      resizeSync = new ResizeObserver(() => {
         fit!.fit();
         sendResize();
       });
-      ro.observe(mount.current);
+      resizeSync.observe(mount.current);
 
       xterm.onData((data) =>
         fetch("/api/term", {
@@ -160,8 +163,6 @@ export default function XtermView({
             error: error instanceof Error ? error.message : "Unable to read terminal output.",
           });
       }); // closing the panel aborts the read — expected
-
-      return () => ro.disconnect();
     })().catch((error) => {
       if (!disposed)
         cbs.current.onStatus?.({
@@ -171,6 +172,7 @@ export default function XtermView({
 
     return () => {
       themeSync?.disconnect();
+      resizeSync?.disconnect();
       disposed = true;
       abort?.abort();
       xterm?.dispose();
@@ -178,7 +180,7 @@ export default function XtermView({
     // `extra` is deliberately not a dependency: it feeds the START body only,
     // and a terminal's identity must not respawn because a body field changed.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, variant, fontSize]);
+  }, [project, variant, fontSize, startAction]);
 
   return <div className={className} ref={mount} />;
 }

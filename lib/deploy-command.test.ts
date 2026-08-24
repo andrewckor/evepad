@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { deployArgs, isDeployVariant } from "./deploy-command.ts";
+import { deployArgs, deployTermKey, isDeployVariant } from "./deploy-command.ts";
 
 test("production deploy promotes with --prod", () => {
   const args = deployArgs("deploy");
@@ -16,6 +16,10 @@ test("preview deploy leaves aliases alone", () => {
 
 test("both targets resolve the same CLI binary", () => {
   assert.equal(deployArgs("deploy")[0], deployArgs("deploy-preview")[0]);
+});
+
+test("production and preview keep separate terminal transcripts", () => {
+  assert.notEqual(deployTermKey("eve", "deploy"), deployTermKey("eve", "deploy-preview"));
 });
 
 test("variant guard accepts only the two deploy variants", () => {
