@@ -58,13 +58,3 @@ yarn-error.log*
 
 # playwright mcp session artifacts
 .playwright-mcp/
-
-# local visual QA captures
-/deploy-fixed.png
-/deploy-menu.png
-/deploy-menu2.png
-/home.png
-/menu-icon.png
-/modal-mid.png
-/modal-running.png
-/runs-topbar.png
