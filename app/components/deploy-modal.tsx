@@ -42,6 +42,7 @@ export default function DeployModal({
   // No reset on close: the menu unmounts this window, so every opening starts
   // with fresh state and the terminal replays the pty's scrollback.
   const [startError, setStartError] = useState<string | null>(null);
+  const [started, setStarted] = useState(false);
 
   const verdict = readDeployOutput(lines);
 
@@ -63,7 +64,10 @@ export default function DeployModal({
               className="deploy-term"
               fontSize={11.5}
               autoFocus={false}
-              onStatus={(info) => setStartError(info.error ?? null)}
+              onStatus={(info) => {
+                setStartError(info.error ?? null);
+                setStarted(!info.error);
+              }}
               onData={(text) => setLines((ls) => foldLines(ls, text))}
             />
           )}
@@ -71,7 +75,7 @@ export default function DeployModal({
           <div className="set-footer deploy-footer">
             {startError ? (
               <span className="deploy-fail">{startError}</span>
-            ) : verdict.state === "running" ? (
+            ) : !started || verdict.state === "running" ? (
               <LoadingState label="Deploying…" elapsed={false} />
             ) : verdict.state === "success" ? (
               <span className="deploy-ok">

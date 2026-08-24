@@ -143,6 +143,7 @@ export default function XtermView({
       const qs = new URLSearchParams({ project });
       if (variant) qs.set("variant", variant);
       const res = await fetch(`/api/term/stream?${qs}`, { signal: abort.signal });
+      if (!res.ok || !res.body) throw new Error("Unable to connect to the terminal.");
       const reader = res.body!.getReader();
       const dec = new TextDecoder();
       (async () => {
@@ -153,10 +154,20 @@ export default function XtermView({
           cbs.current.onData?.(dec.decode(value, { stream: true }));
         }
         if (!disposed) cbs.current.onExit?.();
-      })().catch(() => {}); // closing the panel aborts the read — expected
+      })().catch((error) => {
+        if (!disposed)
+          cbs.current.onStatus?.({
+            error: error instanceof Error ? error.message : "Unable to read terminal output.",
+          });
+      }); // closing the panel aborts the read — expected
 
       return () => ro.disconnect();
-    })().catch(() => {}); // teardown aborts the stream mid-await — expected
+    })().catch((error) => {
+      if (!disposed)
+        cbs.current.onStatus?.({
+          error: error instanceof Error ? error.message : "Unable to start the terminal.",
+        });
+    }); // teardown aborts the stream mid-await — expected
 
     return () => {
       themeSync?.disconnect();
