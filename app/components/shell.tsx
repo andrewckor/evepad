@@ -225,6 +225,11 @@ function TopNav({
               )}
             </AnimatePresence>
           </div>
+          {!isHome && termProject && (
+            <span className="deploy-slot">
+              <DeployMenu project={termProject.name} />
+            </span>
+          )}
           {!isHome && liveProject && (
             <Tip label={panel === "chat" ? "Close chat" : "Chat with your agent"}>
               <button
@@ -236,7 +241,6 @@ function TopNav({
               </button>
             </Tip>
           )}
-          {!isHome && termProject && <DeployMenu project={termProject.name} />}
           {!isHome && termProject && (
             <Tip label={panel === "terminal" ? "Close the eve CLI" : "Open the eve CLI"}>
               <button

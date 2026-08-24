@@ -132,6 +132,11 @@ function makeTerm({
   pty.onExit(({ exitCode }) => {
     term.exited = true;
     const bye = Buffer.from(`\r\n\x1b[90m[process exited ${exitCode}]\x1b[0m\r\n`);
+    // Into the scrollback as well as the fan-out: a viewer that attaches after
+    // the exit (a deploy that failed in 200ms, a window reopened later) replays
+    // the transcript and must see how it ended, not a log that trails off.
+    term.scrollback.push(bye);
+    term.scrollbackBytes += bye.length;
     for (const sub of term.subscribers) {
       try {
         sub.enqueue(bye);
@@ -352,7 +357,7 @@ export async function startTerm(
     port,
     mode,
     serverUrl: variant === "opencode" ? (args[1] ?? null) : null,
-    filter: variant === "deploy" ? vercelNoise : undefined,
+    filter: variant === "deploy" || variant === "deploy-preview" ? vercelNoise : undefined,
   });
 
   terms.set(key, term);

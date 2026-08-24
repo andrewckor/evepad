@@ -35,7 +35,9 @@ export default function XtermView({
   // Extra fields the server needs to START this pty (the create variant needs
   // the folder). Body-only: never part of the identity of the terminal.
   extra,
+  autoFocus = true,
   onStatus,
+  onData,
   onExit,
 }: {
   project: string;
@@ -43,14 +45,20 @@ export default function XtermView({
   className?: string;
   fontSize?: number;
   extra?: Record<string, unknown>;
+  // Off for terminals the user only watches (a deploy): a dialog that yanks
+  // focus into a canvas the moment it opens loses its Escape-to-close.
+  autoFocus?: boolean;
   onStatus?: (info: TermStatus) => void;
+  // Every chunk the terminal paints, as text, for a caller that needs to READ
+  // the transcript (a deploy reading its own URL) without a second stream.
+  onData?: (text: string) => void;
   onExit?: () => void;
 }) {
   const mount = useRef<HTMLDivElement | null>(null);
   // Held in a ref so changing the callback can't re-run the effect and respawn
   // the terminal underneath the user.
-  const cbs = useRef({ onStatus, onExit });
-  cbs.current = { onStatus, onExit };
+  const cbs = useRef({ onStatus, onData, onExit });
+  cbs.current = { onStatus, onData, onExit };
 
   useEffect(() => {
     let disposed = false;
@@ -90,7 +98,7 @@ export default function XtermView({
       if (!mount.current) return;
       xterm.open(mount.current);
       fit.fit();
-      xterm.focus();
+      if (autoFocus) xterm.focus();
 
       // The pty starts AFTER fit, carrying the real size. Starting it first was
       // faster, but it spawned an 80-column process into a ~50-column box: the
@@ -136,11 +144,13 @@ export default function XtermView({
       if (variant) qs.set("variant", variant);
       const res = await fetch(`/api/term/stream?${qs}`, { signal: abort.signal });
       const reader = res.body!.getReader();
+      const dec = new TextDecoder();
       (async () => {
         for (;;) {
           const { done, value } = await reader.read();
           if (done || disposed) break;
           xterm!.write(value);
+          cbs.current.onData?.(dec.decode(value, { stream: true }));
         }
         if (!disposed) cbs.current.onExit?.();
       })().catch(() => {}); // closing the panel aborts the read — expected

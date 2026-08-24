@@ -9,6 +9,12 @@ test("spinner frames fold to their final text instead of piling up", () => {
   assert.deepEqual(lines, ["✓ Ready in 15s", ""]);
 });
 
+test("a pty's CRLF line ending commits the line instead of wiping it", () => {
+  const lines = foldLines([], "Error: bad token\r\n\r\n\x1b[90m[process exited 1]\x1b[0m\r\n");
+  assert.deepEqual(lines, ["Error: bad token", "", "[process exited 1]", ""]);
+  assert.equal(readDeployOutput(lines).state, "failed");
+});
+
 test("private-mode sequences are stripped, not just colours", () => {
   const lines = foldLines([], "\x1b[?25hProduction https://x.vercel.app\n");
   assert.equal(lines[0], "Production https://x.vercel.app");

@@ -1906,14 +1906,23 @@ button:disabled { cursor: default; }
 .fd-line.del .fd-t{color:var(--bad)}
 .oc-patch{margin:8px 0}
 
-/* deploy window — settings-dialog chrome, streaming body */
-.deploy-ok,.deploy-fail{display:flex;align-items:center;gap:7px;margin:14px 0 0;font-size:13.5px}
+/* deploy window — settings-dialog chrome around a real terminal */
+/* Fixed height: xterm sizes itself to its box, so the box can't size itself
+   to the output. Wears the term ground like the drawer does, one hairline. */
+.deploy-term{
+  margin-top:18px;height:300px;padding:10px 12px;overflow:hidden;
+  background:var(--term-bg);border:1px solid var(--line2);border-radius:var(--r-sm);
+}
+.deploy-term .xterm{height:100%}
+/* The footer is a status line, so it sits on the rule's rhythm at 13.5px and
+   only grows a button once there is a deployment to open. */
+.deploy-footer{min-height:61px}
+.deploy-ok,.deploy-fail{display:inline-flex;align-items:center;gap:7px;font-size:13.5px}
 .deploy-ok{color:var(--ok)}
 .deploy-fail{color:var(--bad)}
 .deploy-ok svg{width:14px;height:14px;flex:none}
-.deploy-ok a{color:inherit}
-.deploy-out{
-  height:260px;overflow:auto;padding:10px 12px;
-  background:var(--panel);border:1px solid var(--line2);border-radius:6px;
-  color:var(--fg);font-size:11.5px;line-height:1.5;white-space:pre-wrap;
-}
+.deploy-footer .loadstate-label{font-size:13.5px}
+
+/* Isolates the deploy menu's popover anchor spans from the topbar's flex
+   layout so opening the menu never shifts its siblings. */
+.deploy-slot{display:inline-flex;align-items:center;position:relative}
