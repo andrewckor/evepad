@@ -1882,6 +1882,17 @@ button:disabled { cursor: default; }
 }
 .react-flow__node.gpill:hover{border-color:var(--line3)}
 .react-flow__node.gpill.empty{color:var(--dim)}
+/* Category pills share one add affordance: label left, circular plus right.
+   It stays quiet until the pill is engaged, so the resting graph remains calm. */
+.pill-add{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pill-plus{
+  width:22px;height:22px;margin:-4px -6px -4px 0;padding:0;border:0;border-radius:999px;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;
+  color:var(--dim2);background:transparent;
+  transition:background .14s ease,color .14s ease;
+}
+.pill-plus:hover,.pill-plus:focus-visible{background:var(--hover);color:var(--fg)}
+.pill-plus svg{width:13px;height:13px}
 .react-flow__node.gagent{
   width:auto;height:auto;box-shadow:none;border:none;
   background:var(--agent-pill);border-radius:999px;padding:10px 22px;cursor:default;

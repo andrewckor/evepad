@@ -37,6 +37,7 @@ export default function XtermView({
   extra,
   autoFocus = true,
   startAction = "start",
+  initialInput,
   onStatus,
   onData,
   onExit,
@@ -50,6 +51,7 @@ export default function XtermView({
   // focus into a canvas the moment it opens loses its Escape-to-close.
   autoFocus?: boolean;
   startAction?: "start" | "restart";
+  initialInput?: string;
   onStatus?: (info: TermStatus) => void;
   // Every chunk the terminal paints, as text, for a caller that needs to READ
   // the transcript (a deploy reading its own URL) without a second stream.
@@ -60,6 +62,7 @@ export default function XtermView({
   // Held in a ref so changing the callback can't re-run the effect and respawn
   // the terminal underneath the user.
   const cbs = useRef({ onStatus, onData, onExit });
+  const sentInitialInput = useRef(false);
   cbs.current = { onStatus, onData, onExit };
 
   useEffect(() => {
@@ -120,6 +123,35 @@ export default function XtermView({
         return;
       }
       cbs.current.onStatus?.(info);
+
+      if (initialInput && !sentInitialInput.current) {
+        sentInitialInput.current = true;
+        const sendInput = (data: string) =>
+          fetch("/api/term", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: body({ action: "input", data }),
+          });
+        // Let Escape finish dismissing an existing picker before submitting
+        // `/add`; sending them as one terminal write races the TUI transition.
+        setTimeout(() => {
+          if (disposed) return;
+          if (initialInput === "reset-add" || initialInput === "open-channels") {
+            void sendInput("\x1b");
+            setTimeout(() => {
+              if (disposed) return;
+              void sendInput("/add\r");
+              if (initialInput === "open-channels") {
+                setTimeout(() => {
+                  if (!disposed) void sendInput("\r");
+                }, 650);
+              }
+            }, 180);
+          } else {
+            void sendInput(initialInput);
+          }
+        }, 250);
+      }
 
       const sendResize = () =>
         fetch("/api/term", {

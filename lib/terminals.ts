@@ -87,7 +87,7 @@ const termKey = (name: string, variant?: TermVariant) =>
           ? deployTermKey(name, variant)
           : variant === "eval"
             ? `${name}:eval`
-          : name;
+            : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
   return terms.get(termKey(name, variant)) ?? null;
