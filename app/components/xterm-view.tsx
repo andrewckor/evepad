@@ -35,6 +35,7 @@ export default function XtermView({
   // Extra fields the server needs to START this pty (the create variant needs
   // the folder). Body-only: never part of the identity of the terminal.
   extra,
+  initialInput,
   onStatus,
   onExit,
 }: {
@@ -43,6 +44,7 @@ export default function XtermView({
   className?: string;
   fontSize?: number;
   extra?: Record<string, unknown>;
+  initialInput?: string;
   onStatus?: (info: TermStatus) => void;
   onExit?: () => void;
 }) {
@@ -50,6 +52,7 @@ export default function XtermView({
   // Held in a ref so changing the callback can't re-run the effect and respawn
   // the terminal underneath the user.
   const cbs = useRef({ onStatus, onExit });
+  const sentInitialInput = useRef(false);
   cbs.current = { onStatus, onExit };
 
   useEffect(() => {
@@ -109,6 +112,35 @@ export default function XtermView({
         return;
       }
       cbs.current.onStatus?.(info);
+
+      if (initialInput && !sentInitialInput.current) {
+        sentInitialInput.current = true;
+        const sendInput = (data: string) =>
+          fetch("/api/term", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: body({ action: "input", data }),
+          });
+        // Let Escape finish dismissing an existing picker before submitting
+        // `/add`; sending them as one terminal write races the TUI transition.
+        setTimeout(() => {
+          if (disposed) return;
+          if (initialInput === "reset-add" || initialInput === "open-channels") {
+            void sendInput("\x1b");
+            setTimeout(() => {
+              if (disposed) return;
+              void sendInput("/add\r");
+              if (initialInput === "open-channels") {
+                setTimeout(() => {
+                  if (!disposed) void sendInput("\r");
+                }, 650);
+              }
+            }, 180);
+          } else {
+            void sendInput(initialInput);
+          }
+        }, 250);
+      }
 
       const sendResize = () =>
         fetch("/api/term", {

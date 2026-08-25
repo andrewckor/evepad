@@ -65,6 +65,7 @@ import type { Project, Dock } from "@/lib/types";
 import type { ReactNode, ReactElement } from "react";
 
 type Panel = "chat" | "terminal" | null;
+type TerminalRequest = { input: string; id: number };
 
 import { getJson as fetcher } from "@/lib/fetch";
 const DEFAULT_PERIOD = "12h";
@@ -97,11 +98,13 @@ function Tip({ label, children }: { label: ReactNode; children: ReactElement }) 
 function TopNav({
   panel,
   setPanel,
+  clearTerminalInput,
   liveProject,
   termProject,
 }: {
   panel: Panel;
   setPanel: React.Dispatch<React.SetStateAction<Panel>>;
+  clearTerminalInput: () => void;
   liveProject: Project | null | undefined;
   termProject: Project | null | undefined;
 }) {
@@ -241,7 +244,10 @@ function TopNav({
                 data-on={panel === "terminal" ? "1" : "0"}
                 onMouseEnter={warmTerminal}
                 onFocus={warmTerminal}
-                onClick={() => setPanel((p) => (p === "terminal" ? null : "terminal"))}
+                onClick={() => {
+                  clearTerminalInput();
+                  setPanel((p) => (p === "terminal" ? null : "terminal"));
+                }}
               >
                 {I.terminal} <span className="btn-label">CLI</span>
               </button>
@@ -260,6 +266,7 @@ function ShellInner({ children }: { children: ReactNode }) {
 
   // One companion-panel slot: chat OR terminal, never both.
   const [panel, setPanel] = useState<Panel>(null);
+  const [terminalRequest, setTerminalRequest] = useState<TerminalRequest>();
   const [chatKey, setChatKey] = useState(0);
   const [chatSeed, setChatSeed] = useState<string | null>(null);
   // Terminal sidebar width lives here so the whole frame can shrink for it —
@@ -348,14 +355,31 @@ function ShellInner({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wantPanel]);
 
+  useEffect(() => {
+    const openAddTerminal = (event: Event) => {
+      const kind = (event as CustomEvent<{ kind?: string }>).detail?.kind;
+      if (kind !== "channel" && kind !== "connection") return;
+      // Escape any open picker, then submit the native add command again.
+      // A distinct id remounts the view so repeated graph clicks are delivered
+      // to the existing Eve TUI instead of being swallowed by React state.
+      setTerminalRequest({
+        input: kind === "channel" ? "open-channels" : "reset-add",
+        id: Date.now(),
+      });
+      setPanel("terminal");
+    };
+    window.addEventListener("terminal:add", openAddTerminal);
+    return () => window.removeEventListener("terminal:add", openAddTerminal);
+  }, []);
+
   // The chat and terminal both belong to ONE agent, so they close when there
   // is no agent in view: the Agents list has no project, and leaving a
   // terminal open over it showed a session for whichever agent you last
-  // visited. Build is its own full-width workspace (chat + graph) and a docked
-  // panel would compete with it, so it collapses there too.
+  // visited. Build deliberately keeps the terminal available: graph add
+  // affordances open a focused CLI session in the same sidebar.
   const pathname = usePathname();
   useEffect(() => {
-    if (pathname === "/build" || !project) setPanel(null);
+    if (!project) setPanel(null);
   }, [pathname, project]);
 
   const pushed = (panel === "terminal" && termProject) || (panel === "chat" && liveProject);
@@ -372,6 +396,7 @@ function ShellInner({ children }: { children: ReactNode }) {
         <TopNav
           panel={panel}
           setPanel={setPanel}
+          clearTerminalInput={() => setTerminalRequest(undefined)}
           liveProject={liveProject}
           termProject={termProject}
         />
@@ -398,15 +423,19 @@ function ShellInner({ children }: { children: ReactNode }) {
         )}
         {panel === "terminal" && termProject && (
           <TerminalPanel
-            key={termProject.name}
+            key={termProject.name + (terminalRequest?.id ?? "eve")}
             project={termProject}
+            initialInput={terminalRequest?.input}
             dock={termDock}
             onDock={setDock}
             size={termDock === "right" ? termWidth : termHeight}
             onSize={termDock === "right" ? setTermWidth : setTermHeight}
             clamp={termDock === "right" ? clampW : clampH}
             onResizing={setResizing}
-            onClose={() => setPanel(null)}
+            onClose={() => {
+              setTerminalRequest(undefined);
+              setPanel(null);
+            }}
           />
         )}
       </AnimatePresence>

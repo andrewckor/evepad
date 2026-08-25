@@ -7,11 +7,12 @@
 // Edits land on disk, so generated tools appear as graph rows moments later;
 // the graph's buttons inject prompts straight into the TUI.
 
-import { useMemo, useState, Suspense } from "react";
+import { useMemo, useState, Suspense, type ReactElement } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Copy, Pencil, Trash, FolderPlus, Question, Plus } from "vercel-geist-icons";
 import OcChat from "@/app/components/oc-chat";
 import InstructionsPane from "@/app/components/instructions-pane";
@@ -117,6 +118,15 @@ type GraphActions = {
   addChannel: () => void;
   explainChannel: (ch: { name: string; kind: string; routes: number }) => void;
 };
+
+function AddTip({ label, children }: { label: string; children: ReactElement }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={children} />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
   if (!info) return { nodes: [], edges: [] };
@@ -347,14 +357,20 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
       style: { width: c.w },
       data: {
         label: (
-          // An empty pill is the affordance: clicking it asks Build to scaffold
-          // the first one — the same path every other graph action takes.
-          <button
-            className="pill-label pill-add"
-            onClick={() => (c.add === "schedule" ? actions.addSchedule() : actions.addConnection())}
-          >
-            <Plus /> {c.label}
-          </button>
+          <div className="pill-label pill-add">
+            <span>{c.label}</span>
+            <AddTip label={c.add === "schedule" ? "Add schedule" : "Add connection"}>
+              <button
+                className="pill-plus"
+                aria-label={c.add === "schedule" ? "Add schedule" : "Add connection"}
+                onClick={() =>
+                  c.add === "schedule" ? actions.addSchedule() : actions.addConnection()
+                }
+              >
+                <Plus />
+              </button>
+            </AddTip>
+          </div>
         ),
       },
       className: "gpill" + (c.empty ? " empty" : ""),
@@ -396,12 +412,19 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
     style: { width: CHAN_W },
     data: {
       label: (
-        <div className="pill-label">
-          {channels.length} Channel{channels.length === 1 ? "" : "s"}
-          {/* Channels always accept another; the + asks Build to scaffold it. */}
-          <button className="pill-plus" title="Add a channel" onClick={() => actions.addChannel()}>
-            <Plus />
-          </button>
+        <div className="pill-label pill-add">
+          <span>
+            {channels.length} Channel{channels.length === 1 ? "" : "s"}
+          </span>
+          <AddTip label="Add channel">
+            <button
+              className="pill-plus"
+              aria-label="Add channel"
+              onClick={() => actions.addChannel()}
+            >
+              <Plus />
+            </button>
+          </AddTip>
         </div>
       ),
     },
@@ -512,6 +535,9 @@ function ManifestLoader({
 const oc = (text: string, submit = true) =>
   window.dispatchEvent(new CustomEvent("oc:send", { detail: { text, submit } }));
 
+const openAddCli = (kind: "channel" | "connection") =>
+  window.dispatchEvent(new CustomEvent("terminal:add", { detail: { kind } }));
+
 const GRAPH_ACTIONS: GraphActions = {
   explain: (t) =>
     oc(`What does agent/tools/${t}.ts do? Show the important part of the code briefly.`),
@@ -536,8 +562,8 @@ const GRAPH_ACTIONS: GraphActions = {
       `What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${connectionPathOf(n)}. Answer briefly.`,
     ),
   editConnection: (n) => oc(`Edit ${connectionPathOf(n)}: `, false),
-  addConnection: () => oc("Add a new connection under agent/connections/ — ", false),
-  addChannel: () => oc("Add a new channel under agent/channels/ — ", false),
+  addConnection: () => openAddCli("connection"),
+  addChannel: () => openAddCli("channel"),
   explainChannel: (ch) =>
     oc(
       `What is the ${ch.name} channel? It's ${ch.kind} with ${ch.routes} route${ch.routes === 1 ? "" : "s"} — ` +
@@ -685,7 +711,11 @@ function Build() {
                 eve v{info.eveVersion}
               </span>
             )}
-            {info && <AgentGraph nodes={nodes} edges={edges} />}
+            {info && (
+              <TooltipProvider delay={150}>
+                <AgentGraph nodes={nodes} edges={edges} />
+              </TooltipProvider>
+            )}
           </>
         )}
       </div>
