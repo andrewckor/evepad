@@ -109,6 +109,13 @@ lucide icons are swapped for Geist ones. Before styling a new menu, row, or pane
 reuse these — two implementations of the same control is how the app drifted
 last time.
 
+Scrollable vertical regions use `app/components/scroll-fade.tsx`. Wrap owned
+scrollers in `ScrollFade`; use its exported `useScrollFade` only when a
+third-party or portalled element prevents wrapping. Never add a permanent edge
+gradient or duplicate scroll-position listeners: fades must follow the shared
+`data-scroll="none|start|middle|end"` state so an edge is shown only when more
+content actually continues beyond it.
+
 ## Dev overrides for states you can't summon
 
 Failure states need a way in, or they rot. Two exist, same shape:

@@ -7,8 +7,15 @@
 // Edits land on disk, so generated tools appear as graph rows moments later;
 // the graph's buttons inject prompts straight into the TUI.
 
-import { useMemo, useState, useCallback, Suspense, type ReactElement } from "react";
-import { useSearchParams } from "next/navigation";
+import {
+  useMemo,
+  useState,
+  useCallback,
+  Suspense,
+  type CSSProperties,
+  type ReactElement,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
@@ -649,7 +656,47 @@ function NoCheckout({
 
 function Build() {
   const q = useSearchParams();
+  const router = useRouter();
   const project = q.get("project") ?? "";
+  const paneParam = q.get("pane");
+  const pane =
+    paneParam === "instructions" || paneParam === "evals" || paneParam === "graph"
+      ? paneParam
+      : "graph";
+  const [editorWidth, setEditorWidth] = useState<number | null>(null);
+  const [resizingEditor, setResizingEditor] = useState(false);
+  const setPane = useCallback(
+    (next: "graph" | "instructions" | "evals") => {
+      const params = new URLSearchParams(q.toString());
+      params.set("pane", next);
+      router.replace(`/build?${params.toString()}`, { scroll: false });
+    },
+    [q, router],
+  );
+
+  const startEditorResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const page = event.currentTarget.closest(".buildpage");
+    if (!(page instanceof HTMLElement)) return;
+    const bounds = page.getBoundingClientRect();
+    // The boot script owns the restored pre-paint width. React state only
+    // takes over once the user starts interacting with the divider.
+    let nextWidth =
+      (editorWidth ?? Number(localStorage.getItem("evepad:build-editor-width"))) || 520;
+    setResizingEditor(true);
+    const move = (next: PointerEvent) => {
+      nextWidth = Math.max(320, Math.min(bounds.width - 400, next.clientX - bounds.left));
+      setEditorWidth(nextWidth);
+    };
+    const up = () => {
+      setResizingEditor(false);
+      localStorage.setItem("evepad:build-editor-width", String(Math.round(nextWidth)));
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
 
   const {
     data: raw,
@@ -673,8 +720,6 @@ function Build() {
   const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
   const [runningSchedule, setRunningSchedule] = useState<string | null>(null);
-  const [pane, setPane] = useState<"graph" | "instructions" | "evals">("graph");
-
   // Run-now dispatches through the local server's own schedule route, so what
   // executes is byte-for-byte what the cron would run. The toast links to the
   // session it started; older executions live in Runs under the Schedule
@@ -772,7 +817,15 @@ function Build() {
   }
 
   return (
-    <div className="buildpage">
+    <div
+      className="buildpage"
+      data-resizing={resizingEditor ? "1" : "0"}
+      style={
+        editorWidth === null
+          ? undefined
+          : ({ "--build-editor-width": `${editorWidth}px` } as CSSProperties)
+      }
+    >
       <div className="buildcol chatmode">
         <OcChat
           project={project}
@@ -784,8 +837,30 @@ function Build() {
         />
       </div>
 
+      <div
+        className="build-resize"
+        data-on={resizingEditor ? "1" : "0"}
+        onPointerDown={startEditorResize}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const delta = event.key === "ArrowLeft" ? -20 : 20;
+          setEditorWidth((width) => {
+            const current =
+              (width ?? Number(localStorage.getItem("evepad:build-editor-width"))) || 520;
+            const next = Math.max(320, Math.min(window.innerWidth - 400, current + delta));
+            localStorage.setItem("evepad:build-editor-width", String(Math.round(next)));
+            return next;
+          });
+        }}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize Build editor"
+        tabIndex={0}
+      />
+
       <div className="buildflow">
-        <div className="navtabs buildtabs">
+        <div className="inst-modes buildtabs">
           <button
             className="tab"
             data-on={pane === "graph" ? "1" : "0"}

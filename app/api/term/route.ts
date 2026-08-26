@@ -42,7 +42,7 @@ export async function POST(request: Request) {
           return Response.json({ error: "only deployments can be restarted" }, { status: 400 });
         stopTerm(project.name, variant);
       }
-      const term = await startTerm(project, variant, { cols, rows });
+      const term = await startTerm(project, variant, { cols, rows, evalId: body.evalId });
       return Response.json({ ok: true, mode: term.mode, port: term.port });
     } catch (e) {
       return Response.json({ error: errMsg(e) }, { status: 409 });

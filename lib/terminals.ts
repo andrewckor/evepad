@@ -47,7 +47,7 @@ export type Term = {
 // What startTerm needs to know about the project; `create` passes a synthetic
 // one (a name and the workspace dir), so it is looser than a full Project.
 export type TermProject = Pick<Project, "name" | "localPath"> &
-  Partial<Pick<Project, "live" | "localPort" | "model">>;
+  Partial<Pick<Project, "live" | "localPort" | "localUrl" | "model">>;
 
 const SCROLLBACK_MAX = 256 * 1024;
 const DEFAULT_MODEL = "zai/glm-5.2";
@@ -187,7 +187,7 @@ function userEnv(extra: Record<string, string> = {}): Record<string, string> {
 export async function startTerm(
   project: TermProject,
   variant: TermVariant = "eve",
-  size: { cols?: unknown; rows?: unknown } = {},
+  size: { cols?: unknown; rows?: unknown; evalId?: unknown } = {},
 ): Promise<Term> {
   const key = termKey(project.name, variant);
   const existing = terms.get(key);
@@ -350,7 +350,17 @@ export async function startTerm(
     // it doesn't reimplement it. Evals are non-interactive; a fixed 100-col
     // pty keeps the console reporter's wrapping stable.
     cmd = "npm";
-    args = ["exec", "--", "eve", "eval"];
+    const evalId = typeof size.evalId === "string" ? size.evalId.trim() : "";
+    if (evalId && (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/.test(evalId) || evalId.includes("..")))
+      throw new Error("invalid eval id");
+    args = [
+      "exec",
+      "--",
+      "eve",
+      "eval",
+      ...(evalId ? [evalId] : []),
+      ...(project.live && project.localUrl ? ["--url", project.localUrl] : []),
+    ];
     mode = "eval";
     env = userEnv();
   } else {

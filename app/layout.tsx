@@ -27,6 +27,11 @@ try {
   // Tailwind's dark: variant here is (&:is(.dark *)), so shadcn's own
   // dark-mode utilities need the class as well as the attribute.
   document.documentElement.classList.toggle("dark", dark);
+  var editorWidth = Number(localStorage.getItem("evepad:build-editor-width"));
+  if (editorWidth) {
+    editorWidth = Math.max(320, Math.min(window.innerWidth - 400, editorWidth));
+    document.documentElement.style.setProperty("--build-editor-width", editorWidth + "px");
+  }
 } catch (e) {
   document.documentElement.dataset.theme = "dark";
   document.documentElement.classList.add("dark");
