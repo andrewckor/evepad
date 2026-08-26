@@ -50,25 +50,35 @@ export default function EvalsPane({ project }: { project: string }) {
     }, 280);
   };
 
-  const stop = async () => {
-    setStatus("stopping");
-    const response = await fetch("/api/term", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ project, variant: "eval", action: "stop" }),
-    });
-    if (!response.ok) setStatus("running");
-  };
-
-  const runAll = async () => {
-    if (busy && runningEval !== "all") {
-      setStatus("stopping");
-      setRunningEval("all");
-      await fetch("/api/term", {
+  const requestStop = async () => {
+    try {
+      const response = await fetch("/api/term", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ project, variant: "eval", action: "stop" }),
       });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  };
+
+  const stop = async () => {
+    setStatus("stopping");
+    if (!(await requestStop()))
+      setStatus((current) => (current === "stopping" ? "running" : current));
+  };
+
+  const runAll = async () => {
+    if (busy && runningEval !== "all") {
+      const interruptedEval = runningEval;
+      setStatus("stopping");
+      setRunningEval("all");
+      if (!(await requestStop())) {
+        setStatus((current) => (current === "stopping" ? "running" : current));
+        setRunningEval((current) => (current === "all" ? interruptedEval : current));
+        return;
+      }
     }
     run();
   };

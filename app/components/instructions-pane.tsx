@@ -102,6 +102,7 @@ export default function InstructionsPane({ project }: { project: string }) {
 
   const save = async () => {
     if (draft === null) return;
+    const submittedDraft = draft;
     if (statusTimer.current) clearTimeout(statusTimer.current);
     setSaving(true);
     setSaveStatus("saving");
@@ -109,9 +110,11 @@ export default function InstructionsPane({ project }: { project: string }) {
       await fetchJson("/api/instructions", {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ project, text: draft }),
+        body: JSON.stringify({ project, text: submittedDraft }),
       });
-      setDraft(null);
+      // Typing remains available while the request is in flight. Clear only
+      // the exact version that was submitted; newer edits stay as the draft.
+      setDraft((current) => (current === submittedDraft ? null : current));
       await mutate();
       setSaveStatus("saved");
       statusTimer.current = setTimeout(() => setSaveStatus(null), 1600);
