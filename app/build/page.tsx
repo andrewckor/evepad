@@ -678,7 +678,9 @@ function Build() {
                 if (preview) {
                   toast.update(toastId, {
                     type: "success",
-                    description: preview.replace(/\s+/g, " ").slice(0, 120),
+                    // Keep enough source text for the toast's responsive
+                    // 3-to-4-line reveal; CSS owns the visible line cap.
+                    description: preview.replace(/\s+/g, " ").slice(0, 2_000),
                   });
                   return;
                 }

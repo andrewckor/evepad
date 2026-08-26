@@ -220,7 +220,7 @@ function ToastList() {
               <ToastAction className="self-start" />
               <ToastClose className="self-start" />
             </div>
-            <ToastDescription className="absolute right-4 bottom-0 left-4 h-16 overflow-hidden rounded-t-md bg-muted px-3 py-2 text-sm leading-5 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-9 after:bg-linear-to-t after:from-muted after:to-transparent after:content-['']" />
+            <ToastDescription className="absolute right-4 bottom-0 left-4 h-[76px] overflow-hidden rounded-t-md bg-muted px-3 py-2 text-sm leading-5 after:pointer-events-none after:absolute after:inset-x-0 after:bottom-0 after:h-9 after:bg-linear-to-t after:from-muted after:to-transparent after:content-['']" />
           </ToastContent>
         ) : (
           <ToastContent>
