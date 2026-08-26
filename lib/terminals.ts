@@ -19,8 +19,15 @@ import { vercelCommand } from "./vercel-cli";
 import { deployArgs, deployTermKey, isDeployVariant } from "./deploy-command";
 import type { Project } from "./types";
 
-export type TermVariant = "eve" | "opencode" | "login" | "create" | "deploy" | "deploy-preview";
-type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "deploy";
+export type TermVariant =
+  | "eve"
+  | "opencode"
+  | "login"
+  | "create"
+  | "eval"
+  | "deploy"
+  | "deploy-preview";
+type TermMode = "attach" | "full" | "opencode" | "login" | "create" | "eval" | "deploy";
 
 // A subscriber is the write side of one SSE connection.
 type TermSubscriber = { enqueue: (buf: Buffer) => void; close: () => void };
@@ -40,7 +47,7 @@ export type Term = {
 // What startTerm needs to know about the project; `create` passes a synthetic
 // one (a name and the workspace dir), so it is looser than a full Project.
 export type TermProject = Pick<Project, "name" | "localPath"> &
-  Partial<Pick<Project, "live" | "localPort" | "model">>;
+  Partial<Pick<Project, "live" | "localPort" | "localUrl" | "model">>;
 
 const SCROLLBACK_MAX = 256 * 1024;
 const DEFAULT_MODEL = "zai/glm-5.2";
@@ -78,7 +85,9 @@ const termKey = (name: string, variant?: TermVariant) =>
         ? `${name}:opencode`
         : isDeployVariant(variant)
           ? deployTermKey(name, variant)
-          : name;
+          : variant === "eval"
+            ? `${name}:eval`
+            : name;
 
 export function getTerm(name: string, variant?: TermVariant): Term | null {
   return terms.get(termKey(name, variant)) ?? null;
@@ -178,7 +187,7 @@ function userEnv(extra: Record<string, string> = {}): Record<string, string> {
 export async function startTerm(
   project: TermProject,
   variant: TermVariant = "eve",
-  size: { cols?: unknown; rows?: unknown } = {},
+  size: { cols?: unknown; rows?: unknown; evalId?: unknown } = {},
 ): Promise<Term> {
   const key = termKey(project.name, variant);
   const existing = terms.get(key);
@@ -336,6 +345,23 @@ export async function startTerm(
     cmd = vc!;
     args = pre;
     mode = "deploy";
+  } else if (variant === "eval") {
+    // The framework's own eval runner on the checkout — evepad surfaces it,
+    // it doesn't reimplement it. Evals are non-interactive; a fixed 100-col
+    // pty keeps the console reporter's wrapping stable.
+    cmd = "npm";
+    const evalId = typeof size.evalId === "string" ? size.evalId.trim() : "";
+    if (evalId && (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/.test(evalId) || evalId.includes("..")))
+      throw new Error("invalid eval id");
+    args = [
+      "exec",
+      "--",
+      "eve",
+      "eval",
+      ...(evalId ? [evalId] : []),
+      ...(project.live && project.localUrl ? ["--url", project.localUrl] : []),
+    ];
+    mode = "eval";
     env = userEnv();
   } else {
     cmd = "npm";
@@ -349,8 +375,8 @@ export async function startTerm(
 
   const pty = ptySpawn(cmd, args, {
     name: "xterm-256color",
-    cols: clampDim(size.cols, 20, 500, 120),
-    rows: clampDim(size.rows, 5, 200, 32),
+    cols: clampDim(size.cols, 20, 500, variant === "eval" ? 100 : 120),
+    rows: clampDim(size.rows, 5, 200, variant === "eval" ? 34 : 32),
     cwd: project.localPath,
     env,
   });

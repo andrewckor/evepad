@@ -25,6 +25,15 @@ function xtermTheme(): { background: string; foreground: string; cursor: string 
   };
 }
 
+function xtermFont(): string {
+  const geist = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-geist-mono")
+    .trim();
+  return geist
+    ? `${geist}, ui-monospace, SFMono-Regular, Menlo, monospace`
+    : "ui-monospace, SFMono-Regular, Menlo, monospace";
+}
+
 export type TermStatus = { error?: string; mode?: string; port?: number | null };
 
 export default function XtermView({
@@ -36,9 +45,12 @@ export default function XtermView({
   // the folder). Body-only: never part of the identity of the terminal.
   extra,
   autoFocus = true,
+  readOnly = false,
   startAction = "start",
+  initialInput,
   onStatus,
   onData,
+  transformOutput,
   onExit,
 }: {
   project: string;
@@ -49,18 +61,27 @@ export default function XtermView({
   // Off for terminals the user only watches (a deploy): a dialog that yanks
   // focus into a canvas the moment it opens loses its Escape-to-close.
   autoFocus?: boolean;
+  // A watch-only terminal still gets the real pty rendering, but never sends
+  // keystrokes back or advertises a blinking input cursor.
+  readOnly?: boolean;
   startAction?: "start" | "restart";
+  initialInput?: string;
   onStatus?: (info: TermStatus) => void;
   // Every chunk the terminal paints, as text, for a caller that needs to READ
   // the transcript (a deploy reading its own URL) without a second stream.
   onData?: (text: string) => void;
+  // Presentation-only normalization for a watch terminal. The eval runner's
+  // ballot-X, for example, is calligraphic in Geist Mono; callers can swap
+  // that one glyph without changing the pty output or the shared font.
+  transformOutput?: (text: string) => string;
   onExit?: () => void;
 }) {
   const mount = useRef<HTMLDivElement | null>(null);
   // Held in a ref so changing the callback can't re-run the effect and respawn
   // the terminal underneath the user.
-  const cbs = useRef({ onStatus, onData, onExit });
-  cbs.current = { onStatus, onData, onExit };
+  const cbs = useRef({ onStatus, onData, transformOutput, onExit });
+  const sentInitialInput = useRef(false);
+  cbs.current = { onStatus, onData, transformOutput, onExit };
 
   useEffect(() => {
     let disposed = false;
@@ -82,10 +103,11 @@ export default function XtermView({
       if (disposed) return;
 
       xterm = new Terminal({
-        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontFamily: xtermFont(),
         fontSize,
         theme: xtermTheme(),
-        cursorBlink: true,
+        cursorBlink: !readOnly,
+        disableStdin: readOnly,
         scrollback: 4000,
       });
       themeSync = new MutationObserver(() => {
@@ -121,6 +143,35 @@ export default function XtermView({
       }
       cbs.current.onStatus?.(info);
 
+      if (initialInput && !sentInitialInput.current) {
+        sentInitialInput.current = true;
+        const sendInput = (data: string) =>
+          fetch("/api/term", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: body({ action: "input", data }),
+          });
+        // Let Escape finish dismissing an existing picker before submitting
+        // `/add`; sending them as one terminal write races the TUI transition.
+        setTimeout(() => {
+          if (disposed) return;
+          if (initialInput === "reset-add" || initialInput === "open-channels") {
+            void sendInput("\x1b");
+            setTimeout(() => {
+              if (disposed) return;
+              void sendInput("/add\r");
+              if (initialInput === "open-channels") {
+                setTimeout(() => {
+                  if (!disposed) void sendInput("\r");
+                }, 650);
+              }
+            }, 180);
+          } else {
+            void sendInput(initialInput);
+          }
+        }, 250);
+      }
+
       const sendResize = () =>
         fetch("/api/term", {
           method: "POST",
@@ -134,13 +185,14 @@ export default function XtermView({
       });
       resizeSync.observe(mount.current);
 
-      xterm.onData((data) =>
-        fetch("/api/term", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: body({ action: "input", data }),
-        }),
-      );
+      if (!readOnly)
+        xterm.onData((data) =>
+          fetch("/api/term", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: body({ action: "input", data }),
+          }),
+        );
 
       abort = new AbortController();
       const qs = new URLSearchParams({ project });
@@ -153,8 +205,9 @@ export default function XtermView({
         for (;;) {
           const { done, value } = await reader.read();
           if (done || disposed) break;
-          xterm!.write(value);
-          cbs.current.onData?.(dec.decode(value, { stream: true }));
+          const text = dec.decode(value, { stream: true });
+          xterm!.write(cbs.current.transformOutput?.(text) ?? text);
+          cbs.current.onData?.(text);
         }
         if (!disposed) cbs.current.onExit?.();
       })().catch((error) => {
@@ -180,7 +233,7 @@ export default function XtermView({
     // `extra` is deliberately not a dependency: it feeds the START body only,
     // and a terminal's identity must not respawn because a body field changed.
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [project, variant, fontSize, startAction]);
+  }, [project, variant, fontSize, readOnly, startAction]);
 
   return <div className={className} ref={mount} />;
 }

@@ -15,6 +15,7 @@ import type { Project, Dock } from "@/lib/types";
 
 export default function TerminalPanel({
   project,
+  initialInput,
   dock,
   onDock,
   size,
@@ -24,6 +25,7 @@ export default function TerminalPanel({
   onClose,
 }: {
   project: Project;
+  initialInput?: string;
   dock: Dock;
   onDock: (d: Dock) => void;
   size: number;
@@ -98,6 +100,7 @@ export default function TerminalPanel({
               (info.mode === "attach" ? `attached to :${info.port}` : `serving on :${info.port}`),
           )
         }
+        initialInput={initialInput}
       />
     </M.aside>
   );

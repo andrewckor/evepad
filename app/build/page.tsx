@@ -7,16 +7,24 @@
 // Edits land on disk, so generated tools appear as graph rows moments later;
 // the graph's buttons inject prompts straight into the TUI.
 
-import { useMemo, useState, useCallback, Suspense } from "react";
-import type React from "react";
-import { useSearchParams } from "next/navigation";
+import {
+  useMemo,
+  useState,
+  useCallback,
+  Suspense,
+  type CSSProperties,
+  type ReactElement,
+} from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Copy, Pencil, Trash, FolderPlus, Question, Play } from "vercel-geist-icons";
+import { Copy, Pencil, Trash, FolderPlus, Question, Play, Plus } from "vercel-geist-icons";
 import { toast } from "@/components/ui/toast";
 import OcChat from "@/app/components/oc-chat";
+import InstructionsPane from "@/app/components/instructions-pane";
+import EvalsPane from "@/app/components/evals-pane";
 
 // The graph canvas loads after the route paints — see components/agent-graph.
 const AgentGraph = dynamic(() => import("../components/agent-graph"), {
@@ -25,6 +33,7 @@ const AgentGraph = dynamic(() => import("../components/agent-graph"), {
 });
 
 import { fetchJson, getJson as fetcher } from "@/lib/fetch";
+import { connectionPathOf } from "@/lib/eve-paths";
 
 const SlackIcon = () => (
   <svg viewBox="0 0 24 24" width="18" height="18">
@@ -87,13 +96,6 @@ function humanCron(cron: string | null | undefined): string | null {
   return cron;
 }
 
-// Own connections live in agent/connections; an extension's are namespaced
-// <ext>__<name> and live under that extension.
-function connectionPathOf(n: string): string {
-  const [ext, name] = n.includes("__") ? n.split("__") : [null, n];
-  return ext ? `agent/extensions/${ext}/connections/${name}.ts` : `agent/connections/${name}.ts`;
-}
-
 // Vercel's agent-graph layout. Tools live inside one box node; static edges
 // (no animation — they carry no traffic), dashed when a category is empty.
 // The manifest /api/agent-info answers with, plus the row-level actions the
@@ -119,12 +121,15 @@ type GraphActions = {
   removeSchedule: (n: string) => void;
   runSchedule: (n: string) => void;
   runningSchedule: string | null;
+  addSchedule: () => void;
   explainConnection: (n: string) => void;
   editConnection: (n: string) => void;
+  addConnection: () => void;
+  addChannel: () => void;
   explainChannel: (ch: { name: string; kind: string; routes: number }) => void;
 };
 
-function Tip({ label, children }: { label: string; children: React.ReactElement }) {
+function Tip({ label, children }: { label: string; children: ReactElement }) {
   return (
     <Tooltip>
       <TooltipTrigger render={children} />
@@ -353,17 +358,52 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
   const cats = [
     ...(schedules.length
       ? []
-      : [{ id: "cat:schedules", label: "0 Schedules", x: -290, w: 132, empty: true }]),
+      : [
+          {
+            id: "cat:schedules",
+            label: "0 Schedules",
+            x: -290,
+            w: 132,
+            empty: true,
+            add: "schedule" as const,
+          },
+        ]),
     ...(connections.length
       ? []
-      : [{ id: "cat:connections", label: "0 Connections", x: 290, w: 150, empty: true }]),
+      : [
+          {
+            id: "cat:connections",
+            label: "0 Connections",
+            x: 290,
+            w: 150,
+            empty: true,
+            add: "connection" as const,
+          },
+        ]),
   ];
   for (const c of cats) {
     nodes.push({
       id: c.id,
       position: { x: c.x - c.w / 2, y: srcBottom - 38 },
       style: { width: c.w },
-      data: { label: <div className="pill-label">{c.label}</div> },
+      data: {
+        label: (
+          <div className="pill-label pill-add">
+            <span>{c.label}</span>
+            <Tip label={c.add === "schedule" ? "Add schedule" : "Add connection"}>
+              <button
+                className="pill-plus"
+                aria-label={c.add === "schedule" ? "Add schedule" : "Add connection"}
+                onClick={() =>
+                  c.add === "schedule" ? actions.addSchedule() : actions.addConnection()
+                }
+              >
+                <Plus />
+              </button>
+            </Tip>
+          </div>
+        ),
+      },
       className: "gpill" + (c.empty ? " empty" : ""),
       sourcePosition: "bottom" as import("@xyflow/react").Position,
       targetPosition: "top" as import("@xyflow/react").Position,
@@ -403,8 +443,19 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
     style: { width: CHAN_W },
     data: {
       label: (
-        <div className="pill-label">
-          {channels.length} Channel{channels.length === 1 ? "" : "s"}
+        <div className="pill-label pill-add">
+          <span>
+            {channels.length} Channel{channels.length === 1 ? "" : "s"}
+          </span>
+          <Tip label="Add channel">
+            <button
+              className="pill-plus"
+              aria-label="Add channel"
+              onClick={() => actions.addChannel()}
+            >
+              <Plus />
+            </button>
+          </Tip>
         </div>
       ),
     },
@@ -517,6 +568,9 @@ const oc = (text: string, submit = true) =>
 
 // Text-only graph actions live at module scope so their identities never
 // change; the project-aware ones (runSchedule) merge in inside Build.
+const openAddCli = (kind: "channel" | "connection") =>
+  window.dispatchEvent(new CustomEvent("terminal:add", { detail: { kind } }));
+
 const GRAPH_ACTIONS: Omit<GraphActions, "runSchedule" | "runningSchedule"> = {
   explain: (t) =>
     oc(`What does agent/tools/${t}.ts do? Show the important part of the code briefly.`),
@@ -535,11 +589,14 @@ const GRAPH_ACTIONS: Omit<GraphActions, "runSchedule" | "runningSchedule"> = {
   editSchedule: (n) => oc(`Edit agent/schedules/${n}.ts: `, false),
   removeSchedule: (n) =>
     oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`),
+  addSchedule: () => oc("Add a new schedule under agent/schedules/ — ", false),
   explainConnection: (n) =>
     oc(
       `What does the ${n} connection do — which MCP server is it, and what does it let the agent do? It's defined in ${connectionPathOf(n)}. Answer briefly.`,
     ),
   editConnection: (n) => oc(`Edit ${connectionPathOf(n)}: `, false),
+  addConnection: () => openAddCli("connection"),
+  addChannel: () => openAddCli("channel"),
   explainChannel: (ch) =>
     oc(
       `What is the ${ch.name} channel? It's ${ch.kind} with ${ch.routes} route${ch.routes === 1 ? "" : "s"} — ` +
@@ -599,7 +656,47 @@ function NoCheckout({
 
 function Build() {
   const q = useSearchParams();
+  const router = useRouter();
   const project = q.get("project") ?? "";
+  const paneParam = q.get("pane");
+  const pane =
+    paneParam === "instructions" || paneParam === "evals" || paneParam === "graph"
+      ? paneParam
+      : "graph";
+  const [editorWidth, setEditorWidth] = useState<number | null>(null);
+  const [resizingEditor, setResizingEditor] = useState(false);
+  const setPane = useCallback(
+    (next: "graph" | "instructions" | "evals") => {
+      const params = new URLSearchParams(q.toString());
+      params.set("pane", next);
+      router.replace(`/build?${params.toString()}`, { scroll: false });
+    },
+    [q, router],
+  );
+
+  const startEditorResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const page = event.currentTarget.closest(".buildpage");
+    if (!(page instanceof HTMLElement)) return;
+    const bounds = page.getBoundingClientRect();
+    // The boot script owns the restored pre-paint width. React state only
+    // takes over once the user starts interacting with the divider.
+    let nextWidth =
+      (editorWidth ?? Number(localStorage.getItem("evepad:build-editor-width"))) || 520;
+    setResizingEditor(true);
+    const move = (next: PointerEvent) => {
+      nextWidth = Math.max(320, Math.min(bounds.width - 400, next.clientX - bounds.left));
+      setEditorWidth(nextWidth);
+    };
+    const up = () => {
+      setResizingEditor(false);
+      localStorage.setItem("evepad:build-editor-width", String(Math.round(nextWidth)));
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
 
   const {
     data: raw,
@@ -623,7 +720,6 @@ function Build() {
   const info = raw && (raw.name || !raw.compiling) ? raw : null;
   const infoLoading = !info && !infoErr;
   const [runningSchedule, setRunningSchedule] = useState<string | null>(null);
-
   // Run-now dispatches through the local server's own schedule route, so what
   // executes is byte-for-byte what the cron would run. The toast links to the
   // session it started; older executions live in Runs under the Schedule
@@ -721,7 +817,15 @@ function Build() {
   }
 
   return (
-    <div className="buildpage">
+    <div
+      className="buildpage"
+      data-resizing={resizingEditor ? "1" : "0"}
+      style={
+        editorWidth === null
+          ? undefined
+          : ({ "--build-editor-width": `${editorWidth}px` } as CSSProperties)
+      }
+    >
       <div className="buildcol chatmode">
         <OcChat
           project={project}
@@ -733,18 +837,71 @@ function Build() {
         />
       </div>
 
+      <div
+        className="build-resize"
+        data-on={resizingEditor ? "1" : "0"}
+        onPointerDown={startEditorResize}
+        onKeyDown={(event) => {
+          if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+          event.preventDefault();
+          const delta = event.key === "ArrowLeft" ? -20 : 20;
+          setEditorWidth((width) => {
+            const current =
+              (width ?? Number(localStorage.getItem("evepad:build-editor-width"))) || 520;
+            const next = Math.max(320, Math.min(window.innerWidth - 400, current + delta));
+            localStorage.setItem("evepad:build-editor-width", String(Math.round(next)));
+            return next;
+          });
+        }}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize Build editor"
+        tabIndex={0}
+      />
+
       <div className="buildflow">
-        {infoLoading && <ManifestLoader />}
-        {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
-        {info?.eveVersion && (
-          <span className="eve-ver mono" title="Installed eve framework version">
-            eve v{info.eveVersion}
-          </span>
-        )}
-        {info && (
-          <TooltipProvider delay={150}>
-            <AgentGraph nodes={nodes} edges={edges} />
-          </TooltipProvider>
+        <div className="inst-modes buildtabs">
+          <button
+            className="tab"
+            data-on={pane === "graph" ? "1" : "0"}
+            onClick={() => setPane("graph")}
+          >
+            Graph
+          </button>
+          <button
+            className="tab"
+            data-on={pane === "instructions" ? "1" : "0"}
+            onClick={() => setPane("instructions")}
+          >
+            Instructions
+          </button>
+          <button
+            className="tab"
+            data-on={pane === "evals" ? "1" : "0"}
+            onClick={() => setPane("evals")}
+          >
+            Evals
+          </button>
+        </div>
+        {pane === "instructions" ? (
+          <InstructionsPane project={project} />
+        ) : pane === "evals" ? (
+          <EvalsPane project={project} />
+        ) : (
+          <>
+            {infoLoading && <ManifestLoader />}
+            {infoErr && <div className="empty bad">{String(infoErr.message)}</div>}
+            {info?.eveVersion && (
+              <span className="eve-ver mono" title="Installed eve framework version">
+                eve v{info.eveVersion}
+              </span>
+            )}
+            {info && (
+              <TooltipProvider delay={150}>
+                <AgentGraph nodes={nodes} edges={edges} />
+              </TooltipProvider>
+            )}
+          </>
         )}
       </div>
     </div>

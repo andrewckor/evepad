@@ -1074,7 +1074,9 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
           </MessageScroller>
         </MessageScrollerProvider>
 
-        <div className="oc-status">
+        <div
+          className={"oc-status" + (booting || (busy && !visiblePerms.length) ? " working" : "")}
+        >
           <span
             className={"oc-status-inner" + (booting || (busy && !visiblePerms.length) ? " on" : "")}
           >
@@ -1099,7 +1101,9 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
             // it, and the positioner keeps a wide diff on screen.
             <Popover open={diffOpen} onOpenChange={setDiffOpen}>
               <PopoverTrigger className="oc-diff-chip mono">
-                {diff.length} file{diff.length === 1 ? "" : "s"} changed
+                <span>
+                  {diff.length} file{diff.length === 1 ? "" : "s"} changed
+                </span>
                 <span className="ok"> +{diff.reduce((n, d) => n + d.additions, 0)}</span>
                 <span className="bad"> −{diff.reduce((n, d) => n + d.deletions, 0)}</span>
               </PopoverTrigger>
