@@ -11,6 +11,7 @@ export type LocalServer = {
   model: string | null;
   projectRoot: string | null;
   vercelProjectId: string | null;
+  vercelOrgId: string | null;
   vercelProjectName: string | null;
 };
 

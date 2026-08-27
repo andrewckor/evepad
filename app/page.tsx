@@ -4,18 +4,18 @@
 // creating a brand-new eve agent (scaffold + Vercel project + creds + dev
 // server) behind one dialog.
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { I } from "./components/icons";
 import { Badge } from "./components/badge";
 import ProjectLogo from "./components/project-logo";
-import { Globe, Sparkles } from "vercel-geist-icons";
+import { Check, Globe, Sparkles } from "vercel-geist-icons";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import DeployMenu from "./components/deploy-menu";
 import Welcome from "./components/welcome";
-import LoadingState from "./components/loading-state";
 import NewAgentDialog from "./components/new-agent-dialog";
+import LoadingState from "./components/loading-state";
 
 // Icon-only controls get real tooltips (instant, styled), not the browser's
 // sluggish native title.
@@ -60,19 +60,101 @@ function NewAgentCard({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+function AgentLoadingChecklist({
+  remoteLoading,
+  discovering,
+  foundCount,
+  onSkip,
+}: {
+  remoteLoading: boolean;
+  discovering: boolean;
+  foundCount: number | null;
+  onSkip: () => void;
+}) {
+  return (
+    <div className="agent-load-wrap">
+      <div className="agent-load-checklist" aria-live="polite">
+        <div className="agent-load-step done">
+          <span className="agent-load-icon">
+            {remoteLoading ? <span className="th-spin" aria-hidden /> : <Check />}
+          </span>
+          <span>{remoteLoading ? "Loading remote agents" : "Loaded remote agents"}</span>
+        </div>
+        <div
+          className={`agent-load-step${remoteLoading ? " pending" : discovering ? " active" : " done"}`}
+        >
+          <span className="agent-load-icon">
+            {discovering ? <span className="th-spin" aria-hidden /> : <Check />}
+          </span>
+          <span>
+            {discovering || foundCount === null
+              ? "Scanning for local agents"
+              : `${foundCount} local agent${foundCount === 1 ? "" : "s"} found`}
+          </span>
+        </div>
+      </div>
+      <button className="wc-skip agent-load-skip" onClick={onSkip}>
+        Skip scanning for now
+      </button>
+    </div>
+  );
+}
+
 function Home() {
   const router = useRouter();
   const q = useSearchParams();
-  const { data, mutate } = useSWR("/api/projects", fetcher, {
-    refreshInterval: 5000,
+  const [discoveryDismissed, setDiscoveryDismissed] = useState(false);
+  const { data: discoveryBootstrap } = useSWR("/api/projects/discovery", fetcher, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+  });
+  const {
+    data: account,
+    mutate: recheck,
+    isLoading: accountLoading,
+  } = useSWR("/api/account", fetcher);
+  const firstDiscovery = Boolean(discoveryBootstrap?.required);
+  // Scope the SWR cache itself, not just the server cache. Otherwise a Vercel
+  // account/team switch can briefly reuse the previous scope's project list
+  // while the new request is in flight.
+  const projectScope =
+    account?.scope?.id ??
+    account?.scope?.slug ??
+    account?.user?.username ??
+    (account?.loggedIn ? "signed-in" : null);
+  const projectsKey =
+    account?.loggedIn && projectScope
+      ? `/api/projects?scope=${encodeURIComponent(projectScope)}`
+      : null;
+  const {
+    data,
+    mutate,
+    isLoading: projectsLoading,
+  } = useSWR(discoveryBootstrap ? projectsKey : null, fetcher, {
+    refreshInterval: (latestData) => (latestData?.discovering ? 250 : 5000),
     keepPreviousData: true,
   });
-  const { data: account, mutate: recheck } = useSWR("/api/account", fetcher);
   const projects: Project[] = data?.projects ?? [];
+  const discovering = Boolean(data?.discovering);
+  const discoveryFinished =
+    firstDiscovery &&
+    !discovering &&
+    data?.discoveredAgents !== null &&
+    data?.discoveredAgents != null;
   const [busy, setBusy] = useState<Record<string, string | undefined>>({});
   const [newOpen, setNewOpen] = useState(false);
+  // After the CLI confirms a login, refresh account and projects as one UI
+  // transition. Without this guard the account response can win the race and
+  // briefly render the signed-in empty state before the agent list arrives.
+  const [signInSyncing, setSignInSyncing] = useState(false);
   // Per-session only: a stored flag would outlive the reason for it.
   const [skipped, setSkipped] = useState(false);
+
+  useEffect(() => {
+    if (!discoveryFinished || discoveryDismissed) return;
+    const timer = window.setTimeout(() => setDiscoveryDismissed(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [discoveryDismissed, discoveryFinished]);
 
   // First run resolves to exactly one of these. Never a stored flag: it would
   // lie after `vercel logout`, or on a second machine.
@@ -86,12 +168,9 @@ function Home() {
   // half a list plus a chip reading "Not signed in" leaves you guessing which
   // agents are missing. Local-only users can skip past it — the agents behind
   // it genuinely work without Vercel.
-  const signedOut = data && account && !account.loggedIn && !skipped;
+  const signedOut = account && !account.loggedIn && !skipped;
   const firstRun =
-    forced ||
-    (signedOut
-      ? "signed-out"
-      : !projects.length && data && account && (data.error ? "error" : "empty"));
+    !projects.length && data && account && !discovering && (data.error ? "error" : "empty");
   const localCount = projects.filter((p) => p.source === "local" || p.live).length;
 
   const devAction = async (e: SyntheticEvent, p: Project, action: DevAction) => {
@@ -115,14 +194,101 @@ function Home() {
 
   const open = (p: Project) => router.push(`/runs?project=${encodeURIComponent(p.name)}`);
 
-  // Until both requests land nothing is known — a premature grid flashes a
-  // lone New Agent card at people who have ten agents. Header plus the same
-  // dots the editor uses, and only that.
-  if (!data || !account) {
+  // Authentication is the first gate. A signed-out user sees sign-in before
+  // any filesystem discovery; the local scan begins only after login succeeds.
+  if (accountLoading || !account) {
+    return (
+      <div className="wrap">
+        <div className="home-loading plain">
+          <LoadingState label="Loading remote agents" elapsed={false} />
+        </div>
+      </div>
+    );
+  }
+
+  // Development previews are explicit and must remain reachable regardless of
+  // the machine's real authentication state.
+  if (forced) {
+    return (
+      <div className="wrap">
+        <Welcome
+          state={forced}
+          error={data?.error ?? "projects API 500"}
+          account={forced === "signed-out" ? null : account}
+          demo
+          onRetry={async () => {
+            router.replace("/");
+            setSignInSyncing(true);
+            try {
+              await Promise.all([recheck(), mutate()]);
+            } finally {
+              setSignInSyncing(false);
+            }
+          }}
+          onNew={() => setNewOpen(true)}
+          onSkip={() => setSkipped(true)}
+        />
+      </div>
+    );
+  }
+
+  if (signedOut) {
+    return (
+      <div className="wrap">
+        <Welcome
+          state="signed-out"
+          account={account}
+          onRetry={async () => {
+            setSignInSyncing(true);
+            try {
+              await Promise.all([recheck(), mutate()]);
+            } finally {
+              setSignInSyncing(false);
+            }
+          }}
+          onNew={() => setNewOpen(true)}
+          onSkip={() => setSkipped(true)}
+        />
+      </div>
+    );
+  }
+
+  // Once signed in, determine whether this is the one-time local discovery.
+  // Rendering either loader before that answer caused a one-frame flash of the
+  // wrong surface.
+  if (!discoveryBootstrap) return <div className="wrap" />;
+
+  if (projectsLoading || signInSyncing || !data) {
+    return (
+      <div className="wrap">
+        <div className={`home-loading${firstDiscovery && !discoveryDismissed ? "" : " plain"}`}>
+          {firstDiscovery && !discoveryDismissed ? (
+            <AgentLoadingChecklist
+              remoteLoading
+              discovering
+              foundCount={null}
+              onSkip={() => setDiscoveryDismissed(true)}
+            />
+          ) : (
+            <LoadingState label="Loading remote agents" elapsed={false} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // The boxed checklist is a one-time discovery surface. Once the marker and
+  // registry exist, ordinary refreshes use only the app's original pixel loader.
+  if (firstDiscovery && !discoveryDismissed) {
     return (
       <div className="wrap">
         <div className="home-loading">
-          <LoadingState label="Loading agents" elapsed={false} />
+          <AgentLoadingChecklist
+            remoteLoading={false}
+            discovering={!discoveryFinished}
+            foundCount={data?.discoveredAgents ?? null}
+            onSkip={() => setDiscoveryDismissed(true)}
+          />
         </div>
       </div>
     );
@@ -141,12 +307,16 @@ function Home() {
           account={forced === "signed-out" ? null : account}
           demo={Boolean(forced)}
           localCount={localCount}
-          onRetry={() => {
+          onRetry={async () => {
             // Drop ?firstrun on the way out: the dev override must never
             // outrank a real sign-in and strand someone on this screen.
             if (forced) router.replace("/");
-            recheck();
-            mutate();
+            setSignInSyncing(true);
+            try {
+              await Promise.all([recheck(), mutate()]);
+            } finally {
+              setSignInSyncing(false);
+            }
           }}
           onNew={() => setNewOpen(true)}
           onSkip={() => setSkipped(true)}

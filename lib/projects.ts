@@ -10,6 +10,7 @@ import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { cacheDir } from "./cache-dir";
 import { knownPath, remember, allKnown } from "./registry";
+import { localLinkVisible } from "./project-visibility";
 import type { LocalServer, Project } from "./types";
 
 const exec = promisify(execFile);
@@ -60,7 +61,7 @@ async function probe(port: number): Promise<LocalServer | null> {
     if (!info?.agent?.name) return null;
 
     const root = projectRootFromAppRoot(info.agent.appRoot);
-    let link: { projectId?: string; projectName?: string } | null = null;
+    let link: { projectId?: string; orgId?: string; projectName?: string } | null = null;
     if (root && existsSync(join(root, ".vercel", "project.json"))) {
       try {
         link = JSON.parse(readFileSync(join(root, ".vercel", "project.json"), "utf8"));
@@ -73,6 +74,7 @@ async function probe(port: number): Promise<LocalServer | null> {
       model: info.agent?.model?.id ?? null,
       projectRoot: root,
       vercelProjectId: link?.projectId ?? null,
+      vercelOrgId: link?.orgId ?? null,
       vercelProjectName: link?.projectName ?? null,
     };
   } catch {
@@ -266,11 +268,25 @@ export function eveVersionAt(root: string | null | undefined): string | null {
 export async function listProjects(): Promise<Project[]> {
   const [remote, local] = await Promise.all([vercelProjects(), localServers()]);
 
+  const visibleProjectIds = new Set(
+    remote.map((p) => p.id).filter((id): id is string => Boolean(id)),
+  );
+  const visibleOrgs = new Set(
+    remote.map((p) => p.accountId).filter((id): id is string => Boolean(id)),
+  );
+  const visibleLocal = local.filter((server) =>
+    localLinkVisible(
+      { projectId: server.vercelProjectId, orgId: server.vercelOrgId },
+      visibleProjectIds,
+      visibleOrgs,
+    ),
+  );
+
   const byId = new Map<string, LocalServer>();
   const byName = new Map<string, LocalServer>();
-  for (const s of local) {
+  for (const s of visibleLocal) {
     if (s.vercelProjectId) byId.set(s.vercelProjectId, s);
-    byName.set(s.vercelProjectName ?? s.agentName, s);
+    else byName.set(s.vercelProjectName ?? s.agentName, s);
   }
 
   // Only eve agents belong in evepad. Local servers are eve by definition
@@ -295,7 +311,7 @@ export async function listProjects(): Promise<Project[]> {
   });
 
   const claimed = new Set(merged.filter((p) => p.live).map((p) => p.localPort));
-  for (const s of local) {
+  for (const s of visibleLocal) {
     if (claimed.has(s.port)) continue;
     merged.unshift({
       id: null,
@@ -313,16 +329,14 @@ export async function listProjects(): Promise<Project[]> {
     });
   }
 
-  // Stopped-but-remembered checkouts stay on the board. Ownership scope:
-  // an entry linked to a Vercel org is visible only while the CURRENT login
-  // can see that org (logout/user-switch hides it, logging back restores it,
-  // and the check is live so there is no stale state to clean up). Unlinked
-  // checkouts are machine-local and always visible.
-  const visibleOrgs = new Set(remote.map((p) => p.accountId).filter(Boolean));
+  // Stopped-but-remembered checkouts stay on the board. A linked entry is
+  // visible only when BOTH its project and org belong to the current scope;
+  // logout/account-switch hides it immediately. Unlinked checkouts are local
+  // to the machine and remain visible.
   const present = new Set(merged.map((p) => p.name));
   for (const e of allKnown()) {
     if (present.has(e.name)) continue;
-    if (e.orgId && !visibleOrgs.has(e.orgId)) continue;
+    if (!localLinkVisible(e, visibleProjectIds, visibleOrgs)) continue;
     merged.push({
       id: e.projectId,
       name: e.name,
