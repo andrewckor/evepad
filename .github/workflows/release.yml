@@ -35,6 +35,16 @@ jobs:
         run: |
           version="$(node -p "require('./package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+          prerelease="${version#*-}"
+          if [ "$prerelease" = "$version" ]; then
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "npm_tag=${prerelease%%.*}" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          fi
+
           if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
             echo "v$version is already tagged — nothing to do"
             echo "release=false" >> "$GITHUB_OUTPUT"
@@ -74,18 +84,21 @@ jobs:
       - name: Publish to npm
         if: steps.check.outputs.release == 'true'
         env:
+          NPM_TAG: ${{ steps.check.outputs.npm_tag }}
           VERSION: ${{ steps.check.outputs.version }}
         run: |
           if npm view "evepad@$VERSION" version >/dev/null 2>&1; then
             echo "evepad@$VERSION is already on npm — skipping publish"
           else
-            npm publish "./dist/evepad-$VERSION.tgz"
+            npm publish "./dist/evepad-$VERSION.tgz" --tag "$NPM_TAG"
           fi
 
       - name: Tag and release
         if: steps.check.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TAG: ${{ steps.check.outputs.npm_tag }}
+          PRERELEASE: ${{ steps.check.outputs.prerelease }}
           VERSION: ${{ steps.check.outputs.version }}
         run: |
           git tag "v$VERSION"
@@ -102,10 +115,17 @@ jobs:
           {
             git log --no-merges --pretty='- %s' "$range"
             echo
-            echo "Install: \`npx evepad@$VERSION\`"
+            echo "Install: \`npx evepad@$NPM_TAG\`"
+            echo "Exact version: \`npx evepad@$VERSION\`"
           } > notes.md
 
+          release_flags=()
+          if [ "$PRERELEASE" = "true" ]; then
+            release_flags+=(--prerelease)
+          fi
+
           gh release create "v$VERSION" \
+            "${release_flags[@]}" \
             --title "v$VERSION" \
             --notes-file notes.md \
             "./dist/evepad-$VERSION.tgz#evepad-$VERSION.tgz"
