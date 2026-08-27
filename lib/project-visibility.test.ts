@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { localLinkVisible } from "./project-visibility.ts";
+import { indexLinkedProjects, localLinkVisible } from "./project-visibility.ts";
 
 const projects = new Set(["prj_current"]);
 const orgs = new Set(["team_current"]);
@@ -30,4 +30,21 @@ test("links from another project or account are hidden", () => {
 test("partial Vercel links fail closed", () => {
   assert.equal(localLinkVisible({ projectId: "prj_current", orgId: null }, projects, orgs), false);
   assert.equal(localLinkVisible({ projectId: null, orgId: "team_current" }, projects, orgs), false);
+});
+
+test("unlinked locals are never candidates for remote project matching", () => {
+  const indexed = indexLinkedProjects(
+    [
+      { name: "same-name", projectId: null },
+      { name: "linked", projectId: "prj_linked" },
+    ],
+    (item) => item.projectId,
+  );
+
+  assert.equal(indexed.size, 1);
+  assert.equal(indexed.get("prj_linked")?.name, "linked");
+  assert.equal(
+    [...indexed.values()].some(({ name }) => name === "same-name"),
+    false,
+  );
 });

@@ -9,8 +9,8 @@ import { promisify } from "node:util";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { cacheDir } from "./cache-dir";
-import { remember, allKnown, type KnownProject } from "./registry";
-import { localLinkVisible } from "./project-visibility";
+import { remember, allKnown } from "./registry";
+import { indexLinkedProjects, localLinkVisible } from "./project-visibility";
 import { collectVercelProjectPages } from "./vercel-project-pages";
 import type { LocalServer, Project } from "./types";
 
@@ -292,24 +292,14 @@ export async function listProjects(): Promise<Project[]> {
     localLinkVisible(entry, visibleProjectIds, visibleOrgs),
   );
 
-  const byId = new Map<string, LocalServer>();
-  const byName = new Map<string, LocalServer>();
-  for (const s of visibleLocal) {
-    if (s.vercelProjectId) byId.set(s.vercelProjectId, s);
-    else byName.set(s.vercelProjectName ?? s.agentName, s);
-  }
-  const knownById = new Map<string, KnownProject>();
-  const knownByName = new Map<string, KnownProject>();
-  for (const entry of visibleKnown) {
-    if (entry.projectId) knownById.set(entry.projectId, entry);
-    else knownByName.set(entry.name, entry);
-  }
+  const byId = indexLinkedProjects(visibleLocal, (server) => server.vercelProjectId);
+  const knownById = indexLinkedProjects(visibleKnown, (entry) => entry.projectId);
 
   // Only eve agents belong in evepad. Local servers are eve by definition
   // (they answered /eve/v1/info); remote projects qualify by framework.
   const merged: Project[] = remote.map((p) => {
-    const s = (p.id ? byId.get(p.id) : undefined) ?? byName.get(p.name) ?? null;
-    const remembered = (p.id ? knownById.get(p.id) : undefined) ?? knownByName.get(p.name) ?? null;
+    const s = p.id ? (byId.get(p.id) ?? null) : null;
+    const remembered = p.id ? (knownById.get(p.id) ?? null) : null;
     return {
       ...p,
       source: "vercel",
