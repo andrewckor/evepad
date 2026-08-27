@@ -8,7 +8,7 @@ import type React from "react";
 // the command that changes them rather than faked into editable fields.
 
 import { useState } from "react";
-import useSWR, { mutate as mutateGlobal } from "swr";
+import useSWR from "swr";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +16,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import type { Account, Project } from "@/lib/types";
 
 import { getJson as fetcher } from "@/lib/fetch";
+import { projectsRequestKey } from "@/lib/projects-request";
 // Home-relative paths fit without truncation, which beats any clever
 // ellipsis: the RTL trick that keeps a path's tail visible also drags its
 // leading slash to the far end, so "/Users/jane/x" renders "Users/jane/x/".
@@ -98,13 +99,14 @@ export default function SettingsDialog({
       // Every screen keys off the account, so one revalidation flips the whole
       // app to its signed-out first run.
       onSignedOut?.();
-      mutateGlobal("/api/projects");
     }
   };
 
   // Only fetched while the dialog is open — settings shouldn't cost a poll on
   // every page for a panel nobody has opened.
-  const { data: projects, mutate } = useSWR(open ? "/api/projects" : null, fetcher);
+  const { data: projects, mutate } = useSWR(open ? projectsRequestKey(account) : null, fetcher, {
+    keepPreviousData: false,
+  });
   const linked: Project[] = (projects?.projects ?? []).filter((p: Project) => p.localPath);
 
   const unlink = async (p: Project) => {

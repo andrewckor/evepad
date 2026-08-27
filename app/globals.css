@@ -668,7 +668,17 @@ pre{margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--
 /* Inline text link inside an empty state — a button that reads as a link. */
 .linklike{border:none;background:none;padding:0;color:var(--blue);font:inherit;cursor:pointer}
 .linklike:hover{text-decoration:underline}
-.home-loading{display:flex;justify-content:center;padding:80px 20px}
+.home-loading{display:flex;align-items:center;justify-content:center;min-height:calc(100dvh - 100px);padding:20px}
+.agent-load-wrap{display:flex;flex-direction:column;align-items:center}
+.agent-load-checklist{display:flex;flex-direction:column;gap:10px;min-width:292px;padding:24px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--panel)}
+.agent-load-step{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;color:var(--dim2)}
+.agent-load-icon{display:inline-flex;width:16px;height:16px;align-items:center;justify-content:center;flex:none}
+.agent-load-icon>svg{width:16px;height:16px}
+.agent-load-step.done{color:var(--dim)}
+.agent-load-step.done .agent-load-icon{color:var(--dim2)}
+.agent-load-step.pending{visibility:hidden}
+.agent-load-step.active{color:var(--fg)}
+.agent-load-skip{margin-top:14px}
 .err{border:1px solid var(--bad);border-radius:var(--r);padding:12px 15px;color:var(--bad);margin-bottom:16px;font-size:13.5px}
 .note{border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;color:var(--dim);margin-bottom:16px;font-size:13.5px}
 

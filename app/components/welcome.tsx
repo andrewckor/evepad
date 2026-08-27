@@ -228,19 +228,15 @@ export default function Welcome({
   error,
   account,
   demo = false,
-  localCount = 0,
   onRetry,
   onNew,
-  onSkip,
 }: {
   state: string;
   error?: string | null;
   account?: Account | null;
   demo?: boolean;
-  localCount?: number;
   onRetry: () => void;
   onNew: () => void;
-  onSkip?: () => void;
 }) {
   if (state === "signed-out") {
     return (
@@ -248,13 +244,6 @@ export default function Welcome({
         <b className="wc-title">Connect your Vercel account</b>
         <p className="wc-body">To get access to your remote agents and runs.</p>
         <CliSignIn account={account} onContinue={onRetry} demo={demo} terminal />
-        {/* Local dev servers work without Vercel, so don't pretend the app is
-            unusable — just don't let it look signed in either. */}
-        {localCount > 0 && (
-          <button className="wc-skip" onClick={onSkip}>
-            Skip for now — {localCount} agent{localCount === 1 ? "" : "s"} running on this Mac
-          </button>
-        )}
       </div>
     );
   }

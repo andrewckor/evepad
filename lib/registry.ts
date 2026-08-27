@@ -5,11 +5,12 @@
 // keeps a stopped project on the Agents page (with its play button) and lets
 // the local adapter read its .eve store.
 //
-// Each entry also records the checkout's Vercel org (from .vercel/project.json)
-// so visibility can be scoped to the CURRENT login: another user's session on
-// this machine doesn't see your linked projects, and logging back in shows
-// them again — the ownership check is live, never a stored flag that can go
-// stale. Unlinked checkouts carry no org and are machine-local by nature.
+// Each entry also records the checkout's Vercel project and org (from
+// .vercel/project.json) so visibility can be scoped to the CURRENT login:
+// another user's session on this machine doesn't see your linked projects,
+// and logging back in shows them again — the ownership check is live, never a
+// stored flag that can go stale. Unlinked checkouts carry neither id and are
+// machine-local by nature.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -77,7 +78,7 @@ export function remember(name: string, path: string) {
   const reg = load();
   const { orgId, projectId } = linkOf(path);
   const prev = reg[name];
-  if (prev?.path === path && prev?.orgId === orgId) return;
+  if (prev?.path === path && prev?.orgId === orgId && prev?.projectId === projectId) return;
   reg[name] = { path, orgId, projectId, lastSeenAt: new Date().toISOString() };
   save(reg);
 }

@@ -69,6 +69,7 @@ type Panel = "chat" | "terminal" | null;
 type TerminalRequest = { input: string; id: number };
 
 import { getJson as fetcher } from "@/lib/fetch";
+import { projectsRequestKey } from "@/lib/projects-request";
 const DEFAULT_PERIOD = "12h";
 
 // The environment preference lives in localStorage under the key the Runs page
@@ -100,12 +101,16 @@ function TopNav({
   panel,
   setPanel,
   clearTerminalInput,
+  projects,
+  refreshProjects,
   liveProject,
   termProject,
 }: {
   panel: Panel;
   setPanel: React.Dispatch<React.SetStateAction<Panel>>;
   clearTerminalInput: () => void;
+  projects: Project[];
+  refreshProjects: () => Promise<unknown>;
   liveProject: Project | null | undefined;
   termProject: Project | null | undefined;
 }) {
@@ -159,7 +164,12 @@ function TopNav({
       <div className="topbar">
         <TooltipProvider delay={300}>
           <AccountMenu />
-          <ProjectPicker value={project} onChange={pickProject} />
+          <ProjectPicker
+            value={project}
+            projects={projects}
+            onChange={pickProject}
+            onRefresh={refreshProjects}
+          />
           {/* Project-level actions live here so they're reachable from any view. */}
           {/* Two views of one agent, so they read as a mode rather than as two
             buttons that swap places depending on where you already are. */}
@@ -269,6 +279,7 @@ function TopNav({
 function ShellInner({ children }: { children: ReactNode }) {
   const q = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const project = q.get("project") ?? "";
 
   // One companion-panel slot: chat OR terminal, never both.
@@ -322,11 +333,17 @@ function ShellInner({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, []);
 
-  const { data: projData } = useSWR("/api/projects", fetcher, {
+  const { data: accountData } = useSWR("/api/account", fetcher, {
+    revalidateOnFocus: true,
+  });
+  const projectsKey = projectsRequestKey(accountData);
+  const { data: projData, mutate: refreshProjects } = useSWR(projectsKey, fetcher, {
     refreshInterval: 5000,
-    keepPreviousData: true,
+    keepPreviousData: false,
   });
   const projects: Project[] = projData?.projects ?? [];
+  const hideTopNav =
+    !accountData?.loggedIn || (pathname === "/" && q.get("firstrun") === "signed-out");
   const liveProject =
     projects.find((p) => p.name === (project || undefined) && p.live) ??
     projects.find((p) => p.live && !project);
@@ -384,7 +401,6 @@ function ShellInner({ children }: { children: ReactNode }) {
   // terminal open over it showed a session for whichever agent you last
   // visited. Build deliberately keeps the terminal available: graph add
   // affordances open a focused CLI session in the same sidebar.
-  const pathname = usePathname();
   useEffect(() => {
     if (!project) setPanel(null);
   }, [pathname, project]);
@@ -400,13 +416,17 @@ function ShellInner({ children }: { children: ReactNode }) {
         }}
         transition={resizing ? { duration: 0 } : SPRING}
       >
-        <TopNav
-          panel={panel}
-          setPanel={setPanel}
-          clearTerminalInput={() => setTerminalRequest(undefined)}
-          liveProject={liveProject}
-          termProject={termProject}
-        />
+        {!hideTopNav && (
+          <TopNav
+            panel={panel}
+            setPanel={setPanel}
+            clearTerminalInput={() => setTerminalRequest(undefined)}
+            projects={projects}
+            refreshProjects={refreshProjects}
+            liveProject={liveProject}
+            termProject={termProject}
+          />
+        )}
         {children}
       </M.div>
       <AnimatePresence>
