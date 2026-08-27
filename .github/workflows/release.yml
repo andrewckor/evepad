@@ -36,8 +36,9 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-          prerelease="${version#*-}"
-          if [ "$prerelease" = "$version" ]; then
+          semver="${version%%+*}"
+          prerelease="${semver#*-}"
+          if [ "$prerelease" = "$semver" ]; then
             echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           else
