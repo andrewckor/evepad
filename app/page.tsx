@@ -34,6 +34,7 @@ function Tip({ label, children }: { label: ReactNode; children: ReactElement }) 
 
 import { getJson as fetcher } from "@/lib/fetch";
 import { ago as agoShared } from "@/lib/format";
+import { projectsRequestKey } from "@/lib/projects-request";
 
 // Cards floor at "1m ago" — "12s ago" churns for no information.
 const BUSY_LABEL: Record<string, string> = {
@@ -74,7 +75,7 @@ function AgentLoadingChecklist({
   return (
     <div className="agent-load-wrap">
       <div className="agent-load-checklist" aria-live="polite">
-        <div className="agent-load-step done">
+        <div className={`agent-load-step ${remoteLoading ? "active" : "done"}`}>
           <span className="agent-load-icon">
             {remoteLoading ? <span className="th-spin" aria-hidden /> : <Check />}
           </span>
@@ -104,51 +105,50 @@ function Home() {
   const router = useRouter();
   const q = useSearchParams();
   const [discoveryDismissed, setDiscoveryDismissed] = useState(false);
-  const { data: discoveryBootstrap } = useSWR("/api/projects/discovery", fetcher, {
-    revalidateOnFocus: false,
-    revalidateIfStale: false,
-  });
+  const { data: discoveryBootstrap, error: discoveryBootstrapError } = useSWR(
+    "/api/projects/discovery",
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+    },
+  );
   const {
     data: account,
     mutate: recheck,
     isLoading: accountLoading,
   } = useSWR("/api/account", fetcher);
   const firstDiscovery = Boolean(discoveryBootstrap?.required);
-  // Scope the SWR cache itself, not just the server cache. Otherwise a Vercel
-  // account/team switch can briefly reuse the previous scope's project list
-  // while the new request is in flight.
-  const projectScope =
-    account?.scope?.id ??
-    account?.scope?.slug ??
-    account?.user?.username ??
-    (account?.loggedIn ? "signed-in" : null);
-  const projectsKey =
-    account?.loggedIn && projectScope
-      ? `/api/projects?scope=${encodeURIComponent(projectScope)}`
-      : null;
+  const projectsKey = projectsRequestKey(account);
+  const discoveryBootstrapSettled =
+    discoveryBootstrap !== undefined || discoveryBootstrapError !== undefined;
   const {
     data,
     mutate,
     isLoading: projectsLoading,
-  } = useSWR(discoveryBootstrap ? projectsKey : null, fetcher, {
+  } = useSWR(discoveryBootstrapSettled ? projectsKey : null, fetcher, {
     refreshInterval: (latestData) => (latestData?.discovering ? 250 : 5000),
-    keepPreviousData: true,
+    keepPreviousData: false,
   });
   const projects: Project[] = data?.projects ?? [];
   const discovering = Boolean(data?.discovering);
   const discoveryFinished =
-    firstDiscovery &&
-    !discovering &&
-    data?.discoveredAgents !== null &&
-    data?.discoveredAgents != null;
+    firstDiscovery && !discovering && typeof data?.discoveredAgents === "number";
   const [busy, setBusy] = useState<Record<string, string | undefined>>({});
   const [newOpen, setNewOpen] = useState(false);
   // After the CLI confirms a login, refresh account and projects as one UI
   // transition. Without this guard the account response can win the race and
   // briefly render the signed-in empty state before the agent list arrives.
   const [signInSyncing, setSignInSyncing] = useState(false);
-  // Per-session only: a stored flag would outlive the reason for it.
-  const [skipped, setSkipped] = useState(false);
+
+  const syncAccountAndProjects = async () => {
+    setSignInSyncing(true);
+    try {
+      await Promise.all([recheck(), mutate()]);
+    } finally {
+      setSignInSyncing(false);
+    }
+  };
 
   useEffect(() => {
     if (!discoveryFinished || discoveryDismissed) return;
@@ -164,14 +164,12 @@ function Home() {
   // the CLI's auth.json aside to see one — is a bad thing to leave lying
   // around if anything crashes mid-check.
   const forced = process.env.NODE_ENV !== "production" ? q.get("firstrun") : null;
-  // Signed out takes the page even when local dev servers were discovered:
-  // half a list plus a chip reading "Not signed in" leaves you guessing which
-  // agents are missing. Local-only users can skip past it — the agents behind
-  // it genuinely work without Vercel.
-  const signedOut = account && !account.loggedIn && !skipped;
+  // Authentication is the first gate even when local dev servers exist. A
+  // partial local list beside a "Not signed in" chip would leave ownership and
+  // missing agents ambiguous.
+  const signedOut = account && !account.loggedIn;
   const firstRun =
     !projects.length && data && account && !discovering && (data.error ? "error" : "empty");
-  const localCount = projects.filter((p) => p.source === "local" || p.live).length;
 
   const devAction = async (e: SyntheticEvent, p: Project, action: DevAction) => {
     e.stopPropagation();
@@ -218,15 +216,9 @@ function Home() {
           demo
           onRetry={async () => {
             router.replace("/");
-            setSignInSyncing(true);
-            try {
-              await Promise.all([recheck(), mutate()]);
-            } finally {
-              setSignInSyncing(false);
-            }
+            await syncAccountAndProjects();
           }}
           onNew={() => setNewOpen(true)}
-          onSkip={() => setSkipped(true)}
         />
       </div>
     );
@@ -238,16 +230,8 @@ function Home() {
         <Welcome
           state="signed-out"
           account={account}
-          onRetry={async () => {
-            setSignInSyncing(true);
-            try {
-              await Promise.all([recheck(), mutate()]);
-            } finally {
-              setSignInSyncing(false);
-            }
-          }}
+          onRetry={syncAccountAndProjects}
           onNew={() => setNewOpen(true)}
-          onSkip={() => setSkipped(true)}
         />
       </div>
     );
@@ -256,7 +240,7 @@ function Home() {
   // Once signed in, determine whether this is the one-time local discovery.
   // Rendering either loader before that answer caused a one-frame flash of the
   // wrong surface.
-  if (!discoveryBootstrap) return <div className="wrap" />;
+  if (!discoveryBootstrapSettled) return <div className="wrap" />;
 
   if (projectsLoading || signInSyncing || !data) {
     return (
@@ -304,22 +288,9 @@ function Home() {
         <Welcome
           state={firstRun}
           error={data?.error ?? "projects API 500"}
-          account={forced === "signed-out" ? null : account}
-          demo={Boolean(forced)}
-          localCount={localCount}
-          onRetry={async () => {
-            // Drop ?firstrun on the way out: the dev override must never
-            // outrank a real sign-in and strand someone on this screen.
-            if (forced) router.replace("/");
-            setSignInSyncing(true);
-            try {
-              await Promise.all([recheck(), mutate()]);
-            } finally {
-              setSignInSyncing(false);
-            }
-          }}
+          account={account}
+          onRetry={syncAccountAndProjects}
           onNew={() => setNewOpen(true)}
-          onSkip={() => setSkipped(true)}
         />
         <NewAgentDialog open={newOpen} onOpenChange={setNewOpen} />
       </div>

@@ -36,6 +36,7 @@ import type { ReactNode } from "react";
 import type { ListRunsResult } from "@/lib/data";
 import { money, kt, ago } from "@/lib/format";
 import { getJson as fetcher } from "@/lib/fetch";
+import { projectsRequestKey } from "@/lib/projects-request";
 
 // The live credential toast, so every SWR poll updates it in place instead of
 // stacking another copy. Base UI mints ids on add(), so we hold onto it rather
@@ -335,7 +336,12 @@ function Dashboard() {
   const isLocal = environment.split(",").includes("local");
   // Whether THIS agent has a folder on this Mac. The switcher already polls
   // this list, so SWR serves it from cache rather than issuing a second call.
-  const { data: projectList, mutate: refetchProjects } = useSWR("/api/projects", fetcher);
+  const { data: projectAccount } = useSWR("/api/account", fetcher);
+  const { data: projectList, mutate: refetchProjects } = useSWR(
+    projectsRequestKey(projectAccount),
+    fetcher,
+    { keepPreviousData: false },
+  );
   const [locating, setLocating] = useState(false);
   const chooseFolder = async () => {
     setLocating(true);

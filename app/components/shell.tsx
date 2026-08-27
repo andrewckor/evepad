@@ -69,6 +69,7 @@ type Panel = "chat" | "terminal" | null;
 type TerminalRequest = { input: string; id: number };
 
 import { getJson as fetcher } from "@/lib/fetch";
+import { projectsRequestKey } from "@/lib/projects-request";
 const DEFAULT_PERIOD = "12h";
 
 // The environment preference lives in localStorage under the key the Runs page
@@ -100,12 +101,16 @@ function TopNav({
   panel,
   setPanel,
   clearTerminalInput,
+  projects,
+  refreshProjects,
   liveProject,
   termProject,
 }: {
   panel: Panel;
   setPanel: React.Dispatch<React.SetStateAction<Panel>>;
   clearTerminalInput: () => void;
+  projects: Project[];
+  refreshProjects: () => Promise<unknown>;
   liveProject: Project | null | undefined;
   termProject: Project | null | undefined;
 }) {
@@ -159,7 +164,12 @@ function TopNav({
       <div className="topbar">
         <TooltipProvider delay={300}>
           <AccountMenu />
-          <ProjectPicker value={project} onChange={pickProject} />
+          <ProjectPicker
+            value={project}
+            projects={projects}
+            onChange={pickProject}
+            onRefresh={refreshProjects}
+          />
           {/* Project-level actions live here so they're reachable from any view. */}
           {/* Two views of one agent, so they read as a mode rather than as two
             buttons that swap places depending on where you already are. */}
@@ -326,18 +336,10 @@ function ShellInner({ children }: { children: ReactNode }) {
   const { data: accountData } = useSWR("/api/account", fetcher, {
     revalidateOnFocus: true,
   });
-  const projectScope =
-    accountData?.scope?.id ??
-    accountData?.scope?.slug ??
-    accountData?.user?.username ??
-    (accountData?.loggedIn ? "signed-in" : null);
-  const projectsKey =
-    accountData?.loggedIn && projectScope
-      ? `/api/projects?scope=${encodeURIComponent(projectScope)}`
-      : null;
-  const { data: projData } = useSWR(projectsKey, fetcher, {
+  const projectsKey = projectsRequestKey(accountData);
+  const { data: projData, mutate: refreshProjects } = useSWR(projectsKey, fetcher, {
     refreshInterval: 5000,
-    keepPreviousData: true,
+    keepPreviousData: false,
   });
   const projects: Project[] = projData?.projects ?? [];
   const hideTopNav =
@@ -419,6 +421,8 @@ function ShellInner({ children }: { children: ReactNode }) {
             panel={panel}
             setPanel={setPanel}
             clearTerminalInput={() => setTerminalRequest(undefined)}
+            projects={projects}
+            refreshProjects={refreshProjects}
             liveProject={liveProject}
             termProject={termProject}
           />

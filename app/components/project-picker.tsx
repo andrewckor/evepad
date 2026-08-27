@@ -7,7 +7,6 @@
 // Lives in the persistent shell, so its SWR poll survives route changes.
 
 import { useState } from "react";
-import useSWR from "swr";
 import { I } from "./icons";
 import { Badge } from "./badge";
 import { ChevronUpSmall, ChevronDownSmall } from "vercel-geist-icons";
@@ -26,14 +25,16 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import type { Project, DevAction } from "@/lib/types";
 import type { ReactNode, ReactElement, SyntheticEvent } from "react";
 
-import { getJson as fetcher } from "@/lib/fetch";
-
 export default function ProjectPicker({
   value,
+  projects,
   onChange,
+  onRefresh,
 }: {
   value: string;
+  projects: Project[];
   onChange: (p: Project) => void;
+  onRefresh: () => Promise<unknown>;
 }) {
   const [open, setOpen] = useState(false);
   // Same fade the shared MenuList uses. cmdk's List doesn't forward refs, so
@@ -42,12 +43,6 @@ export default function ProjectPicker({
   // the menu opens.
   const fadeRef = useScrollFade(open, ".pk-list");
   const [busy, setBusy] = useState<Record<string, string | undefined>>({});
-  const { data, mutate } = useSWR("/api/projects", fetcher, {
-    refreshInterval: 5000,
-    keepPreviousData: true,
-  });
-
-  const projects: Project[] = data?.projects ?? [];
   const current =
     projects.find((p) => p.name === value) ?? projects.find((p) => p.live) ?? projects[0];
   const live = projects.filter((p) => p.live);
@@ -69,7 +64,7 @@ export default function ProjectPicker({
     } finally {
       // Refresh BEFORE dropping the spinner: the button flips straight from
       // working to the new state, never through the stale one.
-      await mutate();
+      await onRefresh();
       setBusy((b) => ({ ...b, [p.name]: undefined }));
     }
   };

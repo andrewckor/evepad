@@ -15,7 +15,10 @@ export async function GET() {
     // it completely dormant while signed out, even if a stale tab or another
     // caller reaches this endpoint directly.
     const account = await getAccount();
-    if (account.loggedIn) startLocalAgentDiscovery();
+    if (!account.loggedIn) {
+      return Response.json({ projects: [], discovering: false, discoveredAgents: null });
+    }
+    startLocalAgentDiscovery();
     const projects = await listProjects();
     return Response.json({
       projects,

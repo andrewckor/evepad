@@ -9,8 +9,9 @@ import { promisify } from "node:util";
 import { readFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { cacheDir } from "./cache-dir";
-import { knownPath, remember, allKnown } from "./registry";
+import { remember, allKnown, type KnownProject } from "./registry";
 import { localLinkVisible } from "./project-visibility";
+import { collectVercelProjectPages } from "./vercel-project-pages";
 import type { LocalServer, Project } from "./types";
 
 const exec = promisify(execFile);
@@ -176,15 +177,21 @@ export async function vercelProjects(): Promise<Project[]> {
   if (vercelCache.key === key && Date.now() - vercelCache.at < CACHE_MS) return vercelCache.data;
   try {
     if (!token) throw new Error("no Vercel token (run `vercel login` or set VERCEL_TOKEN)");
-    const qs = new URLSearchParams({ limit: "100" });
     const team = currentTeam();
-    if (team) qs.set(team.startsWith("team_") ? "teamId" : "slug", team);
-    const r = await fetch(`https://api.vercel.com/v10/projects?${qs}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const apiProjects = await collectVercelProjectPages(async (until) => {
+      const qs = new URLSearchParams({ limit: "100" });
+      if (team) qs.set(team.startsWith("team_") ? "teamId" : "slug", team);
+      if (until) qs.set("until", until);
+      const r = await fetch(`https://api.vercel.com/v10/projects?${qs}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error(`projects API ${r.status}`);
+      return (await r.json()) as {
+        projects?: VercelApiProject[];
+        pagination?: { next?: string | number | null };
+      };
     });
-    if (!r.ok) throw new Error(`projects API ${r.status}`);
-    const body = await r.json();
-    const data: Project[] = ((body.projects ?? []) as VercelApiProject[]).map((p) => ({
+    const data: Project[] = apiProjects.map((p) => ({
       id: p.id,
       name: p.name,
       accountId: p.accountId ?? null,
@@ -281,6 +288,9 @@ export async function listProjects(): Promise<Project[]> {
       visibleOrgs,
     ),
   );
+  const visibleKnown = allKnown().filter((entry) =>
+    localLinkVisible(entry, visibleProjectIds, visibleOrgs),
+  );
 
   const byId = new Map<string, LocalServer>();
   const byName = new Map<string, LocalServer>();
@@ -288,25 +298,32 @@ export async function listProjects(): Promise<Project[]> {
     if (s.vercelProjectId) byId.set(s.vercelProjectId, s);
     else byName.set(s.vercelProjectName ?? s.agentName, s);
   }
+  const knownById = new Map<string, KnownProject>();
+  const knownByName = new Map<string, KnownProject>();
+  for (const entry of visibleKnown) {
+    if (entry.projectId) knownById.set(entry.projectId, entry);
+    else knownByName.set(entry.name, entry);
+  }
 
   // Only eve agents belong in evepad. Local servers are eve by definition
   // (they answered /eve/v1/info); remote projects qualify by framework.
   const merged: Project[] = remote.map((p) => {
     const s = (p.id ? byId.get(p.id) : undefined) ?? byName.get(p.name) ?? null;
+    const remembered = (p.id ? knownById.get(p.id) : undefined) ?? knownByName.get(p.name) ?? null;
     return {
       ...p,
       source: "vercel",
       live: Boolean(s),
       // Fall back to the registry so a stopped project keeps its path — that is
       // what enables the play button and reading its local .eve store.
-      localPath: s?.projectRoot ?? knownPath(p.name),
+      localPath: s?.projectRoot ?? remembered?.path ?? null,
       localUrl: s?.url ?? null,
       localPort: s?.port ?? null,
       agentName: s?.agentName ?? null,
       model: s?.model ?? null,
       // Framework proof beyond the Vercel tag: a live eve dev server, or the
       // registry (which only ever records checkouts that answered eve dev).
-      framework: p.framework ?? (s || knownPath(p.name) ? "eve" : null),
+      framework: p.framework ?? (s || remembered ? "eve" : null),
     };
   });
 
@@ -334,9 +351,8 @@ export async function listProjects(): Promise<Project[]> {
   // logout/account-switch hides it immediately. Unlinked checkouts are local
   // to the machine and remain visible.
   const present = new Set(merged.map((p) => p.name));
-  for (const e of allKnown()) {
+  for (const e of visibleKnown) {
     if (present.has(e.name)) continue;
-    if (!localLinkVisible(e, visibleProjectIds, visibleOrgs)) continue;
     merged.push({
       id: e.projectId,
       name: e.name,
