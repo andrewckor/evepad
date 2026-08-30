@@ -983,9 +983,8 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   width:6px!important;border-radius:999px;background:color-mix(in srgb,var(--fg) 22%,transparent)!important;
 }
 .inst-source{position:relative;flex:1;min-height:0;overflow:hidden}
-/* Same edge fades as .scroll-fade-y, but the mask sits on the container: the
-   textarea carries the scroll state while the visible text is the highlight
-   layer behind it, and masking only one of the pair would split them. */
+/* Fades on the container: the textarea scrolls but the highlight layer is
+   the visible text — masking only one of the pair would split them. */
 .inst-source:has(.inst-ta[data-scroll="start"]){
   -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent 100%);
   mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent 100%);

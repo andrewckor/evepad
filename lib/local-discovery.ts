@@ -1,12 +1,6 @@
-// One-time discovery for stopped local agents.
-//
-// Live discovery remains the fast source of truth. Discovery walks the
-// current user's files in the background, prunes dependency/build trees, and
-// remembers eve checkouts in the existing registry. The completion marker
-// makes later launches free — it re-runs only when something real changed:
-// a machine that never scanned, a different login (each `vercel login`
-// mints a new token), or a SCAN_VERSION bump because the scan itself
-// learned new structure. An ordinary version update stays quiet.
+// Background discovery of stopped local agents, fed into the registry.
+// Re-runs only for a never-scanned machine, a new login session, or a
+// SCAN_VERSION bump — ordinary version updates stay quiet.
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -20,13 +14,10 @@ import { cliToken } from "./projects";
 import { discoveredAgentName, isEveAgentPackage, type PackageJson } from "./local-discovery-utils";
 
 const MARKER = join(cacheDir(), "local-discovery-v1.json");
-// Bump ONLY when the scan learns new structure (new markers to look for, new
-// fields recorded) and one machine-wide re-scan is worth the intro screen.
-// Markers written before this field existed fail the check and re-scan once.
+// Bump ONLY when the scan learns new structure and a re-scan is worth it.
 const SCAN_VERSION = 1;
 
-// The session, not the person: every `vercel login` mints a fresh token, so
-// a logout/login re-runs discovery even for the same account.
+// Every `vercel login` mints a fresh token — logout/login re-scans.
 function sessionFingerprint(): string | null {
   const token = cliToken();
   return token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
@@ -156,10 +147,8 @@ async function discover(root: string, fingerprint: string): Promise<void> {
   }
 }
 
-// No started-once latch: `running` already prevents overlap (discover sets it
-// synchronously), and a completed scan writes the marker that makes
-// isLocalAgentDiscoveryNeeded() false — while a login change mid-process must
-// be able to start a second scan.
+// No started-once latch: `running` prevents overlap, the marker ends
+// re-runs, and a mid-process login change must be able to scan again.
 export function startLocalAgentDiscovery(): void {
   const fp = sessionFingerprint();
   if (!fp || running || !isLocalAgentDiscoveryNeeded()) return;
@@ -175,8 +164,7 @@ export function localAgentDiscoveryFoundCount(): number | null {
 }
 
 export function isLocalAgentDiscoveryNeeded(): boolean {
-  // Signed out never scans — authentication gates the page anyway, and a
-  // scan attributed to nobody would suppress the post-login one.
+  // Signed out never scans — auth gates the page anyway.
   const fp = sessionFingerprint();
   if (!fp) return false;
   try {

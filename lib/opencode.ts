@@ -290,9 +290,8 @@ async function ensureServer(dir: string, oidc: string): Promise<ReadyEntry> {
     await entry.booting;
     return g.servers.get(dir) as ReadyEntry;
   }
-  // A rotated token means reboot (the token bakes in at spawn) — but never
-  // over a live run, which the reboot would orphan. Recent bus traffic
-  // defers the swap until the run quiets.
+  // A rotated token means reboot — but never over a live run, which the
+  // reboot would orphan; recent bus traffic defers the swap.
   const hubBusy = (g.hubs.get(dir)?.lastEventAt ?? 0) > Date.now() - 30_000;
   if (entry?.server && (entry.bootToken === oidc || hubBusy)) {
     // Handles survive hot reloads on globalThis but the process behind them
@@ -380,9 +379,8 @@ export type OcQuestionRequest = {
   tool?: { messageID: string; callID: string };
 };
 
-// Wipe every session opencode holds for a checkout path. Histories are keyed
-// by worktree, so a NEW agent scaffolded where an old one lived would
-// inherit the dead agent's chats.
+// Wipe a checkout path's stored sessions — histories are keyed by worktree,
+// so a new agent at a reused path would inherit the dead agent's chats.
 export async function purgeSessions(dir: string): Promise<number> {
   const { client } = await ocClient(dir);
   const query = { directory: dir };

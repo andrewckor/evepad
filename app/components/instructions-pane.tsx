@@ -90,9 +90,8 @@ export default function InstructionsPane({ project }: { project: string }) {
 
   useEffect(() => warmMd(), []);
 
-  // The editor's scroll state lives on the textarea, but the visible text is
-  // the highlight layer behind it — so the fade mask goes on .inst-source
-  // (via :has in globals.css), driven by data-scroll stamped here.
+  // The textarea scrolls but the highlight layer is the visible text, so the
+  // fade mask sits on .inst-source (via :has), driven by data-scroll here.
   useScrollFade(mode === "source", ".inst-ta");
 
   useEffect(() => {

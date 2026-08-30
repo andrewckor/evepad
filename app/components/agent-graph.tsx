@@ -27,9 +27,8 @@ function useThemeMode() {
 
 import type { Node, Edge, ColorMode } from "@xyflow/react";
 
-// Fitting must never zoom IN past natural size: on a sparse graph the default
-// fit blows a handful of nodes up to fill the pane, so recentering looked
-// like a zoom bug. Capped at 1x, fit only ever pulls back to show everything.
+// Fit only ever pulls back — zooming IN past 1x blew sparse graphs up to
+// fill the pane.
 const FIT = { maxZoom: 1 };
 
 export default function AgentGraph({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {

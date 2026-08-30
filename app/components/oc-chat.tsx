@@ -123,9 +123,8 @@ function QuestionCard({
           </button>
         ))}
       </div>
-      {/* Free text renders regardless of q.custom: models rarely set it, and
-          a picker whose options are all wrong dead-ends the run. The reply is
-          plain strings, so an off-menu answer is valid. */}
+      {/* Always offered — a picker whose options are all wrong dead-ends
+          the run, and the reply accepts any string. */}
       <div className="oc-q-foot">
         <input
           className="oc-q-input"
@@ -254,10 +253,8 @@ const MsgRow = React.memo(
     prev.diff === next.diff,
 );
 
-// Consecutive tool-only turns render as ONE Thinking run — each tool call
-// arrives as its own assistant message, and per-message grouping alone read
-// as a stack of loose "Ran a command" rows. revKey carries the member
-// revs, so streaming updates inside any member still re-render.
+// Consecutive tool-only turns render as ONE Thinking run; revKey carries
+// member revs so streaming updates still re-render.
 const TraceRun = React.memo(
   function TraceRun({ msgs, live }: { msgs: OcMessage[]; revKey: string; live: boolean }) {
     const parts = msgs.flatMap((m) =>
@@ -736,11 +733,9 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
     const bt = b.info.time?.created ?? b.info.localAt ?? 0;
     return at - bt || String(a.info.id).localeCompare(String(b.info.id));
   });
-  // Adjacent tool-only turns collapse into one trace unit (see TraceRun).
-  // Keyed by the first member, so a run that grows doesn't remount. Messages
-  // with nothing to show yet (a streaming turn before its first part) are
-  // skipped — as their own unit they steal `live` from the trace, which then
-  // collapsed and reopened on every step of a run.
+  // Trace units keyed by first member (no remount as they grow). Not-yet-
+  // visible messages are skipped — as units they stole `live` and made the
+  // trace collapse/reopen on every step.
   type Unit = { key: string; run: OcMessage[] } | { key: string; msg: OcMessage };
   const units: Unit[] = [];
   for (const m of msgs) {
