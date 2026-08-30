@@ -9,7 +9,20 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { remember, forget } from "@/lib/registry";
+import { invalidateVercelProjects } from "@/lib/projects";
+import { purgeSessions } from "@/lib/opencode";
 import { isAgentName } from "@/lib/agent-name";
+
+// Would `dir/name` collide? The dialog asks while you type, so the collision
+// shows up as a hint next to the name instead of a dead terminal after Create.
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const name = url.searchParams.get("name");
+  const dir = url.searchParams.get("dir");
+  // isAgentName also guards the join: traversal names never reach it.
+  if (!name || !dir || !isAgentName(name)) return Response.json({ exists: false });
+  return Response.json({ exists: existsSync(join(dir, name)) });
+}
 
 export async function POST(request: Request) {
   const { name, dir } = await request.json();
@@ -26,6 +39,14 @@ export async function POST(request: Request) {
     );
 
   remember(name, path);
+  // The scaffold just created the Vercel project; the cached remote list
+  // predates it, and the redirect to Build resolves the project immediately.
+  invalidateVercelProjects();
+  // Chat histories are keyed by worktree in opencode's global store, so a
+  // fresh agent at a reused path would inherit a dead agent's sessions.
+  try {
+    await purgeSessions(path);
+  } catch {}
   return Response.json({ ok: true, name, path });
 }
 

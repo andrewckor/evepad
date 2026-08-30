@@ -5,8 +5,9 @@
 // about a minute between them, and the old version ran them inside one silent
 // POST that was indistinguishable from a hang.
 //
-// The dev server is NOT started here: finishing hands you to the agent with
-// the terminal sidebar open, so `eve dev` starts where you can watch it too.
+// Finishing starts `eve dev` in the background (the play button's own call)
+// and hands you to the agent's Build screen — no sidebar, the graph goes
+// live once the server answers.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -44,9 +45,33 @@ export default function NewAgentDialog({
       .catch(() => {});
   }, [open]);
   const [running, setRunning] = useState(false);
-  const [error, setError] = useState(null);
-  const nameError = name ? agentNameError(name) : null;
-  const valid = !agentNameError(name) && dir;
+  const [error, setError] = useState<string | null>(null);
+  // `dir/name` already on disk. Checked while you type — the server rejects
+  // the collision anyway (lib/terminals.js), but that used to surface as a
+  // dead terminal; a hint next to the name lets you pick another before
+  // Create. Stored as the colliding path and derived below, so editing either
+  // field clears the hint without a second setState.
+  const [takenPath, setTakenPath] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open || !dir || !name || agentNameError(name)) return;
+    let stale = false;
+    const t = setTimeout(() => {
+      fetch(`/api/agents?name=${encodeURIComponent(name)}&dir=${encodeURIComponent(dir)}`)
+        .then((r) => r.json())
+        .then((r) => !stale && setTakenPath(r.exists ? `${dir}/${name}` : null))
+        .catch(() => {});
+    }, 250);
+    return () => {
+      stale = true;
+      clearTimeout(t);
+    };
+  }, [open, name, dir]);
+  const taken = Boolean(dir && name) && takenPath === `${dir}/${name}`;
+  const nameError = name
+    ? (agentNameError(name) ??
+      (taken ? `"${name}" already exists in that folder — pick another name or folder.` : null))
+    : null;
+  const valid = !agentNameError(name) && dir && !taken;
 
   const chooseDir = async () => {
     setError(null);
@@ -75,9 +100,18 @@ export default function NewAgentDialog({
       setError(r.error ?? "could not finish");
       return;
     }
+    // Boot the agent's dev server in the background — same call as the play
+    // button, detached, so the CLI sidebar stays closed. Not awaited: Build
+    // is usable while it comes up, and the graph flips live on its own.
+    void fetch("/api/dev", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ project: name, action: "start" }),
+    }).catch(() => {});
     onOpenChange(false);
-    // panel=terminal starts eve dev in the sidebar — visible, not detached.
-    router.push(`/runs?project=${encodeURIComponent(name)}&environment=local&panel=terminal`);
+    // Land on Build: a fresh agent has no runs to look at, but it does have
+    // instructions to write and a chat to start shaping it with.
+    router.push(`/build?project=${encodeURIComponent(name)}`);
   };
 
   const reset = () => {
@@ -146,6 +180,15 @@ export default function NewAgentDialog({
                 extra={{ dir }}
                 fontSize={12}
                 className="na-term-body"
+                // A start refusal (folder already exists, bad workspace) used
+                // to strand the dialog on a dead terminal — land it back on
+                // the form with the reason, so name/folder can change.
+                onStatus={(info) => {
+                  if (info.error) {
+                    setError(info.error);
+                    setRunning(false);
+                  }
+                }}
                 onExit={onFinished}
               />
             </div>
