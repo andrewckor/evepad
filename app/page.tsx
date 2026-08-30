@@ -206,6 +206,22 @@ function Home() {
 
   // Development previews are explicit and must remain reachable regardless of
   // the machine's real authentication state.
+  // ?firstrun=discovery shows the one-time scan checklist, which otherwise
+  // only exists on a machine whose discovery marker is missing or outdated.
+  if (forced === "discovery") {
+    return (
+      <div className="wrap">
+        <div className="home-loading">
+          <AgentLoadingChecklist
+            remoteLoading={false}
+            discovering
+            foundCount={null}
+            onSkip={() => router.replace("/")}
+          />
+        </div>
+      </div>
+    );
+  }
   if (forced) {
     return (
       <div className="wrap">
