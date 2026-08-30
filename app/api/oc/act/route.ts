@@ -3,7 +3,8 @@
 // the event stream, errors as session.error events.
 
 import { resolveProject } from "@/lib/projects";
-import { ocClient, eventHub, DEFAULTS } from "@/lib/opencode";
+import { ocClient, eventHub, answerQuestion, listPermissions, DEFAULTS } from "@/lib/opencode";
+import { addPermissionAllows } from "@/lib/settings";
 import { errMsg } from "@/lib/utils";
 
 export async function POST(request: Request) {
@@ -19,6 +20,8 @@ export async function POST(request: Request) {
     agent,
     permissionId,
     response,
+    requestId,
+    answers,
   } = await request.json();
   const project = await resolveProject(name);
   if (!project?.localPath) return Response.json({ error: "No local checkout." }, { status: 409 });
@@ -125,13 +128,34 @@ export async function POST(request: Request) {
       case "abort":
         await client.session.abort({ path, query, throwOnError: true });
         return Response.json({ ok: true });
-      case "permission":
+      case "permission": {
+        // Patterns for a machine-wide "always" come from the server's own
+        // record of the ask, never from the client — and are read BEFORE the
+        // reply consumes it.
+        let askPatterns: string[] = [];
+        if (response === "always") {
+          try {
+            const ask = (await listPermissions(dir)).find((p) => p.id === permissionId);
+            const raw = ask?.patterns;
+            if (Array.isArray(raw)) askPatterns = raw.filter((p) => typeof p === "string");
+          } catch {}
+        }
         await client.postSessionIdPermissionsPermissionId({
           path: { id: sessionId, permissionID: permissionId },
           query,
           body: { response },
           throwOnError: true,
         });
+        // "Always" should outlive this agent, not just this project: opencode
+        // records it per project; evepad also records the patterns machine-
+        // wide and feeds them into every server boot (lib/opencode.ts).
+        if (askPatterns.length) addPermissionAllows(askPatterns);
+        return Response.json({ ok: true });
+      }
+      case "question":
+        // response "reject" declines; anything else replies with the answers
+        // (string[][] — one array of selected labels per question, in order).
+        await answerQuestion(dir, requestId, response === "reject" ? null : { answers });
         return Response.json({ ok: true });
       default:
         return Response.json({ error: `unknown action ${action}` }, { status: 400 });

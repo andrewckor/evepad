@@ -8,7 +8,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import { resolveProject } from "@/lib/projects";
-import { ocClient } from "@/lib/opencode";
+import { ocClient, listQuestions, listPermissions } from "@/lib/opencode";
 import { errMsg } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,30 @@ export async function GET(request: Request) {
             (p) => p.type === "tool" && ["pending", "running"].includes(p.state?.status),
           )
         : [];
-    if (!waitingParts.length) return Response.json({ pending: [] });
+    if (!waitingParts.length) return Response.json({ pending: [], questions: [] });
+
+    // Questions ARE listable (unlike permissions) — ask the server directly.
+    let questions: Awaited<ReturnType<typeof listQuestions>> = [];
+    try {
+      questions = (await listQuestions(dir)).filter((q) => q.sessionID === sessionId);
+    } catch {}
+    // Server truth first: the server lists pending permission asks directly,
+    // full patterns included — an ask raised during an event-bus gap never
+    // replays on the stream, but it IS here. The log parse below survives
+    // only as the fallback for a server without the endpoint.
+    try {
+      const live = (await listPermissions(dir)).filter((p) => p.sessionID === sessionId);
+      return Response.json({ pending: live, questions });
+    } catch {}
+
+    // Parts a live question already accounts for must not count toward the
+    // permission cap below — a run waiting only on a question would otherwise
+    // resurface already-answered asks from the log tail.
+    const askedCalls = new Set(questions.map((q) => q.tool?.callID).filter(Boolean));
+    const waitingPerms = waitingParts.filter(
+      (p) => !(p.type === "tool" && (p.tool === "question" || askedCalls.has(p.callID))),
+    );
+    if (!waitingPerms.length) return Response.json({ pending: [], questions });
 
     // The run is waiting on something. Find its run-context ids in the log
     // (lines mentioning this session), then that context's trailing asks.
@@ -46,7 +69,7 @@ export async function GET(request: Request) {
       const buf = readFileSync(LOG, "utf8");
       tail = buf.slice(-400_000);
     } catch {
-      return Response.json({ pending: [] });
+      return Response.json({ pending: [], questions });
     }
 
     const runIds = new Set();
@@ -68,7 +91,7 @@ export async function GET(request: Request) {
     }
     // Only the newest asks can still be pending — cap to the number of
     // tool parts actually waiting.
-    const pending = asks.slice(-Math.max(waitingParts.length, 1)).map((a) => ({
+    const pending = asks.slice(-Math.max(waitingPerms.length, 1)).map((a) => ({
       id: a.id,
       sessionID: sessionId,
       permission: a.permission,
@@ -76,7 +99,7 @@ export async function GET(request: Request) {
       metadata: { command: a.patterns.join(" && ") },
       fromLog: true,
     }));
-    return Response.json({ pending });
+    return Response.json({ pending, questions });
   } catch (e) {
     return Response.json({ error: errMsg(e).slice(0, 200) }, { status: 502 });
   }

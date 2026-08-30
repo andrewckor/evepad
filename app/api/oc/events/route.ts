@@ -20,6 +20,9 @@ const FORWARD = new Set([
   "permission.asked",
   "permission.updated",
   "permission.replied",
+  "question.asked",
+  "question.replied",
+  "question.rejected",
 ]);
 
 export async function GET(request: Request) {

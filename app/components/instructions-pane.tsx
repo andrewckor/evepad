@@ -10,6 +10,7 @@ import { File } from "vercel-geist-icons";
 import { Button } from "@/components/ui/button";
 import { Md, warmMd } from "./md";
 import LoadingState from "./loading-state";
+import { ScrollFade, useScrollFade } from "./scroll-fade";
 import { fetchJson, getJson as fetcher } from "@/lib/fetch";
 
 const INLINE_MD =
@@ -88,6 +89,11 @@ export default function InstructionsPane({ project }: { project: string }) {
   const statusTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => warmMd(), []);
+
+  // The editor's scroll state lives on the textarea, but the visible text is
+  // the highlight layer behind it — so the fade mask goes on .inst-source
+  // (via :has in globals.css), driven by data-scroll stamped here.
+  useScrollFade(mode === "source", ".inst-ta");
 
   useEffect(() => {
     if (mode === "source") taRef.current?.focus();
@@ -197,7 +203,7 @@ export default function InstructionsPane({ project }: { project: string }) {
           </pre>
           <textarea
             ref={taRef}
-            className="inst-ta"
+            className="inst-ta thinbar"
             value={source}
             onChange={(e) => setDraft(e.target.value)}
             onScroll={(e) => {
@@ -215,16 +221,18 @@ export default function InstructionsPane({ project }: { project: string }) {
           />
         </div>
       ) : data.exists || source ? (
-        <Md
-          className="inst-md"
-          fallback={
-            <div className="pane-loading">
-              <LoadingState label="Loading instructions" elapsed={false} />
-            </div>
-          }
-        >
-          {source}
-        </Md>
+        <ScrollFade className="inst-scroll thinbar">
+          <Md
+            className="inst-md"
+            fallback={
+              <div className="pane-loading">
+                <LoadingState label="Loading instructions" elapsed={false} />
+              </div>
+            }
+          >
+            {source}
+          </Md>
+        </ScrollFade>
       ) : (
         <div className="empty">
           No instructions yet — every word here becomes part of how the agent behaves.{" "}

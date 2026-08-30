@@ -64,3 +64,21 @@ export type OcPermission = Partial<Permission> & {
   patterns?: string[];
   permission?: string;
 };
+
+// A pending question (elicitation) — the agent's AskUserQuestion-style tool.
+// The pinned SDK client predates these, so the shape is declared here; it
+// mirrors the server's QuestionRequest.
+export type OcQuestionOption = { label: string; description?: string };
+export type OcQuestionInfo = {
+  question: string;
+  header?: string;
+  options: OcQuestionOption[];
+  multiple?: boolean;
+  custom?: boolean;
+};
+export type OcQuestionRequest = {
+  id: string;
+  sessionID?: string;
+  questions: OcQuestionInfo[];
+  tool?: { messageID: string; callID: string };
+};

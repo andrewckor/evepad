@@ -26,6 +26,36 @@ this agent quickly and correctly, right here on disk.
 - `.eve/` is the framework's run store (runs, steps, streams). Never edit it.
 - `.env.local` holds `VERCEL_OIDC_TOKEN` and project creds. Never print,
   commit, or copy secrets into code or answers.
+- eve's own docs ship in `node_modules/eve/docs/` (README.md, channels/*.mdx,
+  schedules.mdx, install-integrations.mdx, …). Read those before searching
+  anywhere else.
+
+## Adding channels, connections, schedules
+
+- Discover installables with `npm exec -- eve registry search <term> --json`,
+  inspect with `eve registry view <id>` (ids like `channel/slack`).
+- Install with `npm exec -- eve add <id> --non-interactive`. When the
+  installer needs input it prints `{"type":"blocked","status":"input_required",
+"question":{"key":…}}` — re-run adding `--answer 'key="value"'` per question
+  (e.g. `--answer 'slack-credentials="vercel"'`), with `--skip-install` to
+  avoid repeating the dependency install.
+- Third-party credentials go through **Vercel Connect**: `npx vercel connect
+ls` lists connectors, `… connect open <provider>/<project>` prints the
+  dashboard URL. App installs (e.g. adding the Slack app to a workspace) need
+  a browser OAuth you cannot do headlessly — give the user the `connect open`
+  URL and continue when they confirm. Connect tokens are secrets: mint one
+  (`connect token …`) only when a task genuinely needs it, and never echo it
+  into chat or files.
+- Schedules are Vercel crons and run in **UTC** — convert the user's local
+  time and say so.
+- After adding or removing a channel, connection, or schedule, update
+  `agent/instructions.md` so the agent's own prompt reflects what it can now
+  do (and no longer mentions what's gone) — same rule as for tools.
+- After adding a schedule, ask the user to test it now: the schedule's row in
+  the graph on the right has a Run-now play button.
+- Deploy with `npm exec -- eve deploy --non-interactive --yes` and read its
+  output for the result — `eve info --json` validates only the local agent,
+  not the deployment.
 
 ## Working rules
 

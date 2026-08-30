@@ -56,14 +56,34 @@ export function workspaceError(dir: string | null | undefined): string | null {
   return null;
 }
 
-export function setWorkspace(dir: string): string {
-  if (!dir || typeof dir !== "string") return getWorkspace();
-  const next = { ...load(), workspace: dir };
+function save(next: Record<string, unknown>): void {
   mkdirSync(dirname(PATH), { recursive: true });
   writeFileSync(PATH, JSON.stringify(next, null, 2));
   mem = next;
   try {
     memMtime = statSync(PATH).mtimeMs;
   } catch {}
+}
+
+export function setWorkspace(dir: string): string {
+  if (!dir || typeof dir !== "string") return getWorkspace();
+  save({ ...load(), workspace: dir });
   return dir;
+}
+
+// Bash patterns the user answered "Always" to in Build chat. Machine-level on
+// purpose: opencode remembers always-approvals per PROJECT, but in evepad the
+// user treats them as one preference across agents — so they are also stored
+// here and injected into every opencode server's boot config
+// (lib/opencode.ts). Already-running servers pick them up on their next boot.
+export function getPermissionAllows(): string[] {
+  const v = load().permissionAllows;
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x !== "") : [];
+}
+
+export function addPermissionAllows(patterns: string[]): string[] {
+  const clean = patterns.filter((p): p is string => typeof p === "string" && p !== "");
+  const merged = [...new Set([...getPermissionAllows(), ...clean])];
+  save({ ...load(), permissionAllows: merged });
+  return merged;
 }

@@ -101,6 +101,14 @@ export function invalidateLocalServers(): void {
   localCache.at = 0;
 }
 
+// Same idea for the remote list: agent creation just made a Vercel project
+// that a ≤15s-old snapshot can't contain — and a linked checkout whose
+// project the snapshot doesn't list is filtered as not-visible, so the
+// fresh agent's Build page opened to "No local checkout." until the TTL ran.
+export function invalidateVercelProjects(): void {
+  vercelCache.at = 0;
+}
+
 export async function localServers() {
   if (Date.now() - localCache.at < LOCAL_TTL) return localCache.data;
   const epoch = localEpoch;
