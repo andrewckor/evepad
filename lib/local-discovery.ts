@@ -6,7 +6,7 @@
 // marker makes every later launch free.
 
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
@@ -15,6 +15,28 @@ import { remember } from "./registry";
 import { discoveredAgentName, isEveAgentPackage, type PackageJson } from "./local-discovery-utils";
 
 const MARKER = join(cacheDir(), "local-discovery-v1.json");
+
+// The marker is per VERSION, not forever: an upgrade gets one fresh scan —
+// newer releases may discover better, and checkouts accumulate between them.
+// Markers from older releases (no appVersion field) also re-scan once.
+const appVersion = (() => {
+  try {
+    const v: unknown = JSON.parse(
+      readFileSync(join(process.cwd(), "package.json"), "utf8"),
+    ).version;
+    return typeof v === "string" ? v : "0";
+  } catch {
+    return "0";
+  }
+})();
+
+function markerAppVersion(): string | null {
+  try {
+    return (JSON.parse(readFileSync(MARKER, "utf8")).appVersion as string) ?? null;
+  } catch {
+    return null;
+  }
+}
 const PRUNED_DIRS = [
   "Library",
   "node_modules",
@@ -125,7 +147,10 @@ async function discover(root: string): Promise<void> {
     foundCount = found;
     try {
       mkdirSync(dirname(MARKER), { recursive: true });
-      writeFileSync(MARKER, JSON.stringify({ completedAt: new Date().toISOString(), root, found }));
+      writeFileSync(
+        MARKER,
+        JSON.stringify({ completedAt: new Date().toISOString(), root, found, appVersion }),
+      );
     } catch {}
   } finally {
     running = false;
@@ -133,7 +158,7 @@ async function discover(root: string): Promise<void> {
 }
 
 export function startLocalAgentDiscovery(): void {
-  if (started || existsSync(MARKER)) return;
+  if (started || !isLocalAgentDiscoveryNeeded()) return;
   started = true;
   void discover(process.env.HOME || homedir());
 }
@@ -147,5 +172,5 @@ export function localAgentDiscoveryFoundCount(): number | null {
 }
 
 export function isLocalAgentDiscoveryNeeded(): boolean {
-  return !existsSync(MARKER);
+  return markerAppVersion() !== appVersion;
 }
