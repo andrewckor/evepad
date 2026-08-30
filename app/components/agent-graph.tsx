@@ -27,6 +27,11 @@ function useThemeMode() {
 
 import type { Node, Edge, ColorMode } from "@xyflow/react";
 
+// Fitting must never zoom IN past natural size: on a sparse graph the default
+// fit blows a handful of nodes up to fill the pane, so recentering looked
+// like a zoom bug. Capped at 1x, fit only ever pulls back to show everything.
+const FIT = { maxZoom: 1 };
+
 export default function AgentGraph({ nodes, edges }: { nodes: Node[]; edges: Edge[] }) {
   const mode = useThemeMode();
   return (
@@ -34,13 +39,15 @@ export default function AgentGraph({ nodes, edges }: { nodes: Node[]; edges: Edg
       nodes={nodes}
       edges={edges}
       fitView
+      fitViewOptions={FIT}
       proOptions={{ hideAttribution: true }}
       nodesDraggable
       nodesConnectable={false}
       colorMode={mode as ColorMode}
     >
       <Background color="var(--line2)" gap={22} />
-      <Controls showInteractive={false} />
+      {/* The fit button reads its own options, not the canvas's. */}
+      <Controls showInteractive={false} fitViewOptions={FIT} />
     </ReactFlow>
   );
 }

@@ -121,6 +121,7 @@ type GraphActions = {
   removeSchedule: (n: string) => void;
   runSchedule: (n: string) => void;
   runningSchedule: string | null;
+  addTool: () => void;
   addSchedule: () => void;
   explainConnection: (n: string) => void;
   editConnection: (n: string) => void;
@@ -162,19 +163,26 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
   const schedH = 42 + Math.max(schedules.length, 1) * 44; // two-line rows
   const connH = 42 + Math.max(connections.length, 1) * 34;
   const srcBottom =
-    40 + Math.max(boxH, schedules.length ? schedH : 0, connections.length ? connH : 0); // shared baseline
-  nodes.push({
-    id: "box:tools",
-    position: { x: -115, y: srcBottom - boxH },
-    style: { width: 230 },
-    data: {
-      label: (
-        <div className="toolbox">
-          <div className="box-title">
-            {tools.length} Tool{tools.length === 1 ? "" : "s"}
-          </div>
-          {tools.length ? (
-            tools.map((t) => (
+    40 +
+    Math.max(
+      tools.length ? boxH : 0,
+      schedules.length ? schedH : 0,
+      connections.length ? connH : 0,
+    ); // shared baseline
+  // The list box is earned by having tools; empty renders as the same "0 …"
+  // pill the other categories use (see cats below).
+  if (tools.length) {
+    nodes.push({
+      id: "box:tools",
+      position: { x: -115, y: srcBottom - boxH },
+      style: { width: 230 },
+      data: {
+        label: (
+          <div className="toolbox">
+            <div className="box-title">
+              {tools.length} Tool{tools.length === 1 ? "" : "s"}
+            </div>
+            {tools.map((t) => (
               <div key={t} className="box-item nodrag">
                 <button
                   className="box-name"
@@ -211,18 +219,16 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
                   </Button>
                 </span>
               </div>
-            ))
-          ) : (
-            <div className="box-item empty">none yet</div>
-          )}
-        </div>
-      ),
-    },
-    className: "gbox",
-    sourcePosition: "bottom" as import("@xyflow/react").Position,
-    targetPosition: "top" as import("@xyflow/react").Position,
-  });
-  E("e:box:tools", "box:tools", "agent", { dashed: !tools.length });
+            ))}
+          </div>
+        ),
+      },
+      className: "gbox",
+      sourcePosition: "bottom" as import("@xyflow/react").Position,
+      targetPosition: "top" as import("@xyflow/react").Position,
+    });
+    E("e:box:tools", "box:tools", "agent");
+  }
 
   // Schedules render like Tools — a box listing each schedule with its
   // human-readable cadence. Falls back to the empty pill when none exist.
@@ -356,6 +362,18 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
   }
 
   const cats = [
+    ...(tools.length
+      ? []
+      : [
+          {
+            id: "cat:tools",
+            label: "0 Tools",
+            x: 0,
+            w: 104,
+            empty: true,
+            add: "tool" as const,
+          },
+        ]),
     ...(schedules.length
       ? []
       : [
@@ -390,12 +408,16 @@ function toGraph(info: AgentInfo | null | undefined, actions: GraphActions) {
         label: (
           <div className="pill-label pill-add">
             <span>{c.label}</span>
-            <Tip label={c.add === "schedule" ? "Add schedule" : "Add connection"}>
+            <Tip label={`Add ${c.add}`}>
               <button
                 className="pill-plus"
-                aria-label={c.add === "schedule" ? "Add schedule" : "Add connection"}
+                aria-label={`Add ${c.add}`}
                 onClick={() =>
-                  c.add === "schedule" ? actions.addSchedule() : actions.addConnection()
+                  c.add === "tool"
+                    ? actions.addTool()
+                    : c.add === "schedule"
+                      ? actions.addSchedule()
+                      : actions.addConnection()
                 }
               >
                 <Plus />
@@ -589,6 +611,7 @@ const GRAPH_ACTIONS: Omit<GraphActions, "runSchedule" | "runningSchedule"> = {
   editSchedule: (n) => oc(`Edit agent/schedules/${n}.ts: `, false),
   removeSchedule: (n) =>
     oc(`Delete the schedule agent/schedules/${n}.ts and remove any references to it.`),
+  addTool: () => oc("Add a new tool under agent/tools/ — ", false),
   addSchedule: () => oc("Add a new schedule under agent/schedules/ — ", false),
   explainConnection: (n) =>
     oc(

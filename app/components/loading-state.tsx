@@ -51,7 +51,8 @@ function useElapsed(active: boolean): string {
   // oxlint-disable-next-line react/purity, react/refs
   const total = (Date.now() - start.current) / 1000;
   if (total < 60) return `${total.toFixed(1)}s`;
-  return `${Math.floor(total / 60)}m ${(total % 60).toFixed(1)}s`;
+  // Past a minute, tenths are noise — whole seconds read cleaner.
+  return `${Math.floor(total / 60)}m ${Math.floor(total % 60)}s`;
 }
 
 // The grid alone — for inline slots (a running tool row) where a label and a
