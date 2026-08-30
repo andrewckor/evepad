@@ -101,10 +101,8 @@ export function invalidateLocalServers(): void {
   localCache.at = 0;
 }
 
-// Same idea for the remote list: agent creation just made a Vercel project
-// that a ≤15s-old snapshot can't contain — and a linked checkout whose
-// project the snapshot doesn't list is filtered as not-visible, so the
-// fresh agent's Build page opened to "No local checkout." until the TTL ran.
+// Agent creation just made a project the ≤15s snapshot can't contain, which
+// left the fresh agent's Build page on "No local checkout." until the TTL.
 export function invalidateVercelProjects(): void {
   vercelCache.at = 0;
 }

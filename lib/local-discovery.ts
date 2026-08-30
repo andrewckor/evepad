@@ -1,41 +1,26 @@
-// One-time discovery for stopped local agents.
-//
-// Live discovery remains the fast source of truth. On the first launch only,
-// walk the current user's files in the background, prune dependency/build
-// trees, and remember eve checkouts in the existing registry. The completion
-// marker makes every later launch free.
+// Background discovery of stopped local agents, fed into the registry.
+// Re-runs only for a never-scanned machine, a new login session, or a
+// SCAN_VERSION bump — ordinary version updates stay quiet.
 
 import { spawn } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { cacheDir } from "./cache-dir";
 import { remember } from "./registry";
+import { cliToken } from "./projects";
 import { discoveredAgentName, isEveAgentPackage, type PackageJson } from "./local-discovery-utils";
 
 const MARKER = join(cacheDir(), "local-discovery-v1.json");
+// Bump ONLY when the scan learns new structure and a re-scan is worth it.
+const SCAN_VERSION = 1;
 
-// The marker is per VERSION, not forever: an upgrade gets one fresh scan —
-// newer releases may discover better, and checkouts accumulate between them.
-// Markers from older releases (no appVersion field) also re-scan once.
-const appVersion = (() => {
-  try {
-    const v: unknown = JSON.parse(
-      readFileSync(join(process.cwd(), "package.json"), "utf8"),
-    ).version;
-    return typeof v === "string" ? v : "0";
-  } catch {
-    return "0";
-  }
-})();
-
-function markerAppVersion(): string | null {
-  try {
-    return (JSON.parse(readFileSync(MARKER, "utf8")).appVersion as string) ?? null;
-  } catch {
-    return null;
-  }
+// Every `vercel login` mints a fresh token — logout/login re-scans.
+function sessionFingerprint(): string | null {
+  const token = cliToken();
+  return token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
 }
 const PRUNED_DIRS = [
   "Library",
@@ -51,7 +36,6 @@ const PRUNED_DIRS = [
   "coverage",
 ];
 
-let started = false;
 let running = false;
 let foundCount: number | null = null;
 
@@ -115,7 +99,7 @@ async function inspectCandidate(root: string): Promise<boolean> {
   }
 }
 
-async function discover(root: string): Promise<void> {
+async function discover(root: string, fingerprint: string): Promise<void> {
   running = true;
   try {
     // A single `find $HOME` walks every top-level tree serially. Split those
@@ -147,20 +131,30 @@ async function discover(root: string): Promise<void> {
     foundCount = found;
     try {
       mkdirSync(dirname(MARKER), { recursive: true });
+      // Atomic: a torn write would re-scan on the next launch for nothing.
       writeFileSync(
-        MARKER,
-        JSON.stringify({ completedAt: new Date().toISOString(), root, found, appVersion }),
+        `${MARKER}.tmp`,
+        JSON.stringify({
+          completedAt: new Date().toISOString(),
+          root,
+          found,
+          scanVersion: SCAN_VERSION,
+          session: fingerprint,
+        }),
       );
+      renameSync(`${MARKER}.tmp`, MARKER);
     } catch {}
   } finally {
     running = false;
   }
 }
 
+// No started-once latch: `running` prevents overlap, the marker ends
+// re-runs, and a mid-process login change must be able to scan again.
 export function startLocalAgentDiscovery(): void {
-  if (started || !isLocalAgentDiscoveryNeeded()) return;
-  started = true;
-  void discover(process.env.HOME || homedir());
+  const fp = sessionFingerprint();
+  if (!fp || running || !isLocalAgentDiscoveryNeeded()) return;
+  void discover(process.env.HOME || homedir(), fp);
 }
 
 export function isLocalAgentDiscoveryRunning(): boolean {
@@ -172,5 +166,16 @@ export function localAgentDiscoveryFoundCount(): number | null {
 }
 
 export function isLocalAgentDiscoveryNeeded(): boolean {
-  return markerAppVersion() !== appVersion;
+  // Signed out never scans — auth gates the page anyway.
+  const fp = sessionFingerprint();
+  if (!fp) return false;
+  try {
+    const m = JSON.parse(readFileSync(MARKER, "utf8")) as {
+      scanVersion?: unknown;
+      session?: unknown;
+    };
+    return m.scanVersion !== SCAN_VERSION || m.session !== fp;
+  } catch {
+    return true; // no marker (or unreadable): a machine that never scanned
+  }
 }

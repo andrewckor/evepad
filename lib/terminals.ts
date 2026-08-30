@@ -54,9 +54,8 @@ const DEFAULT_MODEL = "zai/glm-5.2";
 
 const terms = ((globalThis as { __evepadTerms?: Map<string, Term> }).__evepadTerms ??= new Map());
 
-// Paths a create terminal actually scaffolded, consumed once by the finalize
-// POST — purging a worktree's old chat history must follow a real scaffold,
-// never a bare /api/agents call for a path that happens to exist.
+// Consumed once by the finalize POST: purging a worktree's old chat history
+// must follow a real scaffold, not any /api/agents call.
 const recentCreates = ((globalThis as { __evepadCreates?: Map<string, number> }).__evepadCreates ??=
   new Map());
 export function consumeRecentCreate(path: string): boolean {

@@ -105,14 +105,14 @@ function Home() {
   const router = useRouter();
   const q = useSearchParams();
   const [discoveryDismissed, setDiscoveryDismissed] = useState(false);
-  const { data: discoveryBootstrap, error: discoveryBootstrapError } = useSWR(
-    "/api/projects/discovery",
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateIfStale: false,
-    },
-  );
+  const {
+    data: discoveryBootstrap,
+    error: discoveryBootstrapError,
+    mutate: recheckDiscovery,
+  } = useSWR("/api/projects/discovery", fetcher, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+  });
   const {
     data: account,
     mutate: recheck,
@@ -144,7 +144,10 @@ function Home() {
   const syncAccountAndProjects = async () => {
     setSignInSyncing(true);
     try {
-      await Promise.all([recheck(), mutate()]);
+      // A new login is a new session: discovery may be required again, and a
+      // checklist dismissed under the previous login must be able to return.
+      setDiscoveryDismissed(false);
+      await Promise.all([recheck(), recheckDiscovery(), mutate()]);
     } finally {
       setSignInSyncing(false);
     }

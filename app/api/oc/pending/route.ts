@@ -44,18 +44,15 @@ export async function GET(request: Request) {
     try {
       questions = (await listQuestions(dir)).filter((q) => q.sessionID === sessionId);
     } catch {}
-    // Server truth first: the server lists pending permission asks directly,
-    // full patterns included — an ask raised during an event-bus gap never
-    // replays on the stream, but it IS here. The log parse below survives
-    // only as the fallback for a server without the endpoint.
+    // Server truth first — asks lost in event-bus gaps are still listed
+    // here. The log parse below is only the fallback.
     try {
       const live = (await listPermissions(dir)).filter((p) => p.sessionID === sessionId);
       return Response.json({ pending: live, questions });
     } catch {}
 
-    // Parts a live question already accounts for must not count toward the
-    // permission cap below — a run waiting only on a question would otherwise
-    // resurface already-answered asks from the log tail.
+    // Question-waiting parts must not inflate the permission cap below, or
+    // stale asks resurface from the log tail.
     const askedCalls = new Set(questions.map((q) => q.tool?.callID).filter(Boolean));
     const waitingPerms = waitingParts.filter(
       (p) => !(p.type === "tool" && (p.tool === "question" || askedCalls.has(p.callID))),

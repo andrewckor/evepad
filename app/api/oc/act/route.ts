@@ -129,9 +129,8 @@ export async function POST(request: Request) {
         await client.session.abort({ path, query, throwOnError: true });
         return Response.json({ ok: true });
       case "permission": {
-        // Patterns for a machine-wide "always" come from the server's own
-        // record of the ask, never from the client — and are read BEFORE the
-        // reply consumes it.
+        // Persisted patterns come from the server's own ask, never the
+        // client — read BEFORE the reply consumes it.
         let askPatterns: string[] = [];
         if (response === "always") {
           try {
@@ -146,15 +145,12 @@ export async function POST(request: Request) {
           body: { response },
           throwOnError: true,
         });
-        // "Always" should outlive this agent, not just this project: opencode
-        // records it per project; evepad also records the patterns machine-
-        // wide and feeds them into every server boot (lib/opencode.ts).
+        // Saved machine-wide so every agent inherits the answer.
         if (askPatterns.length) addPermissionAllows(askPatterns);
         return Response.json({ ok: true });
       }
       case "question":
-        // response "reject" declines; anything else replies with the answers
-        // (string[][] — one array of selected labels per question, in order).
+        // "reject" declines; anything else replies (answers: string[][]).
         await answerQuestion(dir, requestId, response === "reject" ? null : { answers });
         return Response.json({ ok: true });
       default:

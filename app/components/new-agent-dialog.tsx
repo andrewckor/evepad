@@ -5,9 +5,8 @@
 // about a minute between them, and the old version ran them inside one silent
 // POST that was indistinguishable from a hang.
 //
-// Finishing starts `eve dev` in the background (the play button's own call)
-// and hands you to the agent's Build screen — no sidebar, the graph goes
-// live once the server answers.
+// Finishing starts `eve dev` in the background and hands you to the agent's
+// Build screen — no sidebar; the graph flips live when the server answers.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -46,11 +45,8 @@ export default function NewAgentDialog({
   }, [open]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // `dir/name` already on disk. Checked while you type — the server rejects
-  // the collision anyway (lib/terminals.js), but that used to surface as a
-  // dead terminal; a hint next to the name lets you pick another before
-  // Create. Stored as the colliding path and derived below, so editing either
-  // field clears the hint without a second setState.
+  // `dir/name` collision, checked while you type. Stored as the colliding
+  // path and derived below, so editing either field clears the hint.
   const [takenPath, setTakenPath] = useState<string | null>(null);
   useEffect(() => {
     if (!open || !dir || !name || agentNameError(name)) return;
@@ -100,17 +96,15 @@ export default function NewAgentDialog({
       setError(r.error ?? "could not finish");
       return;
     }
-    // Boot the agent's dev server in the background — same call as the play
-    // button, detached, so the CLI sidebar stays closed. Not awaited: Build
-    // is usable while it comes up, and the graph flips live on its own.
+    // The play button's own call, detached and not awaited — Build is usable
+    // while the dev server comes up.
     void fetch("/api/dev", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ project: name, action: "start" }),
     }).catch(() => {});
     onOpenChange(false);
-    // Land on Build: a fresh agent has no runs to look at, but it does have
-    // instructions to write and a chat to start shaping it with.
+    // Build, not Runs: a fresh agent has nothing to look at there yet.
     router.push(`/build?project=${encodeURIComponent(name)}`);
   };
 
@@ -180,9 +174,8 @@ export default function NewAgentDialog({
                 extra={{ dir }}
                 fontSize={12}
                 className="na-term-body"
-                // A start refusal (folder already exists, bad workspace) used
-                // to strand the dialog on a dead terminal — land it back on
-                // the form with the reason, so name/folder can change.
+                // A start refusal lands back on the editable form instead of
+                // stranding the dialog on a dead terminal.
                 onStatus={(info) => {
                   if (info.error) {
                     setError(info.error);

@@ -40,13 +40,10 @@ export async function POST(request: Request) {
     );
 
   remember(name, path);
-  // The scaffold just created the Vercel project; the cached remote list
-  // predates it, and the redirect to Build resolves the project immediately.
+  // The cached remote list predates the project the scaffold just created.
   invalidateVercelProjects();
-  // Chat histories are keyed by worktree in opencode's global store, so a
-  // fresh agent at a reused path would inherit a dead agent's sessions.
-  // Gated on a real scaffold: finalizing an EXISTING checkout (a re-POST,
-  // a crash retry) must never wipe its history.
+  // A reused worktree inherits the dead agent's chats — purge them, but only
+  // after a real scaffold: re-finalizing an existing checkout must not wipe.
   if (consumeRecentCreate(path)) {
     try {
       await purgeSessions(path);

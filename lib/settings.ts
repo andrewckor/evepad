@@ -71,11 +71,8 @@ export function setWorkspace(dir: string): string {
   return dir;
 }
 
-// Bash patterns the user answered "Always" to in Build chat. Machine-level on
-// purpose: opencode remembers always-approvals per PROJECT, but in evepad the
-// user treats them as one preference across agents — so they are also stored
-// here and injected into every opencode server's boot config
-// (lib/opencode.ts). Already-running servers pick them up on their next boot.
+// Bash patterns answered "Always" — machine-level (opencode's own record is
+// per project) and injected into every server boot by lib/opencode.ts.
 export function getPermissionAllows(): string[] {
   const v = load().permissionAllows;
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x !== "") : [];
