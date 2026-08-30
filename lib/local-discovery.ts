@@ -1,41 +1,35 @@
 // One-time discovery for stopped local agents.
 //
-// Live discovery remains the fast source of truth. On the first launch only,
-// walk the current user's files in the background, prune dependency/build
-// trees, and remember eve checkouts in the existing registry. The completion
-// marker makes every later launch free.
+// Live discovery remains the fast source of truth. Discovery walks the
+// current user's files in the background, prunes dependency/build trees, and
+// remembers eve checkouts in the existing registry. The completion marker
+// makes later launches free — it re-runs only when something real changed:
+// a machine that never scanned, a different login (each `vercel login`
+// mints a new token), or a SCAN_VERSION bump because the scan itself
+// learned new structure. An ordinary version update stays quiet.
 
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { cacheDir } from "./cache-dir";
 import { remember } from "./registry";
+import { cliToken } from "./projects";
 import { discoveredAgentName, isEveAgentPackage, type PackageJson } from "./local-discovery-utils";
 
 const MARKER = join(cacheDir(), "local-discovery-v1.json");
+// Bump ONLY when the scan learns new structure (new markers to look for, new
+// fields recorded) and one machine-wide re-scan is worth the intro screen.
+// Markers written before this field existed fail the check and re-scan once.
+const SCAN_VERSION = 1;
 
-// The marker is per VERSION, not forever: an upgrade gets one fresh scan —
-// newer releases may discover better, and checkouts accumulate between them.
-// Markers from older releases (no appVersion field) also re-scan once.
-const appVersion = (() => {
-  try {
-    const v: unknown = JSON.parse(
-      readFileSync(join(process.cwd(), "package.json"), "utf8"),
-    ).version;
-    return typeof v === "string" ? v : "0";
-  } catch {
-    return "0";
-  }
-})();
-
-function markerAppVersion(): string | null {
-  try {
-    return (JSON.parse(readFileSync(MARKER, "utf8")).appVersion as string) ?? null;
-  } catch {
-    return null;
-  }
+// The session, not the person: every `vercel login` mints a fresh token, so
+// a logout/login re-runs discovery even for the same account.
+function sessionFingerprint(): string | null {
+  const token = cliToken();
+  return token ? createHash("sha256").update(token).digest("hex").slice(0, 16) : null;
 }
 const PRUNED_DIRS = [
   "Library",
@@ -51,7 +45,6 @@ const PRUNED_DIRS = [
   "coverage",
 ];
 
-let started = false;
 let running = false;
 let foundCount: number | null = null;
 
@@ -115,7 +108,7 @@ async function inspectCandidate(root: string): Promise<boolean> {
   }
 }
 
-async function discover(root: string): Promise<void> {
+async function discover(root: string, fingerprint: string): Promise<void> {
   running = true;
   try {
     // A single `find $HOME` walks every top-level tree serially. Split those
@@ -149,7 +142,13 @@ async function discover(root: string): Promise<void> {
       mkdirSync(dirname(MARKER), { recursive: true });
       writeFileSync(
         MARKER,
-        JSON.stringify({ completedAt: new Date().toISOString(), root, found, appVersion }),
+        JSON.stringify({
+          completedAt: new Date().toISOString(),
+          root,
+          found,
+          scanVersion: SCAN_VERSION,
+          session: fingerprint,
+        }),
       );
     } catch {}
   } finally {
@@ -157,10 +156,14 @@ async function discover(root: string): Promise<void> {
   }
 }
 
+// No started-once latch: `running` already prevents overlap (discover sets it
+// synchronously), and a completed scan writes the marker that makes
+// isLocalAgentDiscoveryNeeded() false — while a login change mid-process must
+// be able to start a second scan.
 export function startLocalAgentDiscovery(): void {
-  if (started || !isLocalAgentDiscoveryNeeded()) return;
-  started = true;
-  void discover(process.env.HOME || homedir());
+  const fp = sessionFingerprint();
+  if (!fp || running || !isLocalAgentDiscoveryNeeded()) return;
+  void discover(process.env.HOME || homedir(), fp);
 }
 
 export function isLocalAgentDiscoveryRunning(): boolean {
@@ -172,5 +175,17 @@ export function localAgentDiscoveryFoundCount(): number | null {
 }
 
 export function isLocalAgentDiscoveryNeeded(): boolean {
-  return markerAppVersion() !== appVersion;
+  // Signed out never scans — authentication gates the page anyway, and a
+  // scan attributed to nobody would suppress the post-login one.
+  const fp = sessionFingerprint();
+  if (!fp) return false;
+  try {
+    const m = JSON.parse(readFileSync(MARKER, "utf8")) as {
+      scanVersion?: unknown;
+      session?: unknown;
+    };
+    return m.scanVersion !== SCAN_VERSION || m.session !== fp;
+  } catch {
+    return true; // no marker (or unreadable): a machine that never scanned
+  }
 }
