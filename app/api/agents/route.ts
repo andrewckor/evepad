@@ -11,6 +11,7 @@ import { join } from "node:path";
 import { remember, forget } from "@/lib/registry";
 import { invalidateVercelProjects } from "@/lib/projects";
 import { purgeSessions } from "@/lib/opencode";
+import { consumeRecentCreate } from "@/lib/terminals";
 import { isAgentName } from "@/lib/agent-name";
 
 // Would `dir/name` collide? The dialog asks while you type, so the collision
@@ -44,9 +45,13 @@ export async function POST(request: Request) {
   invalidateVercelProjects();
   // Chat histories are keyed by worktree in opencode's global store, so a
   // fresh agent at a reused path would inherit a dead agent's sessions.
-  try {
-    await purgeSessions(path);
-  } catch {}
+  // Gated on a real scaffold: finalizing an EXISTING checkout (a re-POST,
+  // a crash retry) must never wipe its history.
+  if (consumeRecentCreate(path)) {
+    try {
+      await purgeSessions(path);
+    } catch {}
+  }
   return Response.json({ ok: true, name, path });
 }
 

@@ -109,6 +109,7 @@ function QuestionCard({
             key={o.label}
             className="oc-q-opt"
             data-on={q.multiple && picked.includes(o.label) ? "1" : "0"}
+            aria-pressed={q.multiple ? picked.includes(o.label) : undefined}
             onClick={() =>
               q.multiple
                 ? setPicked((ps) =>
@@ -969,14 +970,9 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
 
   const respond = (perm: OcPermission, response: string) => {
     answered.current.add(perm.id);
-    return act({
-      action: "permission",
-      sessionId: perm.sessionID,
-      permissionId: perm.id,
-      response,
-      // "Always" saves these machine-wide so every agent inherits the answer.
-      patterns: perm.patterns ?? [],
-    })
+    // "Always" also saves the ask's patterns machine-wide — the server looks
+    // them up itself from the pending ask.
+    return act({ action: "permission", sessionId: perm.sessionID, permissionId: perm.id, response })
       .then(() => setPerms((ps) => ps.filter((x) => x.id !== perm.id)))
       .catch(() => {
         // Log-derived ids can be stale (already answered) — drop silently.

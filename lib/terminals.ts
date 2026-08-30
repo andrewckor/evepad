@@ -54,6 +54,17 @@ const DEFAULT_MODEL = "zai/glm-5.2";
 
 const terms = ((globalThis as { __evepadTerms?: Map<string, Term> }).__evepadTerms ??= new Map());
 
+// Paths a create terminal actually scaffolded, consumed once by the finalize
+// POST — purging a worktree's old chat history must follow a real scaffold,
+// never a bare /api/agents call for a path that happens to exist.
+const recentCreates = ((globalThis as { __evepadCreates?: Map<string, number> }).__evepadCreates ??=
+  new Map());
+export function consumeRecentCreate(path: string): boolean {
+  const at = recentCreates.get(path);
+  recentCreates.delete(path);
+  return Boolean(at) && Date.now() - (at as number) < 30 * 60_000;
+}
+
 const isFree = (port: number) =>
   new Promise<boolean>((res) => {
     const s = createServer()
@@ -258,6 +269,7 @@ export async function startTerm(
     if (bad || !parent) throw new Error(bad ?? "No folder given.");
     if (existsSync(join(parent, project.name)))
       throw new Error(`${project.name} already exists in that folder`);
+    recentCreates.set(join(parent, project.name), Date.now());
 
     const model = project.model && /^[\w./-]+$/.test(project.model) ? project.model : DEFAULT_MODEL;
     const vercel = vercelCommand().join(" ");

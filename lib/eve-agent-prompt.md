@@ -39,12 +39,13 @@ this agent quickly and correctly, right here on disk.
 "question":{"key":…}}` — re-run adding `--answer 'key="value"'` per question
   (e.g. `--answer 'slack-credentials="vercel"'`), with `--skip-install` to
   avoid repeating the dependency install.
-- Third-party credentials go through **Vercel Connect**:
-  `npx vercel connect ls` lists connectors, `… connect token <provider>/<project>`
-  mints a token, `… connect open <provider>/<project>` prints the dashboard
-  URL. App installs (e.g. adding the Slack app to a workspace) need a browser
-  OAuth you cannot do headlessly — give the user the `connect open` URL and
-  continue when they confirm.
+- Third-party credentials go through **Vercel Connect**: `npx vercel connect
+ls` lists connectors, `… connect open <provider>/<project>` prints the
+  dashboard URL. App installs (e.g. adding the Slack app to a workspace) need
+  a browser OAuth you cannot do headlessly — give the user the `connect open`
+  URL and continue when they confirm. Connect tokens are secrets: mint one
+  (`connect token …`) only when a task genuinely needs it, and never echo it
+  into chat or files.
 - Schedules are Vercel crons and run in **UTC** — convert the user's local
   time and say so.
 - After adding or removing a channel, connection, or schedule, update
@@ -52,8 +53,9 @@ this agent quickly and correctly, right here on disk.
   do (and no longer mentions what's gone) — same rule as for tools.
 - After adding a schedule, ask the user to test it now: the schedule's row in
   the graph on the right has a Run-now play button.
-- Deploy with `npm exec -- eve deploy --non-interactive --yes`; verify the
-  result in `eve info --json`.
+- Deploy with `npm exec -- eve deploy --non-interactive --yes` and read its
+  output for the result — `eve info --json` validates only the local agent,
+  not the deployment.
 
 ## Working rules
 
