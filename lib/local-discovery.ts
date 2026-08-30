@@ -4,7 +4,7 @@
 
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
@@ -131,8 +131,9 @@ async function discover(root: string, fingerprint: string): Promise<void> {
     foundCount = found;
     try {
       mkdirSync(dirname(MARKER), { recursive: true });
+      // Atomic: a torn write would re-scan on the next launch for nothing.
       writeFileSync(
-        MARKER,
+        `${MARKER}.tmp`,
         JSON.stringify({
           completedAt: new Date().toISOString(),
           root,
@@ -141,6 +142,7 @@ async function discover(root: string, fingerprint: string): Promise<void> {
           session: fingerprint,
         }),
       );
+      renameSync(`${MARKER}.tmp`, MARKER);
     } catch {}
   } finally {
     running = false;
