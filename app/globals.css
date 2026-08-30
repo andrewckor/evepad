@@ -863,7 +863,10 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 @keyframes inst-save-shimmer{from{background-position:110% 0}to{background-position:-110% 0}}
 @keyframes inst-status-in{from{opacity:0;transform:translateY(1px)}to{opacity:1;transform:none}}
 @keyframes inst-status-out{to{opacity:0}}
-.inst-md{padding:32px;font-size:14.5px;line-height:1.5;overflow:auto}
+/* The preview scrolls in a ScrollFade wrapper (edge fades + thinbar), so the
+   markdown body itself no longer owns the overflow. */
+.inst-scroll{position:relative;flex:1 1 auto;min-height:0;overflow:auto}
+.inst-md{padding:32px;font-size:14.5px;line-height:1.5}
 .inst-md :where(h1){font-size:26px;line-height:1.2}
 .inst-md :where(h2){font-size:21px;line-height:1.25}
 .inst-md :where(h3){font-size:17px;line-height:1.3}
@@ -980,6 +983,21 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
   width:6px!important;border-radius:999px;background:color-mix(in srgb,var(--fg) 22%,transparent)!important;
 }
 .inst-source{position:relative;flex:1;min-height:0;overflow:hidden}
+/* Same edge fades as .scroll-fade-y, but the mask sits on the container: the
+   textarea carries the scroll state while the visible text is the highlight
+   layer behind it, and masking only one of the pair would split them. */
+.inst-source:has(.inst-ta[data-scroll="start"]){
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent 100%);
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 14px),transparent 100%);
+}
+.inst-source:has(.inst-ta[data-scroll="middle"]){
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
+}
+.inst-source:has(.inst-ta[data-scroll="end"]){
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 14px);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 14px);
+}
 .pane-loading{
   position:absolute;top:200px;left:0;right:0;display:flex;justify-content:center;color:var(--dim2);
 }
@@ -1874,6 +1892,41 @@ details.call .io-label{font-size:11px;text-transform:uppercase;letter-spacing:.0
 .oc-perm-actions .oc-deny{border-color:transparent;color:var(--dim2)}
 .oc-perm-actions .oc-deny:hover{color:var(--bad);background:transparent}
 .oc-deny{color:var(--bad)}
+/* Questions share the permission card's surface; the body is a picker, so
+   options read like menu rows — label in front, dim description behind. */
+.oc-question{gap:8px}
+.oc-q-head{display:flex;align-items:center;gap:8px}
+.oc-q-chip{
+  font-size:11px;font-weight:500;color:var(--dim);
+  border:1px solid var(--line2);border-radius:999px;padding:1px 8px;
+}
+.oc-q-step{font-size:11px;color:var(--dim2)}
+.oc-q-skip{font-size:12px;color:var(--dim2);transition:color .1s}
+.oc-q-skip:hover{color:var(--fg)}
+.oc-q-text{font-size:13px;line-height:1.5;color:var(--fg)}
+.oc-q-opts{display:flex;flex-direction:column;gap:4px}
+.oc-q-opt{
+  display:flex;align-items:baseline;gap:8px;text-align:left;
+  border:1px solid var(--line);border-radius:var(--r-sm);padding:7px 10px;
+  transition:background .1s,border-color .1s;
+}
+.oc-q-opt:hover{background:var(--hover);border-color:var(--line2)}
+.oc-q-opt[data-on="1"]{background:var(--panel2);border-color:var(--line3)}
+.oc-q-opt-label{flex:none;font-size:12.5px;font-weight:500;color:var(--fg)}
+.oc-q-opt-desc{
+  flex:1;min-width:0;font-size:12px;color:var(--dim2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+/* Vercel's dialog stacks these: the custom input runs full width on its own
+   line, the action row sits right-aligned beneath it. */
+.oc-q-foot{display:flex;flex-direction:column;gap:8px}
+.oc-q-foot .oc-perm-actions{justify-content:flex-end}
+.oc-q-input{
+  height:28px;padding:0 10px;font-size:12.5px;color:var(--fg);
+  background:transparent;border:1px solid var(--line2);border-radius:var(--r-sm);
+}
+.oc-q-input::placeholder{color:var(--dim2)}
+.oc-q-input:focus{outline:none;border-color:var(--line3)}
 .chat-composer{position:relative}
 .oc-palette{
   position:absolute;left:16px;right:16px;bottom:calc(100% + 4px);z-index:30;

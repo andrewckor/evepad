@@ -28,7 +28,14 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { ChevronDownSmall } from "vercel-geist-icons";
 import { MenuList, MenuLabel } from "./menu";
-import type { OcPart, OcMessage, OcSession, OcPermission, OcWireMessage } from "./oc-types";
+import type {
+  OcPart,
+  OcMessage,
+  OcSession,
+  OcPermission,
+  OcQuestionRequest,
+  OcWireMessage,
+} from "./oc-types";
 import type { ModelInfo } from "@/lib/opencode";
 import type { ReactNode, ReactElement } from "react";
 
@@ -51,6 +58,101 @@ const Tip = ({ label, children }: { label: ReactNode; children: ReactElement }) 
     <TooltipContent>{label}</TooltipContent>
   </Tooltip>
 );
+
+// One question request, answered in place. Multi-question requests step
+// through in order — the reply wants all answers at once (string[][]).
+function QuestionCard({
+  req,
+  onReply,
+  onReject,
+}: {
+  req: OcQuestionRequest;
+  onReply: (answers: string[][]) => void;
+  onReject: () => void;
+}) {
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState<string[][]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [custom, setCustom] = useState("");
+  const q = req.questions[idx];
+  if (!q) return null;
+  const total = req.questions.length;
+  const commit = (labels: string[]) => {
+    if (!labels.length) return;
+    const next = [...answers, labels];
+    if (idx + 1 < total) {
+      setAnswers(next);
+      setPicked([]);
+      setCustom("");
+      setIdx(idx + 1);
+    } else onReply(next);
+  };
+  const gathered = [...picked, ...(custom.trim() ? [custom.trim()] : [])];
+  return (
+    <div className="oc-perm oc-question">
+      <div className="oc-q-head">
+        {q.header && <span className="oc-q-chip">{q.header}</span>}
+        {total > 1 && (
+          <span className="oc-q-step">
+            {idx + 1}/{total}
+          </span>
+        )}
+        <span className="spacer" />
+        <button className="oc-q-skip" title="Decline to answer" onClick={onReject}>
+          Skip
+        </button>
+      </div>
+      <div className="oc-q-text">{q.question}</div>
+      <div className="oc-q-opts">
+        {q.options.map((o) => (
+          <button
+            key={o.label}
+            className="oc-q-opt"
+            data-on={q.multiple && picked.includes(o.label) ? "1" : "0"}
+            onClick={() =>
+              q.multiple
+                ? setPicked((ps) =>
+                    ps.includes(o.label) ? ps.filter((x) => x !== o.label) : [...ps, o.label],
+                  )
+                : commit([o.label])
+            }
+          >
+            <span className="oc-q-opt-label">{o.label}</span>
+            {o.description && <span className="oc-q-opt-desc">{o.description}</span>}
+          </button>
+        ))}
+      </div>
+      {/* Free text renders regardless of q.custom: models rarely set it, and
+          a picker whose options are all wrong dead-ends the run. The reply is
+          plain strings, so an off-menu answer is valid. */}
+      <div className="oc-q-foot">
+        <input
+          className="oc-q-input"
+          value={custom}
+          placeholder={q.multiple ? "Add your own…" : "Or type your own answer…"}
+          onChange={(e) => setCustom(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+            e.preventDefault();
+            if (q.multiple) commit(gathered);
+            else if (custom.trim()) commit([custom.trim()]);
+          }}
+        />
+        {/* Enter submits too, but a typed answer needs a visible button. */}
+        <div className="oc-perm-actions">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!gathered.length}
+            onClick={() => commit(gathered)}
+          >
+            {idx + 1 < total ? "Next" : "Done"}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Memoized row: parts mutate in place at token rate, so identity can't drive
 // re-renders — a rev counter bumped on every change to that message does.
@@ -151,6 +253,45 @@ const MsgRow = React.memo(
     prev.diff === next.diff,
 );
 
+// Consecutive tool-only turns render as ONE Thinking run — each tool call
+// arrives as its own assistant message, and per-message grouping alone read
+// as a stack of loose "Ran a command" rows. revKey carries the member
+// revs, so streaming updates inside any member still re-render.
+const TraceRun = React.memo(
+  function TraceRun({ msgs, live }: { msgs: OcMessage[]; revKey: string; live: boolean }) {
+    const parts = msgs.flatMap((m) =>
+      [...m.parts.values()]
+        .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+        .filter((p) => p.type === "reasoning" || p.type === "tool"),
+    );
+    const busy = live || parts.some((p) => ["pending", "running"].includes(p.state?.status ?? ""));
+    return (
+      <Message align="start">
+        <MessageContent>
+          <Thinking parts={parts} busy={busy} />
+        </MessageContent>
+      </Message>
+    );
+  },
+  (prev, next) => prev.revKey === next.revKey && prev.live === next.live,
+);
+
+// A turn that carries nothing the transcript shows except its trace.
+const traceOnly = (m: OcMessage) => {
+  if (m.info.role !== "assistant") return false;
+  const parts = [...m.parts.values()];
+  return (
+    parts.some((p) => p.type === "tool" || p.type === "reasoning") &&
+    parts.every(
+      (p) =>
+        p.type === "tool" ||
+        p.type === "reasoning" ||
+        String(p.type).startsWith("step-") ||
+        (p.type === "text" && !p.text?.trim()),
+    )
+  );
+};
+
 import { fetchJson } from "@/lib/fetch";
 
 const ago = (t: number | null | undefined) => {
@@ -229,6 +370,7 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
     if (busy) setRunKey((k) => k + 1);
   }, [busy]);
   const [perms, setPerms] = useState<OcPermission[]>([]); // pending permission asks
+  const [questions, setQuestions] = useState<OcQuestionRequest[]>([]); // pending elicitations
   // [{file, additions, deletions}] straight from git. OpenCode's session.diff
   // event fires but always carries an empty list on this server version, so
   // the counts — and the composer chip — came from nothing.
@@ -509,6 +651,18 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
           setPerms((ps) => ps.filter((x) => x.id !== p.permissionID));
           return;
         }
+        // Same replay caveat as permissions: no session filter here,
+        // filtered at render.
+        case "question.asked": {
+          if (answered.current.has(p.id)) return;
+          setQuestions((qs) => [...qs.filter((x) => x.id !== p.id), p as OcQuestionRequest]);
+          return;
+        }
+        case "question.replied":
+        case "question.rejected": {
+          setQuestions((qs) => qs.filter((x) => x.id !== p.requestID));
+          return;
+        }
       }
     }
 
@@ -520,12 +674,40 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
 
   useEffect(() => {
     if (!busy || !sessionId) return;
+    const pollPending = async () => {
+      const { pending, questions: pendingQs } = await fetchJson(
+        `/api/oc/pending?project=${encodeURIComponent(project)}&session=${sessionId}`,
+      );
+      // Keep array identity when nothing is new — this runs every 3s.
+      if (pending) {
+        setPerms((ps) => {
+          let merged = ps;
+          for (const p of pending) {
+            if (answered.current.has(p.id)) continue;
+            if (!merged.some((x) => x.id === p.id)) merged = [...merged, p];
+          }
+          return merged;
+        });
+      }
+      if (pendingQs) {
+        setQuestions((qs) => {
+          let merged = qs;
+          for (const q of pendingQs as OcQuestionRequest[]) {
+            if (answered.current.has(q.id)) continue;
+            if (!merged.some((x) => x.id === q.id)) merged = [...merged, q];
+          }
+          return merged;
+        });
+      }
+    };
     const tick = async () => {
-      // Events healthy -> nothing to do. This poll exists solely for a dead
-      // bus; running it alongside live events double-rendered the transcript
-      // and yanked the scroller every 3 seconds.
-      if (Date.now() - lastEventAt.current < 4000) return;
       try {
+        // Always while busy — an ask raised during a bus gap never replays,
+        // and the reconnected stream still looks healthy.
+        await pollPending();
+        // The transcript re-fetch stays gated on a dead bus: alongside live
+        // events it double-rendered and yanked the scroller.
+        if (Date.now() - lastEventAt.current < 4000) return;
         const { messages } = (await fetchJson(
           `/api/oc/messages?project=${encodeURIComponent(project)}&session=${sessionId}`,
         )) as { messages: OcWireMessage[] };
@@ -538,21 +720,10 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
           );
         if (!waiting && lastMsg?.parts.some((p) => p.type === "step-finish")) setBusy(false);
         if (changed) bump();
-        const { pending } = await fetchJson(
-          `/api/oc/pending?project=${encodeURIComponent(project)}&session=${sessionId}`,
-        );
-        if (pending) {
-          setPerms((ps) => {
-            const merged = [...ps];
-            for (const p of pending) {
-              if (answered.current.has(p.id)) continue;
-              if (!merged.some((x) => x.id === p.id)) merged.push(p);
-            }
-            return merged;
-          });
-        }
       } catch {}
     };
+    // Once on entry too: a reload into a waiting run must recover its asks.
+    pollPending().catch(() => {});
     const iv = setInterval(tick, 3000);
     return () => clearInterval(iv);
   }, [busy, sessionId, project]);
@@ -564,6 +735,29 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
     const bt = b.info.time?.created ?? b.info.localAt ?? 0;
     return at - bt || String(a.info.id).localeCompare(String(b.info.id));
   });
+  // Adjacent tool-only turns collapse into one trace unit (see TraceRun).
+  // Keyed by the first member, so a run that grows doesn't remount. Messages
+  // with nothing to show yet (a streaming turn before its first part) are
+  // skipped — as their own unit they steal `live` from the trace, which then
+  // collapsed and reopened on every step of a run.
+  type Unit = { key: string; run: OcMessage[] } | { key: string; msg: OcMessage };
+  const units: Unit[] = [];
+  for (const m of msgs) {
+    const visible =
+      m.info.role !== "assistant" ||
+      [...m.parts.values()].some(
+        (p) =>
+          p.type === "tool" ||
+          p.type === "reasoning" ||
+          p.type === "patch" ||
+          (p.type === "text" && p.text?.trim()),
+      );
+    if (!visible) continue;
+    const tail = units[units.length - 1];
+    if (traceOnly(m) && tail && "run" in tail) tail.run.push(m);
+    else if (traceOnly(m)) units.push({ key: String(m.info.id), run: [m] });
+    else units.push({ key: String(m.info.id), msg: m });
+  }
 
   // ---- actions
   const selModel = boot?.models.find((m) => `${m.providerID}:${m.modelID}` === modelKey);
@@ -775,12 +969,86 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
 
   const respond = (perm: OcPermission, response: string) => {
     answered.current.add(perm.id);
-    return act({ action: "permission", sessionId: perm.sessionID, permissionId: perm.id, response })
+    return act({
+      action: "permission",
+      sessionId: perm.sessionID,
+      permissionId: perm.id,
+      response,
+      // "Always" saves these machine-wide so every agent inherits the answer.
+      patterns: perm.patterns ?? [],
+    })
       .then(() => setPerms((ps) => ps.filter((x) => x.id !== perm.id)))
       .catch(() => {
         // Log-derived ids can be stale (already answered) — drop silently.
         setPerms((ps) => ps.filter((x) => x.id !== perm.id));
       });
+  };
+
+  // ?ask=question — dev override, same shape as ?firstrun/?authfail. Read
+  // from the URL, never stored, so a real ask always outranks it.
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production" || !sessionId) return;
+    if (new URLSearchParams(window.location.search).get("ask") !== "question") return;
+    setQuestions([
+      // Both card shapes: single-question and multi-question stepping.
+      {
+        id: "dev-question-single",
+        sessionID: sessionId,
+        questions: [
+          {
+            question: "How do you want to configure Slack credentials?",
+            header: "Slack setup",
+            options: [
+              {
+                label: "Vercel Connect",
+                description: "OAuth via the platform — no tokens to manage",
+              },
+              { label: "Bot token", description: "Paste an xoxb- token into the environment" },
+              { label: "Skip for now", description: "Wire credentials up later" },
+            ],
+            custom: true,
+          },
+        ],
+      },
+      {
+        id: "dev-question-multi",
+        sessionID: sessionId,
+        questions: [
+          {
+            question: "Which events should the agent receive?",
+            header: "Events",
+            options: [
+              { label: "Mentions", description: "Only when the bot is @-mentioned" },
+              { label: "DMs", description: "Direct messages to the bot" },
+              { label: "All channel messages", description: "Every message in joined channels" },
+            ],
+            multiple: true,
+          },
+          {
+            question: "Should the agent reply in threads?",
+            header: "Threading",
+            options: [
+              { label: "Threads", description: "Keep channels tidy" },
+              { label: "Channel", description: "Reply at the top level" },
+            ],
+          },
+        ],
+      },
+    ]);
+  }, [sessionId]);
+
+  // answers: string[][] — selected labels per question, in order. null rejects.
+  const answerQuestion = (req: OcQuestionRequest, answers: string[][] | null) => {
+    answered.current.add(req.id);
+    const drop = () => setQuestions((qs) => qs.filter((x) => x.id !== req.id));
+    return act({
+      action: "question",
+      requestId: req.id,
+      response: answers ? "reply" : "reject",
+      answers: answers ?? undefined,
+    })
+      .then(drop)
+      .catch(drop); // stale ids (answered elsewhere) drop silently, like perms
   };
 
   // ---- palette: /cmd filters commands; "/models q", "/agents q",
@@ -955,6 +1223,10 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
   const booting = !boot;
   const sessions = boot?.sessions ?? [];
   const visiblePerms = perms.filter((perm) => perm.sessionID === sessionId);
+  const visibleQuestions = questions.filter((q) => q.sessionID === sessionId);
+  // While an ask is on screen the "Working" pulse yields — the agent isn't
+  // working, it's waiting on you.
+  const waitingOnUser = visiblePerms.length > 0 || visibleQuestions.length > 0;
 
   return (
     <>
@@ -1047,17 +1319,25 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
                     </div>
                   </div>
                 )}
-                {msgs.map((m, i) => (
-                  <MessageScrollerItem key={m.info.id} messageId={String(m.info.id)}>
-                    {/* only the trailing message can still be streaming — a
+                {units.map((u, i) => (
+                  <MessageScrollerItem key={u.key} messageId={u.key}>
+                    {/* only the trailing unit can still be streaming — a
                         blanket `busy` would set every trace shimmering. */}
-                    <MsgRow
-                      m={m}
-                      rev={m.rev ?? 0}
-                      live={busy && i === msgs.length - 1}
-                      project={project}
-                      diff={diff}
-                    />
+                    {"run" in u ? (
+                      <TraceRun
+                        msgs={u.run}
+                        revKey={u.run.map((m) => `${m.info.id}:${m.rev ?? 0}`).join(",")}
+                        live={busy && i === units.length - 1}
+                      />
+                    ) : (
+                      <MsgRow
+                        m={u.msg}
+                        rev={u.msg.rev ?? 0}
+                        live={busy && i === units.length - 1}
+                        project={project}
+                        diff={diff}
+                      />
+                    )}
                   </MessageScrollerItem>
                 ))}
                 {error && boot && (
@@ -1074,12 +1354,8 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
           </MessageScroller>
         </MessageScrollerProvider>
 
-        <div
-          className={"oc-status" + (booting || (busy && !visiblePerms.length) ? " working" : "")}
-        >
-          <span
-            className={"oc-status-inner" + (booting || (busy && !visiblePerms.length) ? " on" : "")}
-          >
+        <div className={"oc-status" + (booting || (busy && !waitingOnUser) ? " working" : "")}>
+          <span className={"oc-status-inner" + (booting || (busy && !waitingOnUser) ? " on" : "")}>
             {/* Connecting borrows the thinking indicator's slot — the place
               this panel already says what it is doing. Keyed on the run so
               the timer starts with the work, not with the page. */}
@@ -1128,8 +1404,16 @@ export default function OcChat({ project, onIdle }: { project: string; onIdle?: 
             is blocked until you answer, so it belongs next to the input you
             are already looking at — not parked at the bottom of a transcript
             you may have scrolled away from. */}
-        {visiblePerms.length > 0 && (
+        {waitingOnUser && (
           <div className="oc-perm-dock">
+            {visibleQuestions.map((req) => (
+              <QuestionCard
+                key={req.id}
+                req={req}
+                onReply={(answers) => answerQuestion(req, answers)}
+                onReject={() => answerQuestion(req, null)}
+              />
+            ))}
             {visiblePerms.map((perm) => (
               <div className="oc-perm" key={perm.id}>
                 <div className="oc-perm-title mono">

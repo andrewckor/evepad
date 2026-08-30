@@ -18,6 +18,7 @@ import { promisify } from "node:util";
 import { Readable } from "node:stream";
 import { createOpencodeServer, createOpencodeClient } from "@opencode-ai/sdk";
 import { vercelCommand } from "./vercel-cli";
+import { getPermissionAllows } from "./settings";
 import type { Project } from "./types";
 
 export type OcClient = ReturnType<typeof createOpencodeClient>;
@@ -35,6 +36,7 @@ export type EventHub = {
   pending: Map<string, OcEvent>;
   state: string;
   events: number;
+  lastEventAt: number;
   types: Record<string, number>;
   resubscribe?: () => Promise<unknown>;
   onLive?: ((value?: unknown) => void) | null;
@@ -52,7 +54,7 @@ type OcGlobal = {
 
 const exec = promisify(execFile);
 const DEFAULT_PROVIDER = "vercel";
-const DEFAULT_MODEL = "zai/glm-5.2";
+const DEFAULT_MODEL = "anthropic/claude-sonnet-5";
 
 const g = ((globalThis as { __evepadOpencode?: Partial<OcGlobal> }).__evepadOpencode ??=
   {}) as OcGlobal;
@@ -254,7 +256,16 @@ async function bootServer(_dir: string, oidc: string): Promise<ReadyEntry> {
       model: `${DEFAULT_PROVIDER}/${DEFAULT_MODEL}`,
       // Master prompt: what an eve agent is, its file anatomy, working rules.
       instructions: [join(process.cwd(), "lib", "eve-agent-prompt.md")],
-      permission: { edit: "allow", bash: "ask", webfetch: "allow", external_directory: "deny" },
+      permission: {
+        edit: "allow",
+        // Machine-wide "Always" allows. Last-match-wins: "*" must stay first.
+        bash: {
+          "*": "ask" as const,
+          ...Object.fromEntries(getPermissionAllows().map((p) => [p, "allow" as const])),
+        },
+        webfetch: "allow",
+        external_directory: "deny",
+      },
       // Vercel AI Gateway as a real provider: opencode loads @ai-sdk/gateway,
       // which auto-authenticates from VERCEL_OIDC_TOKEN in the server env.
       provider: {
@@ -262,6 +273,7 @@ async function bootServer(_dir: string, oidc: string): Promise<ReadyEntry> {
           npm: "@ai-sdk/gateway",
           name: "Vercel AI Gateway",
           models: {
+            "anthropic/claude-sonnet-5": { name: "Claude Sonnet 5" },
             "zai/glm-5.2": { name: "GLM 5.2" },
             "zai/glm-5.2-fast": { name: "GLM 5.2 Fast" },
           },
@@ -278,7 +290,11 @@ async function ensureServer(dir: string, oidc: string): Promise<ReadyEntry> {
     await entry.booting;
     return g.servers.get(dir) as ReadyEntry;
   }
-  if (entry?.server && entry.bootToken === oidc) {
+  // A rotated token means reboot (the token bakes in at spawn) — but never
+  // over a live run, which the reboot would orphan. Recent bus traffic
+  // defers the swap until the run quiets.
+  const hubBusy = (g.hubs.get(dir)?.lastEventAt ?? 0) > Date.now() - 30_000;
+  if (entry?.server && (entry.bootToken === oidc || hubBusy)) {
     // Handles survive hot reloads on globalThis but the process behind them
     // may be gone — verify liveness before trusting the cached server. A
     // probe every call is a wasted round-trip on hot paths, so one sighting
@@ -349,6 +365,77 @@ export async function opencodeServerUrl(dir: string): Promise<string> {
   return (g.servers.get(dir) as ReadyEntry).server.url;
 }
 
+// Question (elicitation) endpoints. The pinned v1 client predates them, but
+// the server serves them — raw fetch against its URL until the SDK catches up.
+export type OcQuestionRequest = {
+  id: string;
+  sessionID: string;
+  questions: Array<{
+    question: string;
+    header: string;
+    options: Array<{ label: string; description: string }>;
+    multiple?: boolean;
+    custom?: boolean;
+  }>;
+  tool?: { messageID: string; callID: string };
+};
+
+// Wipe every session opencode holds for a checkout path. Histories are keyed
+// by worktree, so a NEW agent scaffolded where an old one lived would
+// inherit the dead agent's chats.
+export async function purgeSessions(dir: string): Promise<number> {
+  const { client } = await ocClient(dir);
+  const query = { directory: dir };
+  const res = await client.session.list({ query, throwOnError: true });
+  let n = 0;
+  for (const s of res.data ?? []) {
+    try {
+      await client.session.delete({ path: { id: s.id }, query, throwOnError: true });
+      n++;
+    } catch {}
+  }
+  return n;
+}
+
+// Pending permission asks from the server — unlike the event stream, this
+// list survives bus gaps.
+export async function listPermissions(dir: string): Promise<Array<Record<string, unknown>>> {
+  const base = await opencodeServerUrl(dir);
+  const res = await fetch(`${base}/permission?directory=${encodeURIComponent(dir)}`, {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`permission list failed: ${res.status}`);
+  return (await res.json()) as Array<Record<string, unknown>>;
+}
+
+export async function listQuestions(dir: string): Promise<OcQuestionRequest[]> {
+  const base = await opencodeServerUrl(dir);
+  const res = await fetch(`${base}/question?directory=${encodeURIComponent(dir)}`, {
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`question list failed: ${res.status}`);
+  return (await res.json()) as OcQuestionRequest[];
+}
+
+export async function answerQuestion(
+  dir: string,
+  requestID: string,
+  reply: { answers: string[][] } | null, // null = reject
+): Promise<void> {
+  const base = await opencodeServerUrl(dir);
+  const verb = reply ? "reply" : "reject";
+  const res = await fetch(
+    `${base}/question/${encodeURIComponent(requestID)}/${verb}?directory=${encodeURIComponent(dir)}`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: reply ? JSON.stringify(reply) : undefined,
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+  if (!res.ok) throw new Error(`question ${verb} failed: ${res.status}`);
+}
+
 // Every model this project's server can route to, for the model picker.
 export type ModelInfo = {
   providerID: string;
@@ -395,7 +482,7 @@ export const DEFAULTS = { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
 // One persistent event pump per directory, shared by every browser connection.
 // Tracks pending permission asks (they don't replay) and rebroadcasts events
 // to all subscribers; new connections get still-pending asks replayed.
-const HUB_VERSION = 6; // bump when hub shape/logic changes — old hubs on
+const HUB_VERSION = 8; // bump when hub shape/logic changes — old hubs on
 // globalThis survive hot reloads and must retire
 export async function eventHub(dir: string): Promise<EventHub> {
   let hub = g.hubs.get(dir);
@@ -406,6 +493,7 @@ export async function eventHub(dir: string): Promise<EventHub> {
     pending: new Map(),
     state: "boot",
     events: 0,
+    lastEventAt: 0,
     types: {},
   };
   hub = fresh;
@@ -441,10 +529,16 @@ export async function eventHub(dir: string): Promise<EventHub> {
         for await (const raw of sub.stream) {
           const ev = raw as OcEvent;
           fresh.events++;
+          fresh.lastEventAt = Date.now();
           fresh.types[ev.type] = (fresh.types[ev.type] ?? 0) + 1;
           const p = ev.properties ?? {};
-          if (ev.type === "permission.asked") fresh.pending.set(p.id, ev);
+          // Questions (elicitations) behave like permission asks: they don't
+          // replay on reconnect, so the hub keeps the unanswered ones.
+          if (ev.type === "permission.asked" || ev.type === "question.asked")
+            fresh.pending.set(p.id, ev);
           else if (ev.type === "permission.replied") fresh.pending.delete(p.permissionID);
+          else if (ev.type === "question.replied" || ev.type === "question.rejected")
+            fresh.pending.delete(p.requestID);
           else if (ev.type === "session.idle" || ev.type === "session.error") {
             for (const [id, pe] of fresh.pending) {
               if (pe.properties?.sessionID === p.sessionID) fresh.pending.delete(id);

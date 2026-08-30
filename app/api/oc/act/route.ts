@@ -3,7 +3,8 @@
 // the event stream, errors as session.error events.
 
 import { resolveProject } from "@/lib/projects";
-import { ocClient, eventHub, DEFAULTS } from "@/lib/opencode";
+import { ocClient, eventHub, answerQuestion, DEFAULTS } from "@/lib/opencode";
+import { addPermissionAllows } from "@/lib/settings";
 import { errMsg } from "@/lib/utils";
 
 export async function POST(request: Request) {
@@ -19,6 +20,9 @@ export async function POST(request: Request) {
     agent,
     permissionId,
     response,
+    patterns,
+    requestId,
+    answers,
   } = await request.json();
   const project = await resolveProject(name);
   if (!project?.localPath) return Response.json({ error: "No local checkout." }, { status: 409 });
@@ -132,6 +136,16 @@ export async function POST(request: Request) {
           body: { response },
           throwOnError: true,
         });
+        // "Always" should outlive this agent, not just this project: opencode
+        // records it per project; evepad also records the patterns machine-
+        // wide and feeds them into every server boot (lib/opencode.ts).
+        if (response === "always" && Array.isArray(patterns) && patterns.length)
+          addPermissionAllows(patterns);
+        return Response.json({ ok: true });
+      case "question":
+        // response "reject" declines; anything else replies with the answers
+        // (string[][] — one array of selected labels per question, in order).
+        await answerQuestion(dir, requestId, response === "reject" ? null : { answers });
         return Response.json({ ok: true });
       default:
         return Response.json({ error: `unknown action ${action}` }, { status: 400 });

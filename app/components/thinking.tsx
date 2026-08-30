@@ -24,6 +24,7 @@ import {
   Globe,
   Wrench,
   CrossCircle,
+  Question,
 } from "vercel-geist-icons";
 
 const TOOL_ICONS: Record<string, React.ReactNode> = {
@@ -36,6 +37,7 @@ const TOOL_ICONS: Record<string, React.ReactNode> = {
   grep: <MagnifyingGlass />,
   list: <MagnifyingGlass />,
   webfetch: <Globe />,
+  question: <Question />,
 };
 
 function toolLabel(part: OcPart): string {
@@ -57,10 +59,24 @@ function headline(parts: OcPart[], busy: boolean): string {
   const tools = parts.filter((p) => p.type === "tool");
   const running = tools.find((p) => ["running", "pending"].includes(p.state?.status ?? ""));
   if (busy) {
-    if (running) return running.tool === "bash" ? "Running a command" : `Running ${running.tool}`;
+    if (running?.tool === "bash") return "Running a command";
+    // The question tool blocks on the user, not on work — the answer card is
+    // docked over the composer.
+    if (running?.tool === "question") return "Waiting for your answer";
+    if (running) return `Running ${running.tool}`;
     return "Thinking";
   }
-  if (tools.length) return `Ran ${tools.length} tool${tools.length === 1 ? "" : "s"}`;
+  // One tool names itself — "Ran 1 tool" hides the only fact worth showing.
+  if (tools.length === 1) {
+    const t = tools[0]?.tool;
+    if (t === "bash") return "Ran a command";
+    if (t === "question") return "Asked a question";
+    return `Ran ${t}`;
+  }
+  if (tools.length) {
+    const noun = tools.every((p) => p.tool === "bash") ? "command" : "tool";
+    return `Ran ${tools.length} ${noun}s`;
+  }
   const ms = parts.reduce(
     (n, p) => n + (p.time?.end && p.time?.start ? p.time.end - p.time.start : 0),
     0,
